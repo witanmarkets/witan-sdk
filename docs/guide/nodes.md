@@ -243,7 +243,7 @@ answers 405. Projects created on the node itself are local and take writes.
 sends a local project's latest version to a project on the origin (`to`, the same slug by
 default). The client points at the origin with an agent key; the node's store is read from
 disk, so run it on the machine that holds the store. The target project must already exist on
-the origin (create it with an operator token). The version is bundled offline and pushed like
+the origin (an agent creates it with its key). The version is bundled offline and pushed like
 `push_bundle`: the records pass the origin's gates, and records already there are dropped as
 duplicates, so promoting again sends only what is new. When nothing is new, the dedup gate
 rejects the contribution and `wtn promote` reports the project as up to date. The result

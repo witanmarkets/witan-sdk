@@ -361,12 +361,86 @@ def x402_flow() -> str:
                b, "The x402 purchase: a GET answered 402 with a price, retried with a signed USDC transfer, answered 200")
 
 
+# ---- blog figures: narrow (480 wide) so they stay readable in a phone's column ----
+def step(n: int, y: float, title: str, sub: str, *, accent: bool = False) -> str:
+    """One numbered step of a vertical sequence: a number on the left, a glass row with two lines."""
+    ring = (f'<circle cx="38" cy="{y + 25}" r="13" fill="{BG}" stroke="{VIOLET if accent else INK}" '
+            f'stroke-opacity="{1 if accent else .3}" stroke-width="1.5"/>')
+    return "\n".join([ring, text(38, y + 30, str(n), 13, INK, 700, "middle"),
+                      panel(64, y, 384, 50, accent=accent, rx=12),
+                      text(80, y + 21, title, 14.5, INK, 600), text(80, y + 39, sub, 13, SOFT)])
+
+
+def oauth_signin() -> str:
+    """The MCP sign-in, as the post tells it (api/src/oauth-web.ts): a 401, metadata, the client, consent, code, token."""
+    rows = [("Claude or ChatGPT gets a 401", "WWW-Authenticate points at the metadata", False),
+            ("It reads WITAN's metadata", "protected resource, then authorization server", False),
+            ("It says who it is", "a client_id URL to its document, or registers", False),
+            ("The operator signs in and allows", "a code by mail; consent picks the agent", True),
+            ("WITAN redirects back with a code", "to a redirect URI the client declared", False),
+            ("The app trades the code for tokens", "PKCE verifier; ChatGPT adds a signed JWT", False),
+            ("MCP calls run as that agent", "Bearer wta_… for an hour, then refresh", True)]
+    b = []
+    for i, (title, sub, accent) in enumerate(rows):
+        y = 100 + 62 * i
+        b.append(step(i + 1, y, title, sub, accent=accent))
+        if i:
+            b.append(arrow(38, y - 23, 38, y + 10))
+    return svg(480, 540, "Signing in to the MCP server",
+               "From the first 401 to a token that acts as one agent.",
+               b, "The MCP sign-in: a 401, the metadata, the client's identity, the operator's consent, a code, "
+                  "a PKCE token exchange, and MCP calls as the chosen agent")
+
+
+def chip(x: float, y: float, w: float, label: str, color: str, *, refused: bool = False) -> str:
+    """A scope as a pill; a scope that cannot be granted is a dashed outline."""
+    if refused:
+        rect = (f'<rect x="{x}" y="{y}" width="{w}" height="26" rx="13" fill="none" stroke="{DIM}" '
+                f'stroke-width="1.2" stroke-dasharray="4 3"/>')
+        return rect + text(x + w / 2, y + 17.5, label, 12.5, DIM, 600, "middle")
+    rect = (f'<rect x="{x}" y="{y}" width="{w}" height="26" rx="13" fill="{color}" fill-opacity=".16" '
+            f'stroke="{color}" stroke-width="1.2"/>')
+    return rect + text(x + w / 2, y + 17.5, label, 12.5, INK, 600, "middle")
+
+
+def oauth_grant() -> str:
+    """What one consent decides (api/src/oauth.ts): the app, the agent, the scopes per endpoint, the record, the revoke."""
+    b = [box(32, 100, 416, 52, ["Claude or ChatGPT", "the app the operator allowed"]),
+         arrow(240, 152, 240, 178), text(252, 170, "acts as", 12.5, DIM),
+         panel(32, 180, 416, 70, accent=True, rx=12),
+         text(48, 205, "One of the operator's agents", 14.5, INK, 600),
+         text(48, 224, "an existing one, or a new one named after the app", 13, SOFT),
+         text(48, 242, "one connection is one agent", 13, SOFT),
+         arrow(240, 250, 240, 276), text(252, 268, "with scopes, per endpoint", 12.5, DIM)]
+    for x, path, chips, note in ((32, "/mcp", [("read", VIOLET, False), ("write", VIOLET, False), ("spend", AMBER, False)],
+                                  "every tool"),
+                                 (248, "/mcp/directory", [("read", VIOLET, False), ("write", VIOLET, False), ("no spend", DIM, True)],
+                                  "nothing that moves money")):
+        b.append(panel(x, 278, 200, 100, rx=12))
+        b.append(text(x + 16, 302, path, 14, INK, 500, mono=True))
+        cx = x + 16
+        for label, color, refused in chips:
+            w = {"read": 46, "write": 50, "spend": 56}.get(label, 66)
+            b.append(chip(cx, 314, w, label, color, refused=refused))
+            cx += w + 5
+        b.append(text(x + 16, 362, note, 13, SOFT))
+    b += [arrow(240, 378, 240, 404),
+          box(32, 406, 416, 52, ["Recorded under the agent's name", "what it reads, submits and earns; its quotas"]),
+          arrow(240, 458, 240, 484),
+          box(32, 486, 416, 52, ["Revoked in the console", "Connected apps; it stops within 30 seconds"])]
+    return svg(480, 556, "What the consent decides",
+               "One app, one agent, the scopes its endpoint allows.",
+               b, "The OAuth grant: the app acts as one of the operator's agents with read, write and, on /mcp only, "
+                  "spend; everything is recorded under the agent's name and can be revoked in the console")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
                      ("overview", overview), ("dataset-model", dataset_model),
                      ("trust-chain", trust_chain), ("node-topology", node_topology),
-                     ("x402-flow", x402_flow)]:
+                     ("x402-flow", x402_flow), ("oauth-signin", oauth_signin),
+                     ("oauth-grant", oauth_grant)]:
         svg = fn()
         (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
         OUT_API.mkdir(parents=True, exist_ok=True)

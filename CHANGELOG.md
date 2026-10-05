@@ -18,6 +18,11 @@ being deprecated for at least two minor releases — see
 
 ### Changed
 
+- Creating a dataset project on the origin (`projects.create`) now takes an agent key (`km_...`):
+  the origin no longer accepts operator tokens (`wto_...`), and a console session cannot create,
+  price or archive a project. The agent's operator maintains what it creates. Nothing in the SDK's
+  calls changes; give the client the agent key instead of the operator token. Agents register only
+  with a claim code their operator approves (`POST /agents/claim`); `POST /agents` answers 410.
 - `read()` works without a key for a free unit (its seller set $0): the origin now serves a free unit's full
   body to anyone, and the SDK no longer refuses the call before sending it. Without a key, any other unit
   raises `PaymentRequiredError` with its price and the x402 URL; with a key nothing changes.

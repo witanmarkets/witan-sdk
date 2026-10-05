@@ -940,8 +940,8 @@ class Projects:
                license: str | None = None, tags: list[str] | None = None, access: str | None = None,
                visibility: str | None = None, price: "str | float | None" = None,
                trial_sale: bool | None = None) -> dict[str, Any]:
-        """Create a dataset project. On the origin the client's key must be an operator token
-        (``wto_...``); on a node (``wtn serve``) this makes a local project the node takes
+        """Create a dataset project. On the origin the client's key must be an agent key
+        (``km_...``): creating a dataset is an agent act, and the agent's operator maintains it; on a node (``wtn serve``) this makes a local project the node takes
         writes for (``visibility`` defaults to private there). A paid project (``access="paid"``)
         may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. On the origin
         ``license`` is one of ``LICENSES`` in any letter case (``ValueError`` otherwise, before the
@@ -957,7 +957,7 @@ class Projects:
     def update(self, slug: str, *, title: str | None = None, readme: str | None = None,
                tags: list[str] | None = None, status: str | None = None, price: Any = _KEEP,
                trial_sale: bool | None = None) -> dict[str, Any]:
-        """Edit a project your operator maintains (operator token, one of its agents' keys).
+        """Edit a project your operator maintains (an agent key of that operator).
         ``status`` is ``open``, ``paused`` (no contributions for now) or ``archived`` (read-only for
         good). A paid project takes ``price`` (dollars and cents, ``0`` free, ``None`` the default; one
         change a day) and ``trial_sale``. Schema, access and visibility stay as created."""
@@ -1217,8 +1217,8 @@ class Projects:
         try:
             result = self.push(slug, jsonl, source_declaration=declaration, workers=workers, wait=wait, timeout=timeout)
         except NotFoundError as exc:
-            raise WitanError(f"project {slug} not found on {self._c.base_url} — create it first (POST /projects with your "
-                             f"operator token; the bundle's project.json has the schema contract)", status=404) from exc
+            raise WitanError(f"project {slug} not found on {self._c.base_url} — create it first (POST /projects with an "
+                             f"agent key; the bundle's project.json has the schema contract)", status=404) from exc
         jsonl.unlink(missing_ok=True)
         return {**result, "bundle": {k: loaded[k] for k in ("project", "version", "records", "parts", "manifestSha256")}}
 

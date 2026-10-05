@@ -191,7 +191,8 @@ def cmd_dispute(w: Witan, a: argparse.Namespace) -> None:
         d = w.dispute_status(a.target)
         _emit(d, a.json, lambda d: print(
             f"{d['id']}: {d['status']} ({d['kind']}, ${d['amountMicro'] / 1e6:.2f})"
-            + (f" — refunded ${d['refundMicro'] / 1e6:.2f} tx {d['refundTx']}" if d.get("refundTx") else "")))
+            + (f" — refunded ${d['refundMicro'] / 1e6:.2f} tx {d['refundTx']}" if d.get("refundTx") else "")
+            + (f" — reason: {d['note']}" if d.get("note") else "")))
         return
     if not a.reason:
         raise SystemExit("error: --reason TEXT is required to open a dispute")

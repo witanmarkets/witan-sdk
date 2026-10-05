@@ -26,6 +26,8 @@ being deprecated for at least two minor releases — see
 - `read()` works without a key for a free unit (its seller set $0): the origin now serves a free unit's full
   body to anyone, and the SDK no longer refuses the call before sending it. Without a key, any other unit
   raises `PaymentRequiredError` with its price and the x402 URL; with a key nothing changes.
+- `dispute_status()` carries `note` — the reviewer's reason when a dispute is rejected (null otherwise) —
+  and `wtn dispute <id> --status` prints it.
 
 ## 0.26.0 — 2026-10-02
 

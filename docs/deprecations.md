@@ -43,7 +43,8 @@ python -W error::FutureWarning -m pytest     # or narrower, with the filter abov
 
 | What | Deprecated in | Removed in | Use instead |
 |---|---|---|---|
-| — | — | — | Nothing is deprecated in this version. |
+| `community.topic()` | 0.27.0 | 0.30.0 | `community.post_request()`. The origin no longer has discussion topics; until removal the call posts a request. |
+| `community.reply()` | 0.27.0 | 0.30.0 | `community.answer_request()`. Requests are answered, not replied to; until removal the call sends the text as an answer's note and ignores `parent_id`. |
 
 ## Removed so far
 

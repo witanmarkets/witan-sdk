@@ -21,6 +21,7 @@ from witan_sdk import (
 )
 
 UNIT = "5e5fc8dd-af67-4f34-839b-b366ef05d43d"
+REQ = "3c9f6a2e-8d41-4b7a-a0c5-6e2f1d9b8a70"   # a request on the Requests board
 FREE_UNIT = "7a1d0c3e-2b4f-4c8a-9e6d-1f2a3b4c5d6e"   # its seller set $0: the origin serves it with no key
 PART_A = b"PAR1" + b"a" * 120 + b"PAR1"
 PART_B = b"PAR1" + b"b" * 64 + b"PAR1"
@@ -192,10 +193,32 @@ class Fake:
         if path == "/projects/agent-api-observatory/contributions/c-1":
             return need_key() or httpx.Response(200, json={"id": "c-1", "status": "merged", "recordCount": 2,
                                                             "acceptedCount": 2, "mergedVersion": 111})
-        if path == "/community/topics":
-            return need_key() or httpx.Response(201, json={"id": "t-1", "createdAt": "2026-09-21T00:00:00Z"})
-        if path == "/community/t/t-1/comments" and request.method == "POST":
-            return need_key() or httpx.Response(201, json={"id": "40", "createdAt": "2026-09-21T00:00:00Z"})
+        if path == "/community/requests" and request.method == "GET":
+            assert "authorization" not in request.headers or auth.startswith("Bearer km_")
+            return httpx.Response(200, json={"total": 1, "page": 1, "per": 20, "pages": 1, "counts": {"all": 1},
+                                             "requests": [{"id": REQ, "title": "p95 at 16KB", "status": "open",
+                                                           "kind": "knowledge", "q": request.url.params.get("q")}]})
+        if path == "/community/requests" and request.method == "POST":
+            return need_key() or httpx.Response(201, json={"id": REQ, "status": "open", "createdAt": "2026-10-06T00:00:00Z",
+                                                            "url": f"https://witan.markets/community/t/{REQ}",
+                                                            "sent": json.loads(request.content)})
+        if path == f"/community/requests/{REQ}":
+            return httpx.Response(200, json={"id": REQ, "status": "answered", "answers": [{"id": 40, "chosen": False}],
+                                             "fulfilledBy": None})
+        if path == f"/community/requests/{REQ}/answers":
+            return need_key() or httpx.Response(201, json={"id": 40, "createdAt": "2026-10-06T00:00:00Z", "request": REQ,
+                                                            "sent": json.loads(request.content)})
+        if path == f"/community/requests/{REQ}/choose":
+            body = json.loads(request.content)
+            return need_key() or httpx.Response(200, json={"status": "fulfilled", "answerId": body["answerId"],
+                                                            "boughtByRequester": False})
+        if path == f"/community/requests/{REQ}/close":
+            return need_key() or httpx.Response(200, json={"status": "closed"})
+        if path == f"/community/t/{REQ}/comments" and request.method == "GET":
+            return httpx.Response(200, json={"count": 1, "comments": [{"id": 40, "body": "see unit"}]})
+        if path == f"/knowledge/{UNIT}/revise":
+            return need_key() or httpx.Response(201, json={"id": "u-2", "version": 2, "status": "submitted",
+                                                            "sent": json.loads(request.content)})
         return httpx.Response(404, json={"error": f"unmapped {request.method} {path}"})
 
 
@@ -498,10 +521,57 @@ def test_pull_falls_back_to_jsonl_when_not_materialized(w: Witan, tmp_path) -> N
     assert m["format"] == "jsonl" and (tmp_path / "legacy" / "v110" / "records.jsonl").exists()
 
 
-def test_community(w: Witan) -> None:
-    t = w.community.topic("Payload sweep beyond 8KB?", "anyone?", category="q-and-a")
-    assert t["id"] == "t-1"
-    assert w.community.reply("t-1", "not yet")["id"] == "40"
+def test_requests_read_without_key(anon: Witan, fake: Fake) -> None:
+    page = anon.community.list_requests(status="open", kind="knowledge", q="p95 16KB", per=5)
+    assert page["requests"][0]["id"] == REQ
+    sent = fake.calls[-1]
+    assert "authorization" not in sent.headers
+    assert dict(sent.url.params) == {"status": "open", "kind": "knowledge", "q": "p95 16KB", "per": "5"}
+    assert anon.community.get_request(REQ)["answers"][0]["id"] == 40
+    assert anon.community.replies(REQ)[0]["body"] == "see unit"
+
+
+def test_requests_write_needs_key(anon: Witan, fake: Fake) -> None:
+    n = len(fake.calls)
+    for call in (lambda: anon.community.post_request("p95 at 16KB", "measured p95 latency at 16KB payloads"),
+                 lambda: anon.community.answer_request(REQ, unit_id=UNIT),
+                 lambda: anon.community.choose_answer(REQ, 40),
+                 lambda: anon.community.close_request(REQ)):
+        with pytest.raises(AuthError):
+            call()
+    assert len(fake.calls) == n   # refused before sending
+
+
+def test_requests_write(w: Witan, fake: Fake) -> None:
+    r = w.community.post_request("p95 at 16KB", "measured p95 latency at 16KB payloads", kind="dataset",
+                                 category="infra-measurement", budget="5", deadline="2026-11-01T00:00:00Z",
+                                 fields=[{"name": "p95_ms", "type": "number"}])
+    assert r["id"] == REQ and r["sent"] == {"title": "p95 at 16KB", "body": "measured p95 latency at 16KB payloads",
+                                            "kind": "dataset", "category": "infra-measurement", "budget": "5",
+                                            "deadline": "2026-11-01T00:00:00Z", "fields": [{"name": "p95_ms", "type": "number"}]}
+    assert w.community.post_request("tttt", "only what is required")["sent"] == {"title": "tttt", "body": "only what is required"}
+    a = w.community.answer_request(REQ, dataset="agent-api-observatory", version=3, note="v3 has it")
+    assert a["sent"] == {"dataset": "agent-api-observatory", "version": 3, "note": "v3 has it"}
+    assert w.community.choose_answer(REQ, 40) == {"status": "fulfilled", "answerId": 40, "boughtByRequester": False}
+    assert w.community.close_request(REQ) == {"status": "closed"}
+    assert fake.calls[-1].method == "POST" and json.loads(fake.calls[-1].content) == {}
+
+
+def test_community_topic_and_reply_are_deprecated(w: Witan) -> None:
+    from witan_sdk import WitanDeprecationWarning
+    with pytest.warns(WitanDeprecationWarning, match="post_request"):
+        t = w.community.topic("Payload sweep beyond 8KB?", "anyone measured it?", category="q-and-a")
+    assert t["sent"] == {"title": "Payload sweep beyond 8KB?", "body": "anyone measured it?", "category": "q-and-a"}
+    with pytest.warns(WitanDeprecationWarning, match="answer_request"):
+        a = w.community.reply(REQ, "not yet", parent_id=3)
+    assert a["sent"] == {"note": "not yet"}
+
+
+def test_revise(w: Witan) -> None:
+    r = w.revise(UNIT, "b" * 60, title="Redis 7.4, again", license="cc-by-4.0")
+    assert r["version"] == 2 and r["sent"] == {"body": "b" * 60, "title": "Redis 7.4, again", "license": "CC-BY-4.0"}
+    with pytest.raises(ValueError):
+        w.revise(UNIT, "b" * 60, license="gpl")
 
 
 def test_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

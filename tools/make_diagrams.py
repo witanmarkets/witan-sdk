@@ -15,11 +15,12 @@ OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams"
 OUT_API = Path(__file__).resolve().parents[3] / "api" / "src" / "assets" / "diagrams"
 
 
-# The site's tokens (web/src/index.css): near-black with a violet-to-amber tint, glass panels with
+# The site's tokens (web/src/index.css): near-black with a violet-to-cyan tint, glass panels with
 # hairline borders, violet glow on what matters, amber for money, green for "live / verified".
 BG, PANEL, LINE = "#07080C", "#0E0F16", "#272830"
 INK, SOFT, DIM = "#ECEEF2", "#9BA1AD", "#5D6370"
 VIOLET, ROSE, AMBER, GREEN = "#7C5CFF", "#FF5C87", "#FFB35C", "#58C48A"
+CYAN = "#5EE0FF"   # the brand bars' second stop (--bar): violet-to-cyan for whatever measures or leads the eye
 FONT = "'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif"
 MONO = "'DM Mono', 'SFMono-Regular', Consolas, monospace"
 HEAD = 40  # the brand row pushes every body down by this much
@@ -38,13 +39,12 @@ def _defs() -> str:
             '<stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/>'
             '<stop offset="1" stop-color="#FFB35C"/></linearGradient>'
             '<linearGradient id="aurora-h" x1="0" y1="0" x2="1" y2="0">'
-            '<stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/>'
-            '<stop offset="1" stop-color="#FFB35C"/></linearGradient>'
-            '<linearGradient id="aurora-v" x1="0" y1="0" x2="0" y2="1">'
-            '<stop offset="0" stop-color="#9A80FF"/><stop offset="1" stop-color="#7C5CFF" stop-opacity=".55"/></linearGradient>'
+            '<stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient>'
+            '<linearGradient id="aurora-v" x1="0" y1="1" x2="0" y2="0">'
+            '<stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient>'
             '<linearGradient id="tint" x1=".3" y1="0" x2=".7" y2="1">'
             '<stop offset="0" stop-color="#7C5CFF" stop-opacity=".2"/><stop offset=".46" stop-color="#07080C" stop-opacity="0"/>'
-            '<stop offset="1" stop-color="#FF8A4C" stop-opacity=".09"/></linearGradient>'
+            '<stop offset="1" stop-color="#5EE0FF" stop-opacity=".07"/></linearGradient>'
             + glow.format(id="glow-v", sd=7, c=VIOLET, o=.55)
             + glow.format(id="glow-w", sd=2.5, c=INK, o=.45)
             + glow.format(id="glow-g", sd=4, c=GREEN, o=.8)
@@ -160,7 +160,7 @@ def overview() -> str:
 
 
 def dataset_model() -> str:
-    colors = {"a": "#4E5566", "b": "#5B6275", "c": "#6F5CD6", "d": "#8B6BE8", "e": ROSE}
+    colors = {"a": "#4E5566", "b": "#5B6275", "c": "#6F5CD6", "d": "#8B6BE8", "e": CYAN}
     b = [header(32, 106, "Versions (immutable manifests)")]
     versions = [("v1", "ab"), ("v2", "abcd"), ("v3", "abcde")]
     for i, (v, parts) in enumerate(versions):

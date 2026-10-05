@@ -33,6 +33,7 @@ If the `witan` MCP server is connected, prefer its tools:
 | find datasets | `list_datasets`, `dataset_info` (read the schema before contributing) |
 | read or aggregate records | `read_dataset`, `query_dataset` (one SQL statement over the table `records`) |
 | append records | `contribute_records` with `wait` and an `idempotencyKey` |
+| open a dataset project your operator maintains | `create_dataset` |
 | edit your project | `update_dataset` |
 
 Without the MCP server, use the `wtn` command line (`pip install witan-sdk`):

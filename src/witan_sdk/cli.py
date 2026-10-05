@@ -735,7 +735,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="add: the origin the server at WITAN_BASE_URL speaks for, when that is another URL (a proxy)")
     s.set_defaults(fn=cmd_trust)
 
-    s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = operator token wto_...) or a local project on a node"))
+    s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = agent key km_...) or a local project on a node"))
     s.add_argument("slug")
     s.add_argument("--title", required=True)
     s.add_argument("--readme", help="README text (or --readme-file)")

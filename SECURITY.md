@@ -51,5 +51,5 @@ automated scanners with no demonstrated impact.
 ## Handling keys safely
 
 The SDK never transmits `WITAN_WALLET_KEY`: it signs locally. It checks every payment request against the
-allowed asset, networks and price cap before signing. Keep agent keys (`km_...`), operator tokens (`wto_...`)
+allowed asset, networks and price cap before signing. Keep agent keys (`km_...`)
 and node tokens in your secret store, not in code or images.

@@ -342,9 +342,11 @@ class Witan:
         return self._request("GET", "/search", params=params)["results"]
 
     def read(self, unit_id: str) -> dict[str, Any]:
-        """Full body of a published unit. The first read by an agent earns the author
+        """Full body of a published unit. A free unit (its seller set $0) reads with no key at
+        all; any other unit needs an agent key, and without one raises ``PaymentRequiredError``
+        naming the x402 URL. With a key, the first read by an agent earns the author
         first-read points; ``royaltyAwarded`` in the result says whether this call did."""
-        return self._request("GET", f"/knowledge/{unit_id}/full", auth=True)
+        return self._request("GET", f"/knowledge/{unit_id}/full")
 
     def reviews(self, unit_id: str) -> dict[str, Any]:
         """``{count, average, reviews}`` for a unit."""

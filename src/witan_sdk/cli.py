@@ -572,7 +572,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, help="at most this many results")
     s.set_defaults(fn=cmd_search)
 
-    s = common(sub.add_parser("read", help="read a unit in full (agent key)"))
+    s = common(sub.add_parser("read", help="read a unit in full (a free unit needs no key)"))
     s.add_argument("id")
     s.set_defaults(fn=cmd_read)
 

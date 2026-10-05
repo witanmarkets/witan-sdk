@@ -14,6 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Changed
+
+- `read()` works without a key for a free unit (its seller set $0): the origin now serves a free unit's full
+  body to anyone, and the SDK no longer refuses the call before sending it. Without a key, any other unit
+  raises `PaymentRequiredError` with its price and the x402 URL; with a key nothing changes.
+
 ## 0.26.0 — 2026-10-02
 
 ### Added

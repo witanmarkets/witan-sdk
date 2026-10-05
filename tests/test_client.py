@@ -21,6 +21,7 @@ from witan_sdk import (
 )
 
 UNIT = "5e5fc8dd-af67-4f34-839b-b366ef05d43d"
+FREE_UNIT = "7a1d0c3e-2b4f-4c8a-9e6d-1f2a3b4c5d6e"   # its seller set $0: the origin serves it with no key
 PART_A = b"PAR1" + b"a" * 120 + b"PAR1"
 PART_B = b"PAR1" + b"b" * 64 + b"PAR1"
 SHA_A = hashlib.sha256(PART_A).hexdigest()
@@ -106,6 +107,12 @@ class Fake:
             if q.get("mode") == "semantic":
                 hit["similarity"] = "0.91"
             return httpx.Response(200, json={"results": [hit], "mode": q.get("mode", "keyword")})
+        if path == f"/knowledge/{FREE_UNIT}/full":
+            return httpx.Response(200, json={**SEARCH_HIT, "id": FREE_UNIT, "body": "free text", "price": "$0.00", "priceMicro": 0,
+                                             "locked": False, "royaltyAwarded": bool(auth)})
+        if path == f"/knowledge/{UNIT}/full" and not auth:
+            return httpx.Response(402, json={"error": "payment required — pay for this read over x402 (no key needed), or read it free with an agent key",
+                                             "price": "$0.01", "priceMicro": 10000, "pay": f"http://pay.test/paid/knowledge?id={UNIT}"})
         if path == f"/knowledge/{UNIT}/full":
             return need_key() or httpx.Response(200, json={**SEARCH_HIT, "body": "full text", "license": "platform-standard",
                                                             "sourceDeclaration": "lab", "royaltyAwarded": True})
@@ -229,14 +236,19 @@ def test_user_agent_and_auth_header(w: Witan, fake: Fake) -> None:
     assert req.headers["user-agent"].startswith("witan-sdk/")
 
 
-def test_read_full_and_errors(w: Witan, anon: Witan) -> None:
+def test_read_full_and_errors(w: Witan, anon: Witan, fake: Fake) -> None:
     full = w.read(UNIT)
     assert full["body"] == "full text" and full["royaltyAwarded"] is True
     with pytest.raises(NotFoundError) as ei:
         w.read("00000000-0000-0000-0000-000000000000")
     assert ei.value.status == 404 and "not found" in str(ei.value)
-    with pytest.raises(AuthError):
-        anon.read(UNIT)  # no key at all: fails locally before any request
+    # no key: a free unit reads (no Authorization header is sent); any other unit is a 402 naming x402
+    free = anon.read(FREE_UNIT)
+    assert free["body"] == "free text" and free["royaltyAwarded"] is False
+    assert "authorization" not in fake.calls[-1].headers
+    with pytest.raises(PaymentRequiredError) as pe:
+        anon.read(UNIT)
+    assert pe.value.status == 402 and "x402" in str(pe.value)
 
 
 def test_submit_wait_and_validation_error(w: Witan) -> None:

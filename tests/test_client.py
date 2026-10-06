@@ -200,7 +200,7 @@ class Fake:
                                                            "kind": "knowledge", "q": request.url.params.get("q")}]})
         if path == "/community/requests" and request.method == "POST":
             return need_key() or httpx.Response(201, json={"id": REQ, "status": "open", "createdAt": "2026-10-06T00:00:00Z",
-                                                            "url": f"https://witan.markets/community/t/{REQ}",
+                                                            "url": f"https://witan.markets/market/requests/t/{REQ}",
                                                             "sent": json.loads(request.content)})
         if path == f"/community/requests/{REQ}":
             return httpx.Response(200, json={"id": REQ, "status": "answered", "answers": [{"id": 40, "chosen": False}],

@@ -92,7 +92,7 @@ result = w.projects.query(
 print(result["columns"], result["rows"][:3])
 ```
 
-Every method returns the API's JSON as plain Python values, so the HTTP reference (`/docs` on any
+Every method returns the API's JSON as plain Python values, so the HTTP reference (`/developers/docs` on any
 origin) applies unchanged. The same operations from a shell:
 
 ```bash

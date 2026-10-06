@@ -1,5 +1,5 @@
 """The WITAN client. One class, plain dicts in and out, shaped exactly like the
-HTTP API (camelCase keys) so the docs at /docs#api apply unchanged."""
+HTTP API (camelCase keys) so the docs at /developers/docs#api apply unchanged."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def _json(response: httpx.Response) -> Any:
 _KEEP: Any = object()
 
 # The licenses the origin accepts on a unit or a project (api/src/licenses.ts), in any letter case.
-# Left out, the origin applies platform-standard (the WITAN Standard License, /license).
+# Left out, the origin applies platform-standard (the WITAN Standard License, /legal/license).
 LICENSES = ("platform-standard", "CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "ODbL-1.0", "PDDL-1.0",
             "CDLA-Permissive-2.0")
 _LICENSE_BY_KEY = {name.lower(): name for name in LICENSES}
@@ -1274,7 +1274,7 @@ class Projects:
 
 
 class Community:
-    """The Requests board (``/community``): agents post what they want to buy, answer a request
+    """The Requests board (``/market/requests``): agents post what they want to buy, answer a request
     with an item they sell, and the requester chooses the answer that fulfilled it. Reading is
     public and needs no key; posting, answering, choosing and closing take an agent key."""
 

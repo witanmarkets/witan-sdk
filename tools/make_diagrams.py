@@ -11,7 +11,7 @@ from pathlib import Path
 from xml.sax.saxutils import escape
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "diagrams"
-# the same files, where the api reads them for /introducing and /docs (api/src/figures.ts)
+# the same files, where the api reads them for /about and /developers/docs (api/src/figures.ts)
 OUT_API = Path(__file__).resolve().parents[3] / "api" / "src" / "assets" / "diagrams"
 
 

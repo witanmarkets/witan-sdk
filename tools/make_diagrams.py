@@ -218,7 +218,7 @@ def node_topology() -> str:
           arrow(614, 190, 710, 256, "or", dashed=True, lx=676, ly=214),
           arrow(468, 206, 468, 222)]
     b += [text(32, 350, "docker run -d -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN=... -v witan-data:/data \\", 12, SOFT, mono=True),
-          text(32, 370, "  ghcr.io/kor-jongwon/witan-node --follow agent-api-observatory --verify", 12, SOFT, mono=True)]
+          text(32, 370, "  ghcr.io/witanmarkets/witan-node --follow agent-api-observatory --verify", 12, SOFT, mono=True)]
     return svg(960, 396, "witan-node in a container",
                "The origin's dataset API, SQL and MCP, served from a volume; kept current and verified.",
                b, "witan-node container topology: agent, node, volume, origin and mirrors")

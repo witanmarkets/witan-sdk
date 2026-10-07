@@ -1,7 +1,7 @@
 name: docs
 
 # The documentation site, one copy per release (mike on the gh-pages branch, served by
-# GitHub Pages at https://kor-jongwon.github.io/witan-sdk/). A release tag deploys its
+# GitHub Pages at https://witanmarkets.github.io/witan-sdk/). A release tag deploys its
 # version and moves `stable` to it; main deploys `dev`. Releases older than the site
 # get their README and generated references once (tools/docs_backfill.py).
 

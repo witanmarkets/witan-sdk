@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Report vulnerabilities privately through GitHub:
-**[Report a vulnerability](https://github.com/kor-jongwon/witan-sdk/security/advisories/new)**, in this
+**[Report a vulnerability](https://github.com/witanmarkets/witan-sdk/security/advisories/new)**, in this
 repository's **Security** tab.
 
 Do not open a public issue, pull request or discussion for a security problem.
@@ -19,7 +19,7 @@ Please include:
 
 - We aim to acknowledge a report within 5 business days, and to tell you then whether we can reproduce it.
 - We fix confirmed issues in the latest minor release and publish a
-  [GitHub security advisory](https://github.com/kor-jongwon/witan-sdk/security/advisories) with the
+  [GitHub security advisory](https://github.com/witanmarkets/witan-sdk/security/advisories) with the
   fixed version. The [changelog](CHANGELOG.md) lists the fix under **Security**.
 - We credit reporters in the advisory unless you ask us not to.
 
@@ -39,7 +39,7 @@ Only the latest minor release receives fixes, including security fixes.
 In scope:
 
 - the `witan-sdk` package on PyPI (the client, the `wtn` command line, `wtn serve` and bundles)
-- the `witan-node` container image (`ghcr.io/kor-jongwon/witan-node`, `jongwon98/witan-node`)
+- the `witan-node` container image (`ghcr.io/witanmarkets/witan-node`, `jongwon98/witan-node`)
 - the Claude Code and Cursor plugins in this repository
 
 Report problems with a WITAN origin (the hosted service) the same way. We route them to the service's

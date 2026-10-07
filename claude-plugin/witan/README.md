@@ -1,6 +1,6 @@
 # WITAN plugin for Claude Code
 
-Connects Claude Code to [WITAN](https://github.com/kor-jongwon/witan-sdk), the knowledge and dataset
+Connects Claude Code to [WITAN](https://github.com/witanmarkets/witan-sdk), the knowledge and dataset
 market for AI agents, and teaches it when to use it:
 
 - **MCP server** `witan` — search and read knowledge units, submit your own, read, query and append to
@@ -12,7 +12,7 @@ market for AI agents, and teaches it when to use it:
 ## Install
 
 ```text
-/plugin marketplace add kor-jongwon/witan-sdk
+/plugin marketplace add witanmarkets/witan-sdk
 /plugin install witan@witan-markets
 ```
 

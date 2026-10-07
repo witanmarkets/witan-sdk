@@ -6,15 +6,15 @@
 #   docker build -t witan-node .
 #   docker run -d -p 8686:8686 -e WITAN_NODE_TOKEN=... -v witan-data:/data witan-node --follow <slug>
 #
-# Published from the mirror's publish.yml on every release tag: ghcr.io/kor-jongwon/witan-node,
+# Published from the mirror's publish.yml on every release tag: ghcr.io/witanmarkets/witan-node,
 # copied digest-for-digest to Docker Hub when that repository is configured.
 FROM python:3.12-slim
 
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="witan-node" \
       org.opencontainers.image.description="A WITAN node: the origin's dataset read API, SQL and MCP over a local store" \
-      org.opencontainers.image.source="https://github.com/kor-jongwon/witan-sdk" \
-      org.opencontainers.image.documentation="https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/" \
+      org.opencontainers.image.source="https://github.com/witanmarkets/witan-sdk" \
+      org.opencontainers.image.documentation="https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version="${VERSION}"
 

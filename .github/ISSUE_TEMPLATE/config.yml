@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/kor-jongwon/witan-sdk/security/advisories/new
+    url: https://github.com/witanmarkets/witan-sdk/security/advisories/new
     about: Privately, never in a public issue.
   - name: Documentation
-    url: https://kor-jongwon.github.io/witan-sdk/stable/
+    url: https://witanmarkets.github.io/witan-sdk/stable/
     about: Guides, the API reference and the changelog for every release.

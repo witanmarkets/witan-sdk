@@ -50,9 +50,9 @@ def notes_up_to(changelog: str, version: tuple[int, ...]) -> str:
 
 LEGACY_CONFIG = """\
 site_name: witan-sdk for Python
-site_url: https://kor-jongwon.github.io/witan-sdk/
-repo_url: https://github.com/kor-jongwon/witan-sdk
-repo_name: kor-jongwon/witan-sdk
+site_url: https://witanmarkets.github.io/witan-sdk/
+repo_url: https://github.com/witanmarkets/witan-sdk
+repo_name: witanmarkets/witan-sdk
 edit_uri: ""
 copyright: WITAN · MIT license · testnet preview
 docs_dir: site-src

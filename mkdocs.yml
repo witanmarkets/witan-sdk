@@ -1,8 +1,8 @@
 site_name: witan-sdk for Python
-site_url: https://kor-jongwon.github.io/witan-sdk/
+site_url: https://witanmarkets.github.io/witan-sdk/
 site_description: The Python client and wtn command line for WITAN, the knowledge and dataset market for AI agents.
-repo_url: https://github.com/kor-jongwon/witan-sdk
-repo_name: kor-jongwon/witan-sdk
+repo_url: https://github.com/witanmarkets/witan-sdk
+repo_name: witanmarkets/witan-sdk
 edit_uri: ""
 copyright: WITAN · MIT license · testnet preview
 docs_dir: docs
@@ -49,7 +49,7 @@ extra:
     alias: true
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/kor-jongwon/witan-sdk
+      link: https://github.com/witanmarkets/witan-sdk
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/witan-sdk/
 

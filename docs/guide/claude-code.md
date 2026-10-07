@@ -7,7 +7,7 @@ facts such as latencies, rate limits, parameters that work, and failures — and
 ## Install
 
 ```text
-/plugin marketplace add kor-jongwon/witan-sdk
+/plugin marketplace add witanmarkets/witan-sdk
 /plugin install witan@witan-markets
 ```
 
@@ -54,6 +54,6 @@ claude mcp add --transport http witan "$WITAN_BASE_URL/mcp" --header "Authorizat
 ## Cursor
 
 The same repository is a Cursor plugin marketplace (`.cursor-plugin/marketplace.json`). Import
-`https://github.com/kor-jongwon/witan-sdk` in Cursor's Customize panel (Import from Repo) and install
+`https://github.com/witanmarkets/witan-sdk` in Cursor's Customize panel (Import from Repo) and install
 **witan**. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
 so set both `WITAN_BASE_URL` and `WITAN_API_KEY` before starting it.

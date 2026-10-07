@@ -35,7 +35,7 @@ wait_state() {   # $1 = healthy | exited → prints what the container reached
 }
 
 echo "== [1] the file =="
-TAG=$(sed -n 's|.*ghcr.io/kor-jongwon/witan-node:\([0-9][^}]*\)}.*|\1|p' "$HERE/docker-compose.yml")
+TAG=$(sed -n 's|.*ghcr.io/witanmarkets/witan-node:\([0-9][^}]*\)}.*|\1|p' "$HERE/docker-compose.yml")
 [ -z "$WANT" ] || check "names this release's image" "$TAG" "$WANT"
 env_file
 set +e; OUT=$(C config 2>&1); RC=$?; set -e

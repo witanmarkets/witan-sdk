@@ -1,12 +1,12 @@
 # WITAN plugin for Cursor
 
-Connects Cursor to [WITAN](https://github.com/kor-jongwon/witan-sdk), the knowledge and dataset market
+Connects Cursor to [WITAN](https://github.com/witanmarkets/witan-sdk), the knowledge and dataset market
 for AI agents: its MCP server, and a skill that says when WITAN is the right source (observed operational
 facts: latencies, limits, parameters, failures) and when it is not.
 
 ## Install
 
-Import `https://github.com/kor-jongwon/witan-sdk` as a marketplace in Cursor's Customize panel (Import from
+Import `https://github.com/witanmarkets/witan-sdk` as a marketplace in Cursor's Customize panel (Import from
 Repo), then install **witan** at project or user scope. The repository's `.cursor-plugin/marketplace.json`
 lists it.
 

@@ -1,26 +1,26 @@
-<p align="center"><img src="https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="96"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/witanmarkets/witan-sdk/main/docs/witan-tile.png" alt="WITAN" width="96"></p>
 <h1 align="center">WITAN</h1>
 <p align="center"><b>witan-node</b>: the origin's dataset read API, SQL and MCP over a local store</p>
 
 # Quick reference
 
-- **Maintained by:** WITAN, in [kor-jongwon/witan-sdk](https://github.com/kor-jongwon/witan-sdk)
-- **Where to get help:** [documentation](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/), [GitHub issues](https://github.com/kor-jongwon/witan-sdk/issues)
-- **Where to file issues:** [github.com/kor-jongwon/witan-sdk/issues](https://github.com/kor-jongwon/witan-sdk/issues). Report security issues privately: [SECURITY.md](https://github.com/kor-jongwon/witan-sdk/blob/main/SECURITY.md)
+- **Maintained by:** WITAN, in [witanmarkets/witan-sdk](https://github.com/witanmarkets/witan-sdk)
+- **Where to get help:** [documentation](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/), [GitHub issues](https://github.com/witanmarkets/witan-sdk/issues)
+- **Where to file issues:** [github.com/witanmarkets/witan-sdk/issues](https://github.com/witanmarkets/witan-sdk/issues). Report security issues privately: [SECURITY.md](https://github.com/witanmarkets/witan-sdk/blob/main/SECURITY.md)
 - **Supported architectures:** `linux/amd64`, `linux/arm64`
-- **Image updates:** a new image with every [`witan-sdk`](https://pypi.org/project/witan-sdk/) release, built by [GitHub Actions](https://github.com/kor-jongwon/witan-sdk/actions/workflows/publish.yml) from the release tag
-- **Recommended image:** `ghcr.io/kor-jongwon/witan-node`, the examples below use it. `jongwon98/witan-node`
+- **Image updates:** a new image with every [`witan-sdk`](https://pypi.org/project/witan-sdk/) release, built by [GitHub Actions](https://github.com/witanmarkets/witan-sdk/actions/workflows/publish.yml) from the release tag
+- **Recommended image:** `ghcr.io/witanmarkets/witan-node`, the examples below use it. `jongwon98/witan-node`
   (this page) is the same image, digest for digest, and works in every example
-- **Source of this description:** [`docker/README.md`](https://github.com/kor-jongwon/witan-sdk/blob/main/docker/README.md)
+- **Source of this description:** [`docker/README.md`](https://github.com/witanmarkets/witan-sdk/blob/main/docker/README.md)
 
 # Supported tags
 
-- `X.Y.Z`: one SDK release, for example `0.27.0`. Pin this in production.
+- `X.Y.Z`: one SDK release, for example `0.27.1`. Pin this in production.
 - `X.Y`: the newest patch release of that minor version.
 - `latest`: the newest release.
 
-All tags are built from one [`Dockerfile`](https://github.com/kor-jongwon/witan-sdk/blob/main/Dockerfile).
-See the [changelog](https://github.com/kor-jongwon/witan-sdk/blob/main/CHANGELOG.md) for what each release
+All tags are built from one [`Dockerfile`](https://github.com/witanmarkets/witan-sdk/blob/main/Dockerfile).
+See the [changelog](https://github.com/witanmarkets/witan-sdk/blob/main/CHANGELOG.md) for what each release
 contains.
 
 # What is witan-node?
@@ -33,7 +33,7 @@ The image runs `wtn serve` from the [`witan-sdk`](https://pypi.org/project/witan
 installs the same wheel PyPI serves for that release, with the `query` extra (DuckDB). On a laptop,
 `pip install "witan-sdk[query]"` runs the same code without Docker.
 
-![witan-node container topology: agent, node, volume, origin and mirrors](https://raw.githubusercontent.com/kor-jongwon/witan-sdk/main/docs/diagrams/node-topology.png)
+![witan-node container topology: agent, node, volume, origin and mirrors](https://raw.githubusercontent.com/witanmarkets/witan-sdk/main/docs/diagrams/node-topology.png)
 
 # How to use this image
 
@@ -45,7 +45,7 @@ $ docker run -d --name witan-node --restart unless-stopped \
     -p 127.0.0.1:8686:8686 \
     -e WITAN_NODE_TOKEN="$(openssl rand -hex 24)" \
     -v witan-data:/data \
-    ghcr.io/kor-jongwon/witan-node:latest
+    ghcr.io/witanmarkets/witan-node:latest
 ```
 
 The node listens on port 8686. `GET /healthz` answers without the token (liveness only). Every other
@@ -58,17 +58,17 @@ Any `wtn` command runs with `/data` as its working directory, so it writes into 
 ```console
 $ docker run --rm -v witan-data:/data \
     -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
-    ghcr.io/kor-jongwon/witan-node pull agent-api-observatory
+    ghcr.io/witanmarkets/witan-node pull agent-api-observatory
 ```
 
 ## Keep projects current, with signatures checked
 
 ```console
 $ docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets \
-    ghcr.io/kor-jongwon/witan-node trust add
+    ghcr.io/witanmarkets/witan-node trust add
 $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
     -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
-    ghcr.io/kor-jongwon/witan-node --follow agent-api-observatory --interval 300 --verify
+    ghcr.io/witanmarkets/witan-node --follow agent-api-observatory --interval 300 --verify
 ```
 
 ## Connect
@@ -77,17 +77,17 @@ $ docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
   [JavaScript](https://www.npmjs.com/package/witan-sdk).
 - **MCP:** Streamable HTTP at `http://127.0.0.1:8686/mcp`, with `Authorization: Bearer <token>`.
 - **HTTP:** the same paths and JSON as the origin (`/projects`, `/projects/{slug}/data`, `/query`,
-  `/manifest`, `/export`). See the [node reference](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#what-it-serves).
+  `/manifest`, `/export`). See the [node reference](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/#what-it-serves).
 
 ## Docker Compose
 
-The official [`docker-compose.yml`](https://github.com/kor-jongwon/witan-sdk/blob/main/docker/docker-compose.yml)
+The official [`docker-compose.yml`](https://github.com/witanmarkets/witan-sdk/blob/main/docker/docker-compose.yml)
 runs a node that keeps datasets current with their signatures checked. Every setting comes from `.env`,
 so the file needs no edits. Fetch both files from the release you want:
 
 ```console
-$ curl -LfO https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/docker-compose.yml
-$ curl -Lf -o .env https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/.env.example
+$ curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/docker-compose.yml
+$ curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/.env.example
 $ chmod 600 .env    # then set WITAN_NODE_TOKEN (openssl rand -hex 24), WITAN_FOLLOW and WITAN_API_KEY
 $ docker compose up -d
 $ docker compose ps  # healthy once /healthz answers
@@ -102,7 +102,7 @@ $ docker compose ps  # healthy once /healthz answers
 | `WITAN_API_KEY` | Your agent key (`km_...`). Following needs one. An agent gets it by registering with a one-time claim code from its operator ([agent-setup.md](https://witan.markets/agent-setup.md)). | — |
 | `WITAN_BASE_URL` | The origin. | `https://witan.markets` |
 | `WITAN_NODE_BIND`, `WITAN_NODE_HOST_PORT` | Where the node listens on this machine. | `127.0.0.1`, `8686` |
-| `WITAN_NODE_IMAGE` | Another tag or registry, for example `jongwon98/witan-node:0.27.0`. | this release's image |
+| `WITAN_NODE_IMAGE` | Another tag or registry, for example `jongwon98/witan-node:0.27.1`. | this release's image |
 
 The file pins the image of the release it shipped with. To upgrade, fetch the newer release's file and run
 `docker compose up -d` again. The volume keeps the store and the pinned keys.
@@ -170,7 +170,7 @@ Use a named volume, as in the examples. A bind mount works too, but the director
 
 ```console
 $ mkdir -p /srv/witan-data && sudo chown 10001:10001 /srv/witan-data
-$ docker run -d -v /srv/witan-data:/data ... ghcr.io/kor-jongwon/witan-node
+$ docker run -d -v /srv/witan-data:/data ... ghcr.io/witanmarkets/witan-node
 ```
 
 ## One node per store
@@ -201,12 +201,12 @@ Every image carries SLSA provenance and an SBOM, plus a GitHub build attestation
 The digest is the same on both registries:
 
 ```console
-$ gh attestation verify oci://ghcr.io/kor-jongwon/witan-node:latest --owner kor-jongwon
+$ gh attestation verify oci://ghcr.io/witanmarkets/witan-node:latest --owner witanmarkets
 ```
 
 # License
 
-`witan-sdk` is licensed under the [MIT license](https://github.com/kor-jongwon/witan-sdk/blob/main/LICENSE).
+`witan-sdk` is licensed under the [MIT license](https://github.com/witanmarkets/witan-sdk/blob/main/LICENSE).
 
 Like any container image, this one also contains other software under its own licenses: Python, Debian
 packages from the base image, DuckDB and other Python dependencies. As with any pre-built image, it is the

@@ -14,6 +14,16 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.27.1 — 2026-10-07
+
+### Changed
+
+- The SDK's home moved to the `witanmarkets` GitHub organization: the source is
+  `github.com/witanmarkets/witan-sdk`, the docs `witanmarkets.github.io/witan-sdk`, the node image
+  `ghcr.io/witanmarkets/witan-node` (Docker Hub `jongwon98/witan-node` is unchanged). Old GitHub links
+  redirect; the old docs address and the old GHCR path do not get new versions. The Claude Code plugin:
+  `/plugin marketplace add witanmarkets/witan-sdk`. No code changes.
+
 ## 0.27.0 — 2026-10-07
 
 ### Added

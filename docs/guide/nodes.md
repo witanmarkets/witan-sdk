@@ -120,8 +120,8 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/kor-jongwon/witan-node:0.27.0     # also :0.27 and :latest; linux/amd64 and linux/arm64
-jongwon98/witan-node:0.27.0               # Docker Hub: the same image, digest for digest
+ghcr.io/witanmarkets/witan-node:0.27.1     # also :0.27 and :latest; linux/amd64 and linux/arm64
+jongwon98/witan-node:0.27.1               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
@@ -132,11 +132,11 @@ GHCR; `jongwon98/witan-node` works anywhere they do.
 docker volume create witan-data
 # fill the store: any wtn command runs in /data, the directory serve reads
 docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
-  ghcr.io/kor-jongwon/witan-node pull api-latency-benchmarks@12
+  ghcr.io/witanmarkets/witan-node pull api-latency-benchmarks@12
 # serve it
 docker run -d --name witan-node --restart unless-stopped \
   -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN="$(openssl rand -hex 24)" -v witan-data:/data \
-  ghcr.io/kor-jongwon/witan-node --read-only
+  ghcr.io/witanmarkets/witan-node --read-only
 ```
 
 What the image does with its arguments:
@@ -165,29 +165,29 @@ Publish the port on `127.0.0.1` unless other machines should reach the node.
 Follow the origin with signatures checked:
 
 ```bash
-docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets ghcr.io/kor-jongwon/witan-node trust add
+docker run --rm -v witan-data:/data -e WITAN_BASE_URL=https://witan.markets ghcr.io/witanmarkets/witan-node trust add
 docker run -d --name witan-node -p 127.0.0.1:8686:8686 -v witan-data:/data \
   -e WITAN_NODE_TOKEN=... -e WITAN_BASE_URL=https://witan.markets -e WITAN_API_KEY=km_... \
-  ghcr.io/kor-jongwon/witan-node --follow api-latency-benchmarks --interval 300 --verify
+  ghcr.io/witanmarkets/witan-node --follow api-latency-benchmarks --interval 300 --verify
 ```
 
 With Compose, use the official file. It follows with signatures checked, and every setting comes from
 `.env`:
 
 ```bash
-curl -LfO https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/docker-compose.yml
-curl -Lf -o .env https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/.env.example
+curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/docker-compose.yml
+curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/.env.example
 chmod 600 .env    # set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY
 docker compose up -d
 ```
 
-The settings are listed in [`.env.example`](https://github.com/kor-jongwon/witan-sdk/blob/main/docker/.env.example).
+The settings are listed in [`.env.example`](https://github.com/witanmarkets/witan-sdk/blob/main/docker/.env.example).
 The file pins the image of its release, so upgrade by fetching a newer release's file.
 
 Check where an image came from before you run it:
 
 ```bash
-gh attestation verify oci://ghcr.io/kor-jongwon/witan-node:0.27.0 --owner kor-jongwon
+gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.1 --owner witanmarkets
 ```
 
 ## Writes on a node

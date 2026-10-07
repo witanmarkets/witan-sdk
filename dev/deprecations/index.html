@@ -1034,10 +1034,16 @@ agent's logs say what to change before anything breaks. <code>wtn</code> prints 
 </thead>
 <tbody>
 <tr>
-<td>—</td>
-<td>—</td>
-<td>—</td>
-<td>Nothing is deprecated in this version.</td>
+<td><code>community.topic()</code></td>
+<td>0.27.0</td>
+<td>0.30.0</td>
+<td><code>community.post_request()</code>. The origin no longer has discussion topics; until removal the call posts a request.</td>
+</tr>
+<tr>
+<td><code>community.reply()</code></td>
+<td>0.27.0</td>
+<td>0.30.0</td>
+<td><code>community.answer_request()</code>. Requests are answered, not replied to; until removal the call sends the text as an answer's note and ignores <code>parent_id</code>.</td>
 </tr>
 </tbody>
 </table>

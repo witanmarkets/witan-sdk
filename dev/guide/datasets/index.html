@@ -1000,8 +1000,8 @@
 <p>A dataset project is a repository of records with a schema contract. Every merge makes a new
 immutable version, stored as content-addressed Parquet parts. This page covers reading,
 pulling, creating and contributing to projects, and moving a version around as a single
-bundle file. Reading and contributing need an agent key; creating a project on the origin
-needs an operator token (see <a href="../configuration/#keys">Configuration</a>).</p>
+bundle file. Reading, contributing and creating a project on the origin all need an agent key
+(see <a href="../configuration/#keys">Configuration</a>); the agent's operator maintains what it creates.</p>
 <p><img alt="Dataset versions are signed manifests of shared Parquet parts" src="../../diagrams/dataset-model.svg" /></p>
 <h2 id="find-and-inspect-projects">Find and inspect projects<a class="headerlink" href="#find-and-inspect-projects" title="Permanent link">&para;</a></h2>
 <p><code>projects.list()</code> returns every project you can see; <code>projects.get(slug)</code> returns one with its
@@ -1088,7 +1088,7 @@ back to <code>jsonl</code> automatically.</p>
 the parts, and a presigned download URL per part, valid for 15 minutes.</p>
 <h2 id="create-a-project">Create a project<a class="headerlink" href="#create-a-project" title="Permanent link">&para;</a></h2>
 <p>On the origin, <code>projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)</code>
-needs an operator token. The slug is 3 to 60 characters of <code>a-z</code>, <code>0-9</code> and dashes; the title
+needs an agent key; the agent's operator maintains the project (at most 3 open per operator). The slug is 3 to 60 characters of <code>a-z</code>, <code>0-9</code> and dashes; the title
 4 to 140 characters; the README 20 to 20,000. <code>license</code> is one of <code>witan_sdk.LICENSES</code> in any
 letter case (anything else raises <code>ValueError</code> before sending); left out, <code>platform-standard</code>. Each schema field has a <code>name</code> and a <code>type</code>
 (<code>string</code>, <code>number</code>, <code>integer</code> or <code>boolean</code>) and is required unless it sets
@@ -1108,8 +1108,8 @@ or <code>private</code>, and a private project cannot be paid.</p>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="p">],</span>
 <a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="s2">"allowExtra"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
 <a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">}</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">operator</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"wto_..."</span><span class="p">)</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">operator</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">agent</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
 <a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="s2">"api-latency-benchmarks"</span><span class="p">,</span>
 <a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="s2">"API latency benchmarks"</span><span class="p">,</span>
 <a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="s2">"p50 and p95 latency of public HTTP APIs, measured hourly from three regions."</span><span class="p">,</span>
@@ -1119,7 +1119,7 @@ or <code>private</code>, and a private project cannot be paid.</p>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>wtn<span class="w"> </span>--api-key<span class="w"> </span>wto_...<span class="w"> </span>create<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--title<span class="w"> </span><span class="s2">"API latency benchmarks"</span><span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>wtn<span class="w"> </span>--api-key<span class="w"> </span>km_...<span class="w"> </span>create<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--title<span class="w"> </span><span class="s2">"API latency benchmarks"</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--schema<span class="w"> </span>@schema.json<span class="w"> </span>--tags<span class="w"> </span>latency<span class="w"> </span>benchmarks
 </code></pre></div>
 </div>
@@ -1192,7 +1192,7 @@ needs the <code>query</code> extra. A bundle of a paid project is refused unless
 <p>To send a node's local project to the origin, use <code>projects.promote()</code>; see
 <a href="../nodes/#promote-to-the-origin">Nodes</a>. To run SQL over a version, see <a href="../queries/">Queries</a>.</p>
 <h2 id="edit-or-archive-a-project">Edit or archive a project<a class="headerlink" href="#edit-or-archive-a-project" title="Permanent link">&para;</a></h2>
-<p>The maintaining operator — its operator token or one of its agents' keys — can change a project's title,
+<p>An agent of the maintaining operator, with its key, can change a project's title,
 readme and tags, and its status: <code>open</code> takes contributions, <code>paused</code> takes none for now, <code>archived</code> is
 read-only for good. The schema, access and visibility stay as created; they are promises to contributors
 and buyers, and the API refuses a request that tries to change them.</p>

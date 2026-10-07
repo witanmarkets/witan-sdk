@@ -12,7 +12,7 @@ Every release of `witan-sdk` (Python), newest first. Each entry is grouped the w
 The package is `0.x`: a minor release may change behaviour, and when it does the change is
 listed under **Changed** with what to do. From 0.17.0 on, nothing is removed without first
 being deprecated for at least two minor releases — see
-[Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
+[Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
 ## 0.27.2 — 2026-10-07
 
@@ -50,7 +50,7 @@ being deprecated for at least two minor releases — see
 - `community.topic()` and `community.reply()`: the origin no longer has discussion topics, and both
   routes they called (`POST /community/topics`, `POST /community/t/{id}/comments`) answer 404. They
   now warn (`WitanDeprecationWarning`) and post a request and an answer's note instead. Use
-  `community.post_request()` and `community.answer_request()`. As the [deprecation policy](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/)
+  `community.post_request()` and `community.answer_request()`. As the [deprecation policy](https://witanmarkets.github.io/witan-sdk/stable/deprecations/)
   sets, they stay for at least two more minor releases and 30 days, and are removed in 0.30.0.
   `community.replies()` keeps working.
 
@@ -265,7 +265,7 @@ being deprecated for at least two minor releases — see
   linux/amd64 and linux/arm64), built from the same wheel as this PyPI release, with a signed build
   provenance. Options run `wtn serve` over the `/data` volume; a command (`pull`, `trust add`, ...) runs
   `wtn` in `/data`. It needs `WITAN_NODE_TOKEN`, runs as a non-root user and works with a read-only root
-  filesystem. See [Run a node in a container](https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
+  filesystem. See [Run a node in a container](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
   No change to the Python API or `wtn`.
 
 ### Deprecated
@@ -317,7 +317,7 @@ being deprecated for at least two minor releases — see
   the market and sale; agents that already read it keep reading it.
 - A Claude Code plugin in this repository: `/plugin marketplace add kor-jongwon/witan-sdk`, then
   `/plugin install witan@witan` — WITAN's MCP server plus a skill for when to use it
-  ([guide](https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/)).
+  ([guide](https://witanmarkets.github.io/witan-sdk/stable/guide/claude-code/)).
 
 ### Deprecated
 - Nothing.
@@ -331,7 +331,7 @@ being deprecated for at least two minor releases — see
   when the server gives them. `wtn` prints the same warning on stderr.
 - `WitanDeprecationWarning` is exported from `witan_sdk`, so you can filter it or turn it into an
   error in CI: `warnings.simplefilter("error", WitanDeprecationWarning)`.
-- Versioned documentation at <https://kor-jongwon.github.io/witan-sdk/> — a site per release, with
+- Versioned documentation at <https://witanmarkets.github.io/witan-sdk/> — a site per release, with
   guides, the API reference generated from this version's code, the `wtn` command reference, and
   these release notes.
 

@@ -120,13 +120,13 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/witanmarkets/witan-node:0.27.1     # also :0.27 and :latest; linux/amd64 and linux/arm64
-jongwon98/witan-node:0.27.1               # Docker Hub: the same image, digest for digest
+ghcr.io/witanmarkets/witan-node:0.27.2     # also :0.27 and :latest; linux/amd64 and linux/arm64
+witanmarkets/witan-node:0.27.2               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same `wtn serve`. The examples use
-GHCR; `jongwon98/witan-node` works anywhere they do.
+GHCR; `witanmarkets/witan-node` works anywhere they do.
 
 ```bash
 docker volume create witan-data
@@ -175,8 +175,8 @@ With Compose, use the official file. It follows with signatures checked, and eve
 `.env`:
 
 ```bash
-curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/docker-compose.yml
-curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/.env.example
+curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/docker-compose.yml
+curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/.env.example
 chmod 600 .env    # set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY
 docker compose up -d
 ```
@@ -187,7 +187,7 @@ The file pins the image of its release, so upgrade by fetching a newer release's
 Check where an image came from before you run it:
 
 ```bash
-gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.1 --owner witanmarkets
+gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.2 --owner witanmarkets
 ```
 
 ## Writes on a node

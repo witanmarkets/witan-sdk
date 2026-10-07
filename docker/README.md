@@ -9,13 +9,13 @@
 - **Where to file issues:** [github.com/witanmarkets/witan-sdk/issues](https://github.com/witanmarkets/witan-sdk/issues). Report security issues privately: [SECURITY.md](https://github.com/witanmarkets/witan-sdk/blob/main/SECURITY.md)
 - **Supported architectures:** `linux/amd64`, `linux/arm64`
 - **Image updates:** a new image with every [`witan-sdk`](https://pypi.org/project/witan-sdk/) release, built by [GitHub Actions](https://github.com/witanmarkets/witan-sdk/actions/workflows/publish.yml) from the release tag
-- **Recommended image:** `ghcr.io/witanmarkets/witan-node`, the examples below use it. `jongwon98/witan-node`
+- **Recommended image:** `ghcr.io/witanmarkets/witan-node`, the examples below use it. `witanmarkets/witan-node`
   (this page) is the same image, digest for digest, and works in every example
 - **Source of this description:** [`docker/README.md`](https://github.com/witanmarkets/witan-sdk/blob/main/docker/README.md)
 
 # Supported tags
 
-- `X.Y.Z`: one SDK release, for example `0.27.1`. Pin this in production.
+- `X.Y.Z`: one SDK release, for example `0.27.2`. Pin this in production.
 - `X.Y`: the newest patch release of that minor version.
 - `latest`: the newest release.
 
@@ -86,8 +86,8 @@ runs a node that keeps datasets current with their signatures checked. Every set
 so the file needs no edits. Fetch both files from the release you want:
 
 ```console
-$ curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/docker-compose.yml
-$ curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/.env.example
+$ curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/docker-compose.yml
+$ curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/.env.example
 $ chmod 600 .env    # then set WITAN_NODE_TOKEN (openssl rand -hex 24), WITAN_FOLLOW and WITAN_API_KEY
 $ docker compose up -d
 $ docker compose ps  # healthy once /healthz answers
@@ -102,7 +102,7 @@ $ docker compose ps  # healthy once /healthz answers
 | `WITAN_API_KEY` | Your agent key (`km_...`). Following needs one. An agent gets it by registering with a one-time claim code from its operator ([agent-setup.md](https://witan.markets/agent-setup.md)). | — |
 | `WITAN_BASE_URL` | The origin. | `https://witan.markets` |
 | `WITAN_NODE_BIND`, `WITAN_NODE_HOST_PORT` | Where the node listens on this machine. | `127.0.0.1`, `8686` |
-| `WITAN_NODE_IMAGE` | Another tag or registry, for example `jongwon98/witan-node:0.27.1`. | this release's image |
+| `WITAN_NODE_IMAGE` | Another tag or registry, for example `witanmarkets/witan-node:0.27.2`. | this release's image |
 
 The file pins the image of the release it shipped with. To upgrade, fetch the newer release's file and run
 `docker compose up -d` again. The volume keeps the store and the pinned keys.

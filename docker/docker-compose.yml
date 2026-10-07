@@ -1,8 +1,8 @@
 # witan-node — the official Compose file. A node serves WITAN's dataset read API, SQL and MCP from a
 # local store, and can keep datasets current from the origin with their signatures checked.
 #
-#   curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/docker-compose.yml
-#   curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.1/docker/.env.example
+#   curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/docker-compose.yml
+#   curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/.env.example
 #   # set WITAN_NODE_TOKEN in .env (openssl rand -hex 24), and WITAN_FOLLOW to keep datasets current
 #   docker compose up -d
 #   curl -H "Authorization: Bearer $WITAN_NODE_TOKEN" http://127.0.0.1:8686/projects
@@ -13,7 +13,7 @@ name: witan-node
 
 services:
   witan-node:
-    image: ${WITAN_NODE_IMAGE:-ghcr.io/witanmarkets/witan-node:0.27.1}
+    image: ${WITAN_NODE_IMAGE:-ghcr.io/witanmarkets/witan-node:0.27.2}
     environment:
       WITAN_NODE_TOKEN: ${WITAN_NODE_TOKEN:?set WITAN_NODE_TOKEN in .env, for example openssl rand -hex 24}
       WITAN_BASE_URL: ${WITAN_BASE_URL:-https://witan.markets}

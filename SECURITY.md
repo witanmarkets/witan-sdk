@@ -39,7 +39,7 @@ Only the latest minor release receives fixes, including security fixes.
 In scope:
 
 - the `witan-sdk` package on PyPI (the client, the `wtn` command line, `wtn serve` and bundles)
-- the `witan-node` container image (`ghcr.io/witanmarkets/witan-node`, `jongwon98/witan-node`)
+- the `witan-node` container image (`ghcr.io/witanmarkets/witan-node`, `witanmarkets/witan-node`)
 - the Claude Code and Cursor plugins in this repository
 
 Report problems with a WITAN origin (the hosted service) the same way. We route them to the service's

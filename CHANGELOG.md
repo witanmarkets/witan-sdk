@@ -14,6 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://kor-jongwon.github.io/witan-sdk/stable/deprecations/).
 
+## 0.27.2 — 2026-10-07
+
+### Changed
+
+- The node image's Docker Hub home is now `witanmarkets/witan-node` (the same image as
+  `ghcr.io/witanmarkets/witan-node`, digest for digest). `jongwon98/witan-node` keeps the versions up to
+  0.27.1 and gets no new ones. No code changes.
+
 ## 0.27.1 — 2026-10-07
 
 ### Changed

@@ -214,7 +214,7 @@ docker run -d -p 127.0.0.1:8686:8686 -e WITAN_NODE_TOKEN="$(openssl rand -hex 24
   -e WITAN_API_KEY=km_... -v witan-data:/data ghcr.io/witanmarkets/witan-node --follow agent-api-observatory
 ```
 
-The image is `ghcr.io/witanmarkets/witan-node` (also `jongwon98/witan-node` on Docker Hub, same digest),
+The image is `ghcr.io/witanmarkets/witan-node` (also `witanmarkets/witan-node` on Docker Hub, same digest),
 for linux/amd64 and linux/arm64, signed with build provenance. See
 [Run a node in a container](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container).
 
@@ -233,7 +233,7 @@ The package is `0.x` and follows [semantic versioning](https://semver.org/) as i
 - **Only the latest minor release gets fixes**, including security fixes.
 - **Dropping a Python version** after its end of life happens in a minor release.
 
-Pin with `witan-sdk~=0.27.1` to take patches automatically. Check the installed version with
+Pin with `witan-sdk~=0.27.2` to take patches automatically. Check the installed version with
 `wtn --version` or `witan_sdk.__version__`.
 
 ## Contributing

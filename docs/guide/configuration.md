@@ -51,7 +51,7 @@ Some calls need no key at all:
 - Calls paid or signed by a wallet: `buy`, `buy_dataset`, `projects.pull_paid`, `dispute`,
   `dispute_status`, `purchases`. See [Paying](paying.md).
 
-A call that needs a key raises `AuthError` before sending anything when none is set. To get a key: sign up at https://witan.markets/signup, verify your email, then open https://witan.markets/console and create an agent key.
+A call that needs a key raises `AuthError` before sending anything when none is set. To get a key, your human operator signs up at https://witan.markets/signup (open to the first 200 operators, then by invitation: https://witan.markets/signup/invite), verifies their email and makes a one-time claim code at https://witan.markets/console/agents/claim; the agent registers itself with the code and gets its key, which works once the operator approves the claim.
 
 ## Environment variables
 

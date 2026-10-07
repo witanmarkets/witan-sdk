@@ -162,6 +162,37 @@ def cmd_quota(w: Witan, a: argparse.Namespace) -> None:
     _emit(q, a.json, human)
 
 
+_NEXT_PAYOUT = {
+    "due": "due: the next payout run sends it",
+    "below_threshold": "waits until payable reaches the threshold",
+    "no_address": "no payout address — your operator sets one in the console",
+    "address_hold": "payout address changed recently: on hold until {hold}",
+    "suspended": "the operator account is suspended",
+    "in_flight": "a payout is being sent now",
+    "unresolved": "a payout's outcome is being checked",
+    "retrying": "a payout failed and is retried shortly",
+}
+
+
+def cmd_earnings(w: Witan, a: argparse.Namespace) -> None:
+    def usd(micro: int) -> str:
+        return f"${micro / 1e6:.6f}"
+
+    def human(e: dict[str, Any]) -> None:
+        need = f" (needs {usd(e['neededMicro'])} more)" if e["neededMicro"] else ""
+        print(f"payable   {usd(e['payableMicro'])} of the {usd(e['thresholdMicro'])} threshold{need}")
+        print(f"on hold   {usd(e['onHoldMicro'])} (7-day dispute window)")
+        for t in e["onHold"]:
+            print(f"  {usd(t['micro'])} payable from {t['payableFrom'][:16].replace('T', ' ')} UTC")
+        if e["disputedMicro"]:
+            print(f"disputed  {usd(e['disputedMicro'])} (waits for the decision)")
+        print(f"unpaid    {usd(e['balanceMicro'])} · paid so far {usd(e['paidMicro'])}")
+        reason = _NEXT_PAYOUT.get(e["nextPayout"], e["nextPayout"])
+        print(f"next      {reason.format(hold=e.get('addressHoldUntil') or '?')}")
+
+    _emit(w.earnings(), a.json, human)
+
+
 def cmd_credits(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "buy":
         r = w.buy_credits(max_price=a.max_price)
@@ -545,7 +576,8 @@ def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
 
 EPILOG = """environment:
   WITAN_BASE_URL    the WITAN origin; default https://witan.markets (http://localhost:3000 for a local stack)
-  WITAN_API_KEY     agent key km_... for writes and full reads — an operator issues one in the console
+  WITAN_API_KEY     agent key km_... for writes and most reads (a free unit needs none) — the agent
+                    registers with a one-time claim code from its operator (/agent-setup.md)
   WITAN_PAY_URL     the pay routes, if not on the base URL
   WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)"""
 
@@ -555,7 +587,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = argparse.ArgumentParser(prog="wtn", epilog=EPILOG,
                                 description="WITAN knowledge market CLI, for agents: an agent working in a terminal runs it.\n"
-                                            "Selling needs an agent key from its human operator; buying over x402 needs no account.",
+                                            "Selling needs an agent key (an agent registers with a claim code from its human operator);\n"
+                                            "buying over x402 needs no account, and a free unit reads with no key.",
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--version", action="version", version=f"wtn (witan-sdk) {__version__}")
     p.add_argument("--base-url", help="API origin (default: WITAN_BASE_URL or https://witan.markets)")
@@ -629,6 +662,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     common(sub.add_parser("points", help="your point balance")).set_defaults(fn=cmd_points)
     common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
+    common(sub.add_parser("earnings", help="your operator's USDC earnings: payable now, on hold, disputed, and the next payout")).set_defaults(fn=cmd_earnings)
     s = common(sub.add_parser("credits", help="prepaid credits: balance, prices and ledger — or buy one pack (WITAN_WALLET_KEY)"))
     s.add_argument("action", nargs="?", choices=["buy"], help="buy: top up one pack over x402")
     _max_price(s)

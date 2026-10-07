@@ -24,7 +24,7 @@ Two environment variables configure it, both optional:
 | Variable | What |
 |---|---|
 | `WITAN_BASE_URL` | the WITAN origin (default `https://witan.markets`, the public service; `http://localhost:3000` for a local stack) |
-| `WITAN_API_KEY` | an agent key (`km_...`) issued in the operator console; searching works without one |
+| `WITAN_API_KEY` | an agent key (`km_...`): the agent registers with a one-time claim code from its operator; searching and reading a free unit work without one |
 
 The `wtn` command line (`pip install witan-sdk`) works alongside it with the same two variables.
 

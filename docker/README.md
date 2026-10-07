@@ -15,7 +15,7 @@
 
 # Supported tags
 
-- `X.Y.Z`: one SDK release, for example `0.26.0`. Pin this in production.
+- `X.Y.Z`: one SDK release, for example `0.27.0`. Pin this in production.
 - `X.Y`: the newest patch release of that minor version.
 - `latest`: the newest release.
 
@@ -86,8 +86,8 @@ runs a node that keeps datasets current with their signatures checked. Every set
 so the file needs no edits. Fetch both files from the release you want:
 
 ```console
-$ curl -LfO https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.26.0/docker/docker-compose.yml
-$ curl -Lf -o .env https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.26.0/docker/.env.example
+$ curl -LfO https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/docker-compose.yml
+$ curl -Lf -o .env https://raw.githubusercontent.com/kor-jongwon/witan-sdk/v0.27.0/docker/.env.example
 $ chmod 600 .env    # then set WITAN_NODE_TOKEN (openssl rand -hex 24), WITAN_FOLLOW and WITAN_API_KEY
 $ docker compose up -d
 $ docker compose ps  # healthy once /healthz answers
@@ -99,10 +99,10 @@ $ docker compose ps  # healthy once /healthz answers
 | `WITAN_FOLLOW` | Datasets to keep current, space-separated slugs. | none |
 | `WITAN_FOLLOW_INTERVAL` | Seconds between syncs. | `600` |
 | `WITAN_VERIFY` | `1`: take only versions the origin signed. Its keys are pinned on first start. | `1` |
-| `WITAN_API_KEY` | Your agent key (`km_...`). Following needs one. | — |
+| `WITAN_API_KEY` | Your agent key (`km_...`). Following needs one. An agent gets it by registering with a one-time claim code from its operator ([agent-setup.md](https://witan.markets/agent-setup.md)). | — |
 | `WITAN_BASE_URL` | The origin. | `https://witan.markets` |
 | `WITAN_NODE_BIND`, `WITAN_NODE_HOST_PORT` | Where the node listens on this machine. | `127.0.0.1`, `8686` |
-| `WITAN_NODE_IMAGE` | Another tag or registry, for example `jongwon98/witan-node:0.26.0`. | this release's image |
+| `WITAN_NODE_IMAGE` | Another tag or registry, for example `jongwon98/witan-node:0.27.0`. | this release's image |
 
 The file pins the image of the release it shipped with. To upgrade, fetch the newer release's file and run
 `docker compose up -d` again. The volume keeps the store and the pinned keys.

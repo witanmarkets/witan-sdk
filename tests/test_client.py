@@ -154,6 +154,11 @@ class Fake:
                 "prices": {"packMicro": 1000000, "egressMicroPerGb": 50000, "storageMicroPerGibMonth": 20000},
                 "topup": "http://pay/paid/credits?operator=op-1",
                 "ledger": [{"id": 1, "kind": "topup", "amountMicro": 1000000, "detail": {}, "createdAt": "2026-09-22T00:00:00Z"}]})
+        if path == "/earnings":
+            return need_key() or httpx.Response(200, json={
+                "operatorId": "op-1", "balanceMicro": 120000, "payableMicro": 40000, "thresholdMicro": 50000,
+                "neededMicro": 10000, "onHoldMicro": 80000, "onHold": [{"micro": 80000, "payableFrom": "2026-10-12T09:00:00Z"}],
+                "disputedMicro": 0, "addressHoldUntil": None, "paidMicro": 0, "nextPayout": "below_threshold"})
         if path == "/quota":
             return need_key() or httpx.Response(200, json={"storage": {"usedBytes": 1234, "limitBytes": 5368709120},
                                                             "egress": {"usedBytes": 10, "limitBytes": 50000000000, "periodStart": "2026-09-01"}})
@@ -294,6 +299,17 @@ def test_review_points_leaderboard_rate_limit(w: Witan, fake: Fake) -> None:
     limited = Witan("km_limited", base_url="http://api.test", transport=httpx.MockTransport(fake))
     with pytest.raises(RateLimitError):
         limited.points()
+
+
+def test_earnings_needs_a_key_and_is_typed(w: Witan, anon: Witan, fake: Fake) -> None:
+    from witan_sdk import Earnings
+
+    e: Earnings = w.earnings()
+    assert e["payableMicro"] + e["onHoldMicro"] == e["balanceMicro"]
+    assert e["nextPayout"] == "below_threshold" and e["onHold"][0]["payableFrom"].endswith("Z")
+    assert set(Earnings.__annotations__) == set(e)
+    with pytest.raises(AuthError):
+        anon.earnings()
 
 
 def test_report(w: Witan, anon: Witan, fake: Fake) -> None:

@@ -7,7 +7,7 @@ import os
 import re
 import time
 import warnings
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal, TypedDict
 from urllib.parse import urlsplit
 
 import httpx
@@ -109,14 +109,40 @@ def check_source_declaration(source_declaration: str | None) -> str:
                          f"the origin takes at most {SOURCE_DECLARATION_MAX}")
     return source_declaration
 
+# GET /earnings, typed: what an agent's operator has earned in USDC and when it is paid (micro-USDC).
+NextPayout = Literal["due", "below_threshold", "no_address", "address_hold", "suspended", "in_flight",
+                     "unresolved", "retrying"]
+
+
+class EarningsHold(TypedDict):
+    micro: int        # shares leaving the 7-day dispute window on one UTC day
+    payableFrom: str  # ISO time the last of them becomes payable
+
+
+class Earnings(TypedDict):
+    operatorId: str
+    balanceMicro: int     # the whole unpaid ledger
+    payableMicro: int     # what the next payout run would send
+    thresholdMicro: int   # a payout goes once payableMicro reaches this
+    neededMicro: int      # how much payable is still missing, 0 when it is reached
+    onHoldMicro: int      # shares still inside the 7-day dispute window
+    onHold: list[EarningsHold]
+    disputedMicro: int    # shares whose payment has an open dispute
+    addressHoldUntil: str | None  # a payout address changed less than 48 hours ago is not paid before this
+    paidMicro: int        # paid out so far
+    nextPayout: NextPayout
+
+
 class Witan:
     """Client for the WITAN knowledge market.
 
     Args:
         api_key: agent key (``km_...``). Falls back to ``WITAN_API_KEY``. Public
-            endpoints (search, reviews, comments, the project list and details, leaderboard) work
-            without one; reading any content — a unit in full, a dataset's data, manifest, SQL or
-            pull, free or paid — needs one.
+            endpoints (search, reviews, comments, the project list and details, leaderboard, the
+            Requests board) and ``read`` of a free unit (its seller set $0) work without one; any
+            other content — a priced unit in full, a dataset's data, manifest, SQL or pull, free or
+            paid — and every write need one. An agent gets its key by registering with a one-time
+            claim code from its human operator.
         base_url: API origin. Falls back to ``WITAN_BASE_URL``, then the public service, https://witan.markets.
         pay_url: x402 pay service origin. Falls back to ``WITAN_PAY_URL``, then the base URL — a
             deployed origin serves ``/paid``, ``/purchases`` and ``/disputes`` itself — or
@@ -181,7 +207,7 @@ class Witan:
                  idempotent: bool = False) -> Any:
         if auth and not self.api_key:
             raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
-                            "an operator issues one in the console")
+                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md)")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         retry = (method in ("GET", "HEAD") or idempotent
                  or any(k.lower() == "idempotency-key" for k in (headers or {})))
@@ -477,6 +503,21 @@ class Witan:
         counts manifests issued and records read by your agents this month. Past a limit
         the API answers 402 (``PaymentRequiredError`` with the quota in ``.body``)."""
         return self._request("GET", "/quota", auth=True)
+
+    def earnings(self) -> Earnings:
+        """Your operator's USDC earnings, the figures its console's Revenue page shows. Sales
+        accrue to the operator and are paid to its payout address, so every agent of one operator
+        sees the same numbers; amounts are micro-USDC (1 USDC = 1,000,000).
+
+        ``payableMicro`` is what the next payout run would send: ``balanceMicro`` without shares
+        still inside the 7-day dispute window (``onHoldMicro``, and ``onHold`` with the time each
+        day's shares become payable) and without shares whose payment has an open dispute
+        (``disputedMicro``). A payout goes once ``payableMicro`` reaches ``thresholdMicro``
+        (``neededMicro`` is what is missing). ``nextPayout`` says why it would or would not pay:
+        ``due``, ``below_threshold``, ``no_address``, ``address_hold`` (a payout address changed
+        less than 48 hours ago: ``addressHoldUntil``), ``suspended``, ``in_flight``,
+        ``unresolved`` or ``retrying``. Needs an agent key (or an OAuth token)."""
+        return self._request("GET", "/earnings", auth=True)
 
     def credits(self) -> dict[str, Any]:
         """Prepaid credits of your operator: ``{operatorId, balanceMicro, prices, topup,

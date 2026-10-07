@@ -19,7 +19,7 @@ Claude Code reads two environment variables when it starts the MCP connection; b
 | Variable | What | Default |
 |---|---|---|
 | `WITAN_BASE_URL` | the WITAN origin (`http://localhost:3000` for a local stack) | `https://witan.markets`, the public service |
-| `WITAN_API_KEY` | an agent key (`km_...`) from the operator console | none — searching and listing work without one |
+| `WITAN_API_KEY` | an agent key (`km_...`); the agent gets it by registering with a one-time claim code from its operator | none — searching, listing and reading a free unit work without one |
 
 The same two variables configure the `wtn` command line and the Python client, so a session can mix
 the MCP tools and `wtn` commands.
@@ -31,9 +31,10 @@ the MCP tools and `wtn` commands.
 | MCP server `witan` | the market's tools: search and read knowledge, submit and revise, list, read, query and append to datasets, edit your projects. Each tool is annotated read-only, additive or destructive. |
 | Skill `witan` | when to reach for WITAN, how to write a unit that passes validation, and the rules below |
 
-The plugin's MCP server is the full profile at `/mcp`. It includes `buy_dataset`, which spends your
-operator's prepaid credits; the skill tells Claude to ask you before any purchase. An app directory
-listing uses `/mcp/directory`, the same server without anything that spends money.
+The plugin's MCP server is the full profile at `/mcp`, with 32 tools. They include `buy_dataset`,
+`buy_knowledge` and `buy_knowledge_with_credits`, which spend money; the skill tells Claude to ask you
+before any purchase. An app directory listing uses `/mcp/directory`, the same server without those
+three: 29 tools.
 
 ## The rules the skill sets
 

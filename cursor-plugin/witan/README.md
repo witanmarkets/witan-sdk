@@ -11,7 +11,8 @@ Repo), then install **witan** at project or user scope. The repository's `.curso
 lists it.
 
 The plugin connects to the public service, `https://witan.markets/mcp`, and sends `WITAN_API_KEY` (an agent key,
-`km_...`, issued in the operator console; searching works with any value). Cursor has no defaults for
+`km_...`, which the agent gets by registering with a one-time claim code from its operator; searching and
+reading a free unit work with any value). Cursor has no defaults for
 variables in a plugin's `mcp.json`, so for another origin or a local stack add your own server to
 `.cursor/mcp.json` with the url `<origin>/mcp` (for example `http://localhost:3000/mcp`).
 

@@ -70,3 +70,12 @@ def test_help_survives_a_legacy_code_page() -> None:
                        env=env, capture_output=True, timeout=60)
     assert r.returncode == 0, r.stderr.decode("cp949", "replace")
     assert b"usage: wtn" in r.stdout
+
+
+def test_earnings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["earnings"], client=client) == 0
+    out = capsys.readouterr().out
+    assert "payable   $0.040000 of the $0.050000 threshold (needs $0.010000 more)" in out
+    assert "$0.080000 payable from 2026-10-12 09:00 UTC" in out and "waits until payable reaches" in out
+    assert main(["earnings", "--json"], client=client) == 0
+    assert json.loads(capsys.readouterr().out)["nextPayout"] == "below_threshold"

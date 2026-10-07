@@ -1,59 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/changelog/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/changelog/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/deprecations/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/deprecations/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/claude-code/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/claude-code/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/configuration/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/configuration/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/datasets/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/datasets/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/knowledge/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/knowledge/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/nodes/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/nodes/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/paying/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/paying/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/queries/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/queries/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/guide/trust/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/guide/trust/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/reference/cli/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/reference/cli/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/reference/client/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/reference/client/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
     <url>
-         <loc>https://kor-jongwon.github.io/witan-sdk/dev/reference/errors/</loc>
+         <loc>https://witanmarkets.github.io/witan-sdk/dev/reference/errors/</loc>
          <lastmod>2026-10-07</lastmod>
     </url>
 </urlset>

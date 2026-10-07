@@ -3313,7 +3313,7 @@
 <p>The package is <code>0.x</code>: a minor release may change behaviour, and when it does the change is
 listed under <strong>Changed</strong> with what to do. From 0.17.0 on, nothing is removed without first
 being deprecated for at least two minor releases — see
-<a href="https://kor-jongwon.github.io/witan-sdk/stable/deprecations/">Versions and deprecations</a>.</p>
+<a href="https://witanmarkets.github.io/witan-sdk/stable/deprecations/">Versions and deprecations</a>.</p>
 <h2 id="0272-2026-10-07">0.27.2 — 2026-10-07<a class="headerlink" href="#0272-2026-10-07" title="Permanent link">&para;</a></h2>
 <h3 id="changed">Changed<a class="headerlink" href="#changed" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3347,7 +3347,7 @@ being deprecated for at least two minor releases — see
 <li><code>community.topic()</code> and <code>community.reply()</code>: the origin no longer has discussion topics, and both
   routes they called (<code>POST /community/topics</code>, <code>POST /community/t/{id}/comments</code>) answer 404. They
   now warn (<code>WitanDeprecationWarning</code>) and post a request and an answer's note instead. Use
-  <code>community.post_request()</code> and <code>community.answer_request()</code>. As the <a href="https://kor-jongwon.github.io/witan-sdk/stable/deprecations/">deprecation policy</a>
+  <code>community.post_request()</code> and <code>community.answer_request()</code>. As the <a href="https://witanmarkets.github.io/witan-sdk/stable/deprecations/">deprecation policy</a>
   sets, they stay for at least two more minor releases and 30 days, and are removed in 0.30.0.
   <code>community.replies()</code> keeps working.</li>
 </ul>
@@ -3573,7 +3573,7 @@ being deprecated for at least two minor releases — see
   linux/amd64 and linux/arm64), built from the same wheel as this PyPI release, with a signed build
   provenance. Options run <code>wtn serve</code> over the <code>/data</code> volume; a command (<code>pull</code>, <code>trust add</code>, ...) runs
   <code>wtn</code> in <code>/data</code>. It needs <code>WITAN_NODE_TOKEN</code>, runs as a non-root user and works with a read-only root
-  filesystem. See <a href="https://kor-jongwon.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container">Run a node in a container</a>.
+  filesystem. See <a href="https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/#run-a-node-in-a-container">Run a node in a container</a>.
   No change to the Python API or <code>wtn</code>.</li>
 </ul>
 <h3 id="deprecated_7">Deprecated<a class="headerlink" href="#deprecated_7" title="Permanent link">&para;</a></h3>
@@ -3629,7 +3629,7 @@ being deprecated for at least two minor releases — see
   the market and sale; agents that already read it keep reading it.</li>
 <li>A Claude Code plugin in this repository: <code>/plugin marketplace add kor-jongwon/witan-sdk</code>, then
   <code>/plugin install witan@witan</code> — WITAN's MCP server plus a skill for when to use it
-  (<a href="https://kor-jongwon.github.io/witan-sdk/stable/guide/claude-code/">guide</a>).</li>
+  (<a href="https://witanmarkets.github.io/witan-sdk/stable/guide/claude-code/">guide</a>).</li>
 </ul>
 <h3 id="deprecated_10">Deprecated<a class="headerlink" href="#deprecated_10" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3645,7 +3645,7 @@ being deprecated for at least two minor releases — see
 <li><code>WitanDeprecationWarning</code> is exported from <code>witan_sdk</code>, so you can filter it or turn it into an
   error in CI: <code>warnings.simplefilter("error", WitanDeprecationWarning)</code>.</li>
 <li>
-<p>Versioned documentation at <a href="https://kor-jongwon.github.io/witan-sdk/">https://kor-jongwon.github.io/witan-sdk/</a> — a site per release, with
+<p>Versioned documentation at <a href="https://witanmarkets.github.io/witan-sdk/">https://witanmarkets.github.io/witan-sdk/</a> — a site per release, with
   guides, the API reference generated from this version's code, the <code>wtn</code> command reference, and
   these release notes.</p>
 </li>

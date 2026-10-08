@@ -291,6 +291,26 @@ def test_the_local_copy_is_rechecked_offline(w: Witan, fake: SignedFake, tmp_pat
         w.projects.pull(SLUG, tmp_path, version=110)
 
 
+def test_the_latest_held_on_disk_is_verified_offline(w: Witan, fake: SignedFake, tmp_path: Path) -> None:
+    w.trust()
+    w.projects.pull(SLUG, tmp_path, verify=True)
+    n = len(fake.calls)
+    m = w.projects.pull(SLUG, tmp_path, verify=True)  # the list says v110, held: no manifest
+    assert m["verified"] == "verified" and m["downloaded"] == 0
+    assert [c.url.path for c in fake.calls[n:]] == ["/projects"]
+    path = tmp_path / SLUG / "v110" / "manifest.json"
+    altered = json.loads(path.read_text(encoding="utf-8"))
+    altered["parent"] = 1
+    path.write_text(json.dumps(altered), encoding="utf-8")
+    m = w.projects.pull(SLUG, tmp_path, verify=True)  # the copy fails its check: the origin's manifest instead
+    assert m["verified"] == "verified" and m["parent"] == 109 and downloads(fake) == 2
+    assert json.loads(path.read_text(encoding="utf-8"))["parent"] == 109
+    path.write_text(json.dumps({k: v for k, v in altered.items() if k != "signature"}), encoding="utf-8")
+    fake.unsigned = True
+    with pytest.raises(SignatureError, match="not signed"):  # and that one is checked as before
+        w.projects.pull(SLUG, tmp_path, verify=True)
+
+
 def test_a_bundle_carries_the_origin_signature(w: Witan, tmp_path: Path) -> None:
     w.trust()
     path = tmp_path / "obs.witan"

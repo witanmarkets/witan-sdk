@@ -14,6 +14,21 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Fixed
+
+- `pull()` with no version, `query()` with no version, `wtn pull` and `wtn serve --follow` no longer
+  ask for the manifest of a version that is already complete on disk. The origin counts every
+  part of a version as egress each time it issues its manifest, so following a project that did
+  not change charged the whole version every `--interval` (600 s by default) with nothing
+  downloaded. The latest version number now comes from the project list, which counts nothing; the
+  manifest is asked for only when that version is not complete on disk, when the list cannot say,
+  or when it names a version older than the one on disk. The copy on disk is verified offline, as
+  with `version=N`; under `verify` a copy that fails its check falls back to the origin's manifest.
+- A version returned from disk reports `downloaded: 0` (it reported the count of the pull that
+  first wrote it).
+
 ## 0.27.2 — 2026-10-07
 
 ### Changed

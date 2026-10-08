@@ -730,7 +730,10 @@ class Projects:
         store into ``out_dir/<slug>/parts/<sha256>.parquet`` (shared across versions, like
         image layers) and writes ``out_dir/<slug>/v<N>/manifest.json``. Parts already on
         disk are skipped, so pulling the next version transfers only what changed; every
-        download is sha256-verified. ``format="jsonl"`` pages through ``/data`` instead and
+        download is sha256-verified. A version whose parts are all on disk is returned from its
+        local manifest without asking for a manifest (which counts the version's bytes as egress):
+        for ``version=None`` the latest version number is read from the project list first.
+        ``format="jsonl"`` pages through ``/data`` instead and
         writes ``v<N>/records.jsonl`` — no object-store access, what 0.1.x did. Versions
         the server has not materialized as parts yet fall back to jsonl automatically.
 
@@ -756,13 +759,18 @@ class Projects:
                 raise SignatureError(f"{slug}: a jsonl pull carries no signature to verify — pull parquet, or without verify")
             return self._pull_jsonl(slug, out_dir, version=version, page=page)
         root = Path(out_dir) / slug
-        if version is not None:
-            cached = self._cached(root, version)
-            if cached is not None:
-                _matches(cached, slug, version)
+        held = version if version is not None else self._held_latest(root, slug)
+        cached = self._cached(root, held) if held is not None else None
+        if cached is not None:
+            try:
+                _matches(cached, slug, held)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]  # offline: the signature is on disk
-                return cached
+                return {**cached, "downloaded": 0}
+            except SignatureError:
+                if version is not None:
+                    raise
+                # the copy on disk does not verify: ask the origin for the latest, as without a copy
         try:
             remote = self.manifest(slug, version=version)
         except ConflictError:
@@ -803,12 +811,37 @@ class Projects:
                 _matches(cached, slug, version)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]
-                return cached
+                return {**cached, "downloaded": 0}
         remote = self._c.buy_dataset(slug, version=version, private_key=private_key, max_price=max_price,
                                      networks=networks)
         status = check(remote, require=must)["status"]
         _matches(remote, slug, version)
         return self._materialize(slug, root, remote, workers, verified=status)
+
+    def _held_latest(self, root: Any, slug: str) -> int | None:
+        """The latest version of ``slug`` when the store may already hold it, else None.
+
+        The project list names every project's latest version in a couple of kilobytes and
+        counts nothing as egress; a manifest counts all of its version's part bytes, whether
+        or not a single part is then downloaded. So the list is asked first, and only when
+        there is a version on disk to compare it with. A list that cannot say (an error, an
+        older origin, a project it does not show) or that names a version older than the store
+        holds leaves the answer to the manifest, which refuses to go back (``_not_older``)."""
+        newest = _newest_on_disk(root)
+        if not newest:
+            return None
+        try:
+            listed = self._c._request("GET", "/projects")
+        except WitanError:
+            return None
+        projects = listed.get("projects") if isinstance(listed, dict) else None
+        for p in projects if isinstance(projects, list) else []:
+            if isinstance(p, dict) and p.get("slug") == slug:
+                latest = p.get("latestVersion")
+                if isinstance(latest, int) and not isinstance(latest, bool) and latest >= newest:
+                    return latest
+                return None
+        return None
 
     def _cached(self, root: Any, version: int) -> dict[str, Any] | None:
         """The local manifest of ``version`` when every part it lists is on disk."""
@@ -817,9 +850,12 @@ class Projects:
         local = root / f"v{version}" / "manifest.json"
         if not local.exists():
             return None
-        m = _json.loads(local.read_text(encoding="utf-8"))
+        try:
+            m = _json.loads(local.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None  # unreadable: fetch the version again
         parts_dir = root / "parts"
-        if m.get("format") != "parquet" or not isinstance(m.get("parts"), list):
+        if not isinstance(m, dict) or m.get("format") != "parquet" or not isinstance(m.get("parts"), list):
             return None
         try:
             for p in m["parts"]:

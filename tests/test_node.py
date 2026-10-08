@@ -460,8 +460,15 @@ def test_calls_share_a_kept_alive_connection(node) -> None:
         conn.request("POST", "/mcp", body=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
                      headers={"content-type": "application/json"})
         assert json.loads(conn.getresponse().read())["result"] == {}  # still the same connection after a 202
+        conn.request("GET", "/projects/nope-nope")  # a refused request ends its connection, and says so
+        res = conn.getresponse()
+        assert res.status == 404 and res.getheader("connection") == "close"
+        res.read()
     finally:
         conn.close()
+    with httpx.Client(base_url=node.url) as client:  # a pooled client goes on after an error: it opens a new connection
+        codes = [client.get(p).status_code for p in ("/projects", "/projects/nope-nope", "/projects", "/projects/nope-nope", "/healthz")]
+        assert codes == [200, 404, 200, 404, 200], codes
 
 
 def test_a_connection_past_the_cap_gets_503_at_once(store: Path) -> None:

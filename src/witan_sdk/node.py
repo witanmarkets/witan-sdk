@@ -839,6 +839,8 @@ class _Handler(BaseHTTPRequestHandler):
         self.send_header("x-witan-node", "1")
         for k, v in (extra or {}).items():
             self.send_header(k, v)
+        if self.close_connection:  # HTTP/1.1: say so, or a client reuses the connection this answer ends
+            self.send_header("connection", "close")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(data)
@@ -937,6 +939,7 @@ class _Handler(BaseHTTPRequestHandler):
             pass
         except Exception as exc:  # noqa: BLE001 - one request must not take the node down
             sys.stderr.write(f"[node] error on {method} {self.path}: {type(exc).__name__}: {exc}\n")
+            self.close_connection = True  # the request may not have been read to its end
             try:
                 self._send_json(500, {"error": "internal error on the node"})
             except OSError:

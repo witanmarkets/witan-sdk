@@ -57,7 +57,7 @@ BIGINT_MIN, BIGINT_MAX = -(2 ** 63), 2 ** 63 - 1
 DOUBLE_MAX = sys.float_info.max
 CREATE_KEYS = {"slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility"}
 COMMIT_JOURNAL = "commit.json"
-SCHEMA_ERRORS_SHOWN = 10  # a rejection names up to this many bad lines, as the origin's does  # in v<N>/ only from the version's commit until its answer is written
+SCHEMA_ERRORS = 20  # a rejection names up to this many bad lines, as the origin's does (api/src/worker/datasets.ts)  # in v<N>/ only from the version's commit until its answer is written
 
 
 class WriteError(Exception):
@@ -157,10 +157,10 @@ def validate_schema_def(d: Any) -> str | None:
     return None
 
 
-def schema_reason(errors: list[str]) -> str:
-    """The schema gate's reason: the bad lines, in order; a full list says more may follow."""
-    more = f" (the first {SCHEMA_ERRORS_SHOWN} bad lines; there may be more)" if len(errors) >= SCHEMA_ERRORS_SHOWN else ""
-    return "; ".join(errors) + more
+def schema_reason(errors: list[dict[str, Any]]) -> str:
+    """The schema gate's reason, worded as the origin's: the bad lines in order; a full list says so."""
+    more = f"; … (the first {SCHEMA_ERRORS})" if len(errors) >= SCHEMA_ERRORS else ""
+    return "; ".join(f"line {e['line']}: {e['error']}" for e in errors) + more
 
 
 def check_record(rec: Any, schema: dict[str, Any]) -> str | None:
@@ -457,12 +457,12 @@ class Writer:
             batch: set[str] = set()
             dropped = 0
             verdict: dict[str, Any] | None = None
-            schema_errors: list[str] = []
+            schema_errors: list[dict[str, Any]] = []
             for line, rec in enumerate(records, start=1):
                 err = check_record(rec, schema)
                 if err:
-                    schema_errors.append(f"line {line}: {err}")
-                    if len(schema_errors) >= SCHEMA_ERRORS_SHOWN:
+                    schema_errors.append({"line": line, "error": err})
+                    if len(schema_errors) >= SCHEMA_ERRORS:
                         break
                     continue
                 if schema_errors:  # past the first bad line only the schema is read, to name the other bad lines
@@ -478,7 +478,7 @@ class Writer:
                 batch.add(h)
                 accepted.append(stored)
             if schema_errors:
-                verdict = {"gate": "schema", "reason": schema_reason(schema_errors)}
+                verdict = {"gate": "schema", "reason": schema_reason(schema_errors), "errors": schema_errors}
             if verdict is None and not accepted:
                 verdict = {"gate": "dedup", "reason": "every record already exists in the dataset"}
 

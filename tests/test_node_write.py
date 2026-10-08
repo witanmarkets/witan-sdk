@@ -369,9 +369,10 @@ def test_a_schema_rejection_names_every_bad_line(w: Witan) -> None:
     assert r["status"] == "rejected" and r["verdict"]["gate"] == "schema", r
     # every bad line, in order; the good one is not named; after a bad line the PII gate does not cut in
     assert reason == 'line 1: "n" must be integer; line 3: missing required field "key"; line 4: "v" must be number', reason
-    many = w.projects.contribute(SLUG, [{"key": f"k{i}", "n": "x", "v": 1} for i in range(12)])
+    assert [e["line"] for e in r["verdict"]["errors"]] == [1, 3, 4]  # the lines, as the origin's verdict lists them
+    many = w.projects.contribute(SLUG, [{"key": f"k{i}", "n": "x", "v": 1} for i in range(22)])
     reason = many["verdict"]["reason"]
-    assert "line 10:" in reason and "line 11:" not in reason and reason.endswith("(the first 10 bad lines; there may be more)"), reason
+    assert "line 20:" in reason and "line 21:" not in reason and reason.endswith("; … (the first 20)"), reason
     one = w.projects.contribute(SLUG, [{"key": "a", "n": "x", "v": 1}])
     assert one["verdict"]["reason"] == 'line 1: "n" must be integer'  # a single bad line reads as it always did
 

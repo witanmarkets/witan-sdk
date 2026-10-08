@@ -28,11 +28,19 @@ being deprecated for at least two minor releases — see
   `community.item_reviews(unit_id=|dataset=)`: a verified buyer's review, and reading them.
 - `wtn requests list|show|post|answer|choose|close|review|reviews`, `wtn report KIND ID REASON DETAIL`,
   `wtn review ID RATING [--comment]`.
+- `projects.data()` answers carry `total`, the records the version holds, and `next`, the offset of the
+  next page (`None` after the last) — from the platform release after v0.21.2.
+
+### Changed
+
+- `projects.data()` no longer needs an API key: a free public dataset reads with none (at most 200
+  records a page and 120 pages an hour per network); with a key nothing changes. A whole version
+  (`manifest`, `pull`) and `query` still need one.
 
 ### Fixed
 
-- A schema rejection names every bad line, up to ten (`line 1: …; line 3: …`), on a node and on the origin,
-  instead of only the first; a single bad line reads as before.
+- A node's schema rejection names every bad line, up to twenty (`line 1: …; line 3: …`, and `verdict.errors`
+  with each line), worded as the origin's; a single bad line reads as before.
 - `wtn contribute`, `wtn push --wait` and `wtn load --push` say `nothing new` when every record is already
   in the dataset (no new version), not `rejected`; only a real rejection makes `load --push` exit 1.
 - A node speaks HTTP/1.1 with keep-alive (it answered HTTP/1.0, one connection per call); an idle

@@ -359,3 +359,30 @@ def test_promote_needs_no_origin_signature_under_witan_verify(node, w: Witan, tm
     monkeypatch.setattr(origin.projects, "push", lambda slug, path, **kw: {"contributionId": "c-1", "status": "merged"})
     r = origin.projects.promote(SLUG, to="fn-state-origin", store=Path(node.node.store.root))
     assert r["status"] == "merged" and r["promoted"]["records"] == 1
+
+
+def test_a_schema_rejection_names_every_bad_line(w: Witan) -> None:
+    rows = [{"key": "a", "n": "x", "v": 1}, {"key": "b", "n": 1, "v": 1, "note": "900101-1234567"}, {"n": 2, "v": 1},
+            {"key": "d", "n": 3, "v": "slow"}]
+    r = w.projects.contribute(SLUG, rows)
+    reason = r["verdict"]["reason"]
+    assert r["status"] == "rejected" and r["verdict"]["gate"] == "schema", r
+    # every bad line, in order; the good one is not named; after a bad line the PII gate does not cut in
+    assert reason == 'line 1: "n" must be integer; line 3: missing required field "key"; line 4: "v" must be number', reason
+    many = w.projects.contribute(SLUG, [{"key": f"k{i}", "n": "x", "v": 1} for i in range(12)])
+    reason = many["verdict"]["reason"]
+    assert "line 10:" in reason and "line 11:" not in reason and reason.endswith("(the first 10 bad lines; there may be more)"), reason
+    one = w.projects.contribute(SLUG, [{"key": "a", "n": "x", "v": 1}])
+    assert one["verdict"]["reason"] == 'line 1: "n" must be integer'  # a single bad line reads as it always did
+
+
+def test_wtn_says_nothing_new_when_every_record_is_there(w: Witan, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from witan_sdk.cli import main
+
+    rows = tmp_path / "rows.jsonl"
+    rows.write_text('{"key": "a", "n": 1, "v": 1}\n', encoding="utf-8")
+    assert main(["contribute", SLUG, "--file", str(rows)], client=w) == 0
+    capsys.readouterr()
+    assert main(["contribute", SLUG, "--file", str(rows)], client=w) == 0  # the same again: not an error
+    out = capsys.readouterr().out
+    assert out.startswith("nothing new  ") and "already in fn-state (no new version)" in out and "rejected" not in out, out

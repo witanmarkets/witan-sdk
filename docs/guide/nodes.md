@@ -26,6 +26,7 @@ wtn serve                               # http://127.0.0.1:8686, MCP at /mcp
 | `--read-only` | Refuse every write, local projects included. | off |
 | `--keep-versions N` | Keep the newest `N` versions of each local or followed project; delete older ones and the parts only they used. | `WITAN_NODE_KEEP_VERSIONS`, else every version |
 | `--quiet` | No request log. | off |
+| `--max-connections` | Open connections served at once; one more is answered 503 with `Retry-After: 1`. | `WITAN_NODE_MAX_CONNECTIONS`, else 64 |
 
 ## What it serves
 
@@ -59,6 +60,9 @@ Pass the node's token as the key. A node without a token takes every call with n
 (0.27.3 and earlier wanted a non-empty one anyway). A client given no key reads
 `WITAN_API_KEY` and sends it to whatever base URL it has, so to keep an origin key off a node,
 name the node's token (or any placeholder) as the key, as the examples here do.
+
+A node speaks HTTP/1.1 with keep-alive, so an MCP client's calls share a connection; a kept-alive
+connection that waits 5 seconds for its next request is closed.
 
 SQL on a node is read-only. It runs in DuckDB, which may read the version's own parts and no
 other file, and only a query runs: `SELECT`, `WITH`, `FROM`, `VALUES`, `DESCRIBE`, `SUMMARIZE`,

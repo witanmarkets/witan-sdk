@@ -440,3 +440,49 @@ def test_health_names_the_follows_that_fail(node) -> None:
     node.node.follow["fine-one"] = {"version": 3, "at": "2026-10-08T00:00:00+00:00", "error": None}
     health = httpx.get(f"{node.url}/healthz").json()
     assert health["ok"] is True and health["followFailing"] == ["gone-away"]
+
+
+def test_calls_share_a_kept_alive_connection(node) -> None:
+    import http.client
+
+    host, port = node.httpd.server_address[:2]
+    conn = http.client.HTTPConnection(host, port, timeout=10)
+    try:
+        for _ in range(3):  # three calls, one connection: HTTP/1.1, every answer with its length
+            conn.request("GET", "/projects")
+            res = conn.getresponse()
+            assert res.status == 200 and res.version == 11 and res.getheader("content-length")
+            res.read()
+        conn.request("POST", "/mcp", body=json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+                     headers={"content-type": "application/json"})
+        res = conn.getresponse()
+        assert res.status == 202 and res.read() == b""
+        conn.request("POST", "/mcp", body=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "ping"}),
+                     headers={"content-type": "application/json"})
+        assert json.loads(conn.getresponse().read())["result"] == {}  # still the same connection after a 202
+    finally:
+        conn.close()
+
+
+def test_a_connection_past_the_cap_gets_503_at_once(store: Path) -> None:
+    import socket
+
+    srv = Server(store, port=0, quiet=True, max_connections=1).start()
+    try:
+        host, port = srv.httpd.server_address[:2]
+        held = socket.create_connection((host, port))  # holds the only slot: connected, no request yet
+        try:
+            time.sleep(0.2)
+            res = httpx.get(f"{srv.url}/projects", timeout=5)
+            assert res.status_code == 503 and res.headers["retry-after"] == "1" and "retry shortly" in res.json()["error"]
+        finally:
+            held.close()
+        for _ in range(50):  # the slot comes back when that connection ends
+            if httpx.get(f"{srv.url}/healthz", timeout=5).status_code == 200:
+                break
+            time.sleep(0.1)
+        assert httpx.get(f"{srv.url}/projects", timeout=5).status_code == 200
+    finally:
+        srv.close()
+    with pytest.raises(WitanError, match="at least 1"):
+        Server(store, port=0, max_connections=0)

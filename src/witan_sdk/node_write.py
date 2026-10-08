@@ -56,7 +56,8 @@ DUCK_TYPE = {"string": "VARCHAR", "number": "DOUBLE", "integer": "BIGINT", "bool
 BIGINT_MIN, BIGINT_MAX = -(2 ** 63), 2 ** 63 - 1
 DOUBLE_MAX = sys.float_info.max
 CREATE_KEYS = {"slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility"}
-COMMIT_JOURNAL = "commit.json"  # in v<N>/ only from the version's commit until its answer is written
+COMMIT_JOURNAL = "commit.json"
+SCHEMA_ERRORS_SHOWN = 10  # a rejection names up to this many bad lines, as the origin's does  # in v<N>/ only from the version's commit until its answer is written
 
 
 class WriteError(Exception):
@@ -154,6 +155,12 @@ def validate_schema_def(d: Any) -> str | None:
             return f"duplicate field name: {name}"
         names.add(name)
     return None
+
+
+def schema_reason(errors: list[str]) -> str:
+    """The schema gate's reason: the bad lines, in order; a full list says more may follow."""
+    more = f" (the first {SCHEMA_ERRORS_SHOWN} bad lines; there may be more)" if len(errors) >= SCHEMA_ERRORS_SHOWN else ""
+    return "; ".join(errors) + more
 
 
 def check_record(rec: Any, schema: dict[str, Any]) -> str | None:
@@ -450,11 +457,16 @@ class Writer:
             batch: set[str] = set()
             dropped = 0
             verdict: dict[str, Any] | None = None
+            schema_errors: list[str] = []
             for line, rec in enumerate(records, start=1):
                 err = check_record(rec, schema)
                 if err:
-                    verdict = {"gate": "schema", "reason": f"line {line}: {err}"}
-                    break
+                    schema_errors.append(f"line {line}: {err}")
+                    if len(schema_errors) >= SCHEMA_ERRORS_SHOWN:
+                        break
+                    continue
+                if schema_errors:  # past the first bad line only the schema is read, to name the other bad lines
+                    continue
                 if record_has_resident_number(rec):
                     verdict = {"gate": "pii", "reason": "resident registration number pattern detected"}
                     break
@@ -465,6 +477,8 @@ class Writer:
                     continue
                 batch.add(h)
                 accepted.append(stored)
+            if schema_errors:
+                verdict = {"gate": "schema", "reason": schema_reason(schema_errors)}
             if verdict is None and not accepted:
                 verdict = {"gate": "dedup", "reason": "every record already exists in the dataset"}
 

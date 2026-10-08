@@ -31,6 +31,15 @@ being deprecated for at least two minor releases — see
 
 ### Fixed
 
+- A schema rejection names every bad line, up to ten (`line 1: …; line 3: …`), on a node and on the origin,
+  instead of only the first; a single bad line reads as before.
+- `wtn contribute`, `wtn push --wait` and `wtn load --push` say `nothing new` when every record is already
+  in the dataset (no new version), not `rejected`; only a real rejection makes `load --push` exit 1.
+- A node speaks HTTP/1.1 with keep-alive (it answered HTTP/1.0, one connection per call); an idle
+  kept-alive connection closes after 5 seconds. `wtn serve --max-connections N` (default 64) caps the
+  connections served at once: one more gets 503 with `Retry-After`.
+- A pull that re-checks a copy on disk against newly pinned keys (`wtn trust add`) writes the new
+  status into the copy's manifest, which kept saying `untrusted`.
 - A node's `/projects/{slug}/export` without `version` names the newest version it holds
   (`?version=N is the newest on this node`) instead of a schema message; as on the origin, there is
   no default, since an export counts the whole version.

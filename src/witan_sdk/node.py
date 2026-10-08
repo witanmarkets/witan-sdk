@@ -63,6 +63,8 @@ QUERY_MAX_ROWS = 1000
 PART_URL_TTL = 3600
 MAX_BODY = 1024 * 1024
 TOKEN_MIN = 16  # a node bound beyond loopback refuses a shorter token
+MAX_CONNECTIONS = 64  # open connections a node serves at once; one more gets 503 at once (--max-connections)
+KEEPALIVE_IDLE = 5.0  # seconds a kept-alive connection may wait for its next request
 WRAPPABLE = re.compile(r"(?is)^\s*(select|with|from|values|describe|summarize)\b")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 VERSION_DIR = re.compile(r"v[1-9][0-9]*")
@@ -790,12 +792,31 @@ class Node:
 
 class _Handler(BaseHTTPRequestHandler):
     server_version = "witan-node"
+    protocol_version = "HTTP/1.1"  # keep-alive: an MCP client's calls share one connection; every answer has a length or closes
     timeout = 60  # seconds a read or write on the socket may stall: a client sending its headers slowly frees its thread
     node: Node  # set on the server class per node
 
     def log_message(self, fmt: str, *args: Any) -> None:  # noqa: D401 - http.server hook
         if not self.server.node.quiet:  # type: ignore[attr-defined]
             sys.stderr.write(f"[node] {self.address_string()} {fmt % args}\n")
+
+    def log_error(self, fmt: str, *args: Any) -> None:  # noqa: D401 - http.server hook
+        if fmt.startswith("Request timed out"):  # a kept-alive connection the client left idle: not an error
+            return
+        self.log_message(fmt, *args)
+
+    def handle(self) -> None:
+        """Serve a connection's requests; between them, wait KEEPALIVE_IDLE for the next one (not the full
+        socket timeout), so an idle client does not hold one of the node's connections for long."""
+        self.close_connection = True
+        self.handle_one_request()
+        while not self.close_connection:
+            self.connection.settimeout(KEEPALIVE_IDLE)
+            self.handle_one_request()
+
+    def parse_request(self) -> bool:
+        self.connection.settimeout(self.timeout)  # the request line is in: reading its body gets the full timeout
+        return super().parse_request()
 
     # ---- plumbing ----
     @property
@@ -1128,13 +1149,48 @@ def _loopback_origin(origin: str) -> bool:
     return u.scheme in ("http", "https") and _loopback(host.lower())
 
 
+class _NodeHTTPServer(ThreadingHTTPServer):
+    """A thread per connection, at most ``max_connections`` at once: one more is answered 503 with
+    Retry-After at once, before a thread is started for it."""
+
+    def __init__(self, address: tuple[str, int], handler: type, max_connections: int) -> None:
+        self._slots = threading.BoundedSemaphore(max_connections)
+        super().__init__(address, handler)
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        if not self._slots.acquire(blocking=False):
+            body = json.dumps({"error": "this node is serving as many connections as it takes — retry shortly"}).encode()
+            try:
+                request.sendall(b"HTTP/1.1 503 Service Unavailable\r\ncontent-type: application/json; charset=utf-8\r\n"
+                                b"retry-after: 1\r\nconnection: close\r\ncontent-length: " + str(len(body)).encode()
+                                + b"\r\n\r\n" + body)
+            except OSError:
+                pass
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(self, request: Any, client_address: Any) -> None:
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
+
+
 class Server:
     """A running node: HTTP server thread plus the optional follower."""
 
     def __init__(self, store_dir: "str | os.PathLike[str]", *, host: str = "127.0.0.1", port: int = 8686,
                  token: str | None = None, follow: Iterable[str] = (), interval: float = 600.0,
                  origin: Any = None, query_timeout: float = 20.0, quiet: bool = False, read_only: bool = False,
-                 verify: bool | None = None, keep_versions: int | None = None) -> None:
+                 verify: bool | None = None, keep_versions: int | None = None,
+                 max_connections: int = MAX_CONNECTIONS) -> None:
+        if max_connections < 1:
+            raise WitanError("max_connections must be at least 1")
         if not _loopback(host) and not token:
             raise WitanError(f"binding {host} exposes the store beyond this machine — set a token (--token or WITAN_NODE_TOKEN)")
         if not _loopback(host) and len(token or "") < TOKEN_MIN:
@@ -1159,7 +1215,7 @@ class Server:
         if (self.pruned["versions"] or self.pruned["parts"]) and not quiet:
             sys.stderr.write(f"[node] dropped {_gone(self.pruned)} (--keep-versions {keep_versions})\n")
         handler = type("NodeHandler", (_Handler,), {})
-        self.httpd = ThreadingHTTPServer((host, port), handler)
+        self.httpd = _NodeHTTPServer((host, port), handler, max_connections)
         self.httpd.daemon_threads = True
         self.httpd.node = self.node  # type: ignore[attr-defined]
         self.follower = (Follower(self.node, origin, slugs, interval, log=None if not quiet else (lambda s: None), verify=verify)

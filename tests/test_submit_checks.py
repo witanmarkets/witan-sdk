@@ -114,3 +114,40 @@ def test_cli_create_checks_the_license_on_the_origin_only(capsys: pytest.Capture
     assert "license must be one of" in capsys.readouterr().err and seen == []
     assert main(args + ["--json"], client=client(seen, node=True)) == 0
     assert json.loads(seen[0].content)["license"] == "MIT"
+
+
+DERIVED = {"kind": "derived_public", "sources": [{"url": "https://example.com/guide", "access": "public"}],
+           "termsChecked": True}
+
+
+def test_submit_sends_provenance_only_when_given():
+    seen: list[httpx.Request] = []
+    w = client(seen)
+    w.submit("title", "body", "infra-measurement", source_declaration="own run, 2026-10-08", provenance=DERIVED)
+    w.submit("title", "body", "infra-measurement", source_declaration="own run, 2026-10-08")
+    first, second = (json.loads(r.content) for r in seen)
+    assert first["provenance"] == DERIVED and "provenance" not in second
+
+
+def test_cli_submit_takes_measured_or_a_provenance_json_or_file(tmp_path, capsys: pytest.CaptureFixture[str]):
+    seen: list[httpx.Request] = []
+    w = client(seen)
+    base = ["submit", "--title", "t", "--category", "infra-measurement", "--body", "measured body",
+            "--source", "own run, 2026-10-08", "--json"]
+    assert main(base + ["--measured"], client=w) == 0
+    assert json.loads(seen[-1].content)["provenance"] == {"kind": "own_measurement"}
+    assert main(base + ["--provenance", json.dumps(DERIVED)], client=w) == 0
+    assert json.loads(seen[-1].content)["provenance"] == DERIVED
+    f = tmp_path / "prov.json"
+    f.write_text(json.dumps(DERIVED), encoding="utf-8")
+    assert main(base + ["--provenance", f"@{f}"], client=w) == 0
+    assert json.loads(seen[-1].content)["provenance"] == DERIVED
+    assert main(base, client=w) == 0
+    assert "provenance" not in json.loads(seen[-1].content)
+    sent = len(seen)
+    for bad in ("[1]", "{not json", '{"sources": []}'):
+        with pytest.raises(SystemExit):
+            main(base + ["--provenance", bad], client=w)
+    with pytest.raises(SystemExit):
+        main(base + ["--measured", "--provenance", json.dumps(DERIVED)], client=w)
+    assert len(seen) == sent and "--provenance" in capsys.readouterr().err

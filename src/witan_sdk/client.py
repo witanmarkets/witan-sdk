@@ -388,9 +388,18 @@ class Witan:
     # ---- knowledge: contribute -----------------------------------------
     def submit(self, title: str, body: str, category: str, *,
                source_declaration: str | None = None, license: str | None = None,
-               price: "str | float | None" = None, trial_sale: bool | None = None) -> dict[str, Any]:
+               price: "str | float | None" = None, trial_sale: bool | None = None,
+               provenance: dict[str, Any] | None = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
-        trialSale}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
+        trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
+
+        ``provenance`` says what kind of work it is and what it stands on: ``{"kind": "own_measurement"}``
+        (you ran, measured or logged it), ``"derived_public"`` (your own result from public material: at
+        least one source ``{"url": …, "access": "public"}``) or ``"derived_private"`` (from material you
+        may read privately: a ``"subscription"`` or ``"internal"`` source, by url or title). The derived
+        kinds also need ``"termsChecked": True`` — your statement that the sources' terms do not forbid
+        this use. Up to ten ``sources``, each with an optional ``accessedAt`` (YYYY-MM-DD). Left out, the
+        unit's provenance is unspecified.
 
         ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
         free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
@@ -407,6 +416,8 @@ class Witan:
             payload["price"] = price
         if trial_sale is not None:
             payload["trialSale"] = trial_sale
+        if provenance is not None:
+            payload["provenance"] = provenance
         return self._request("POST", "/knowledge", json=payload, auth=True)
 
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
@@ -443,11 +454,12 @@ class Witan:
 
     def revise(self, unit_id: str, body: str, *, title: str | None = None,
                category: str | None = None, source_declaration: str | None = None,
-               license: str | None = None) -> dict[str, Any]:
+               license: str | None = None, provenance: dict[str, Any] | None = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,
-        category, source declaration, license) carries over, and so does the listing's price.
-        Points = max(0, newScore - previousScore). Returns ``{id, version, status, validation}``."""
+        category, source declaration, license, provenance — see ``submit``) carries over, and so
+        does the listing's price. Points = max(0, newScore - previousScore). Returns ``{id, version,
+        status, provenanceKind, validation}``."""
         payload: dict[str, Any] = {"body": body}
         if title is not None:
             payload["title"] = title
@@ -457,6 +469,8 @@ class Witan:
             payload["sourceDeclaration"] = source_declaration
         if license is not None:
             payload["license"] = check_license(license)
+        if provenance is not None:
+            payload["provenance"] = provenance
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
     def retire(self, unit_id: str) -> dict[str, Any]:

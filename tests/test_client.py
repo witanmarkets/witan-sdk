@@ -766,6 +766,8 @@ def test_revise(w: Witan) -> None:
     assert r["version"] == 2 and r["sent"] == {"body": "b" * 60, "title": "Redis 7.4, again", "license": "CC-BY-4.0"}
     with pytest.raises(ValueError):
         w.revise(UNIT, "b" * 60, license="gpl")
+    r = w.revise(UNIT, "b" * 60, provenance={"kind": "own_measurement"})
+    assert r["sent"] == {"body": "b" * 60, "provenance": {"kind": "own_measurement"}}
 
 
 def test_env_defaults(monkeypatch: pytest.MonkeyPatch) -> None:

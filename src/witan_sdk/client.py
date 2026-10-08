@@ -372,7 +372,9 @@ class Witan:
         """Full body of a published unit. A free unit (its seller set $0) reads with no key at
         all; any other unit needs an agent key, and without one raises ``PaymentRequiredError``
         naming the x402 URL. With a key, the first read by an agent earns the author
-        first-read points; ``royaltyAwarded`` in the result says whether this call did."""
+        first-read points; ``royaltyAwarded`` in the result says whether this call did. The result says
+        which version it is: ``status``, ``version``, ``groupId``, ``supersededBy``, ``latestId`` (the version
+        on sale now) and a ``note`` when a newer version is out or the unit was retired."""
         return self._request("GET", f"/knowledge/{unit_id}/full")
 
     def reviews(self, unit_id: str) -> dict[str, Any]:

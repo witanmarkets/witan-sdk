@@ -62,6 +62,7 @@ MAX_DATA_PAGE = 1000
 QUERY_MAX_ROWS = 1000
 PART_URL_TTL = 3600
 MAX_BODY = 1024 * 1024
+TOKEN_MIN = 16  # a node bound beyond loopback refuses a shorter token
 WRAPPABLE = re.compile(r"(?is)^\s*(select|with|from|values|describe|summarize)\b")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 VERSION_DIR = re.compile(r"v[1-9][0-9]*")
@@ -577,7 +578,9 @@ class Node:
                 "projects": len(slugs), "versions": sum(len(self.store.versions(s)) for s in slugs),
                 "localProjects": [s for s in slugs if self.store.is_local(s)],
                 "keepVersions": self.keep_versions,
-                "auth": "token" if self.token else "none", "follow": self.follow}
+                "auth": "token" if self.token else "none", "follow": self.follow,
+                # liveness stays ok (a container is not restarted for it); these are the follows to look at
+                "followFailing": sorted(slug for slug, st in self.follow.items() if st.get("error"))}
 
     # ---- retention (--keep-versions) ----
     def prune(self, slug: str, *, sweep: bool = False) -> dict[str, int]:
@@ -749,6 +752,8 @@ class Node:
         params = message.get("params") or {}
         if mid is None:  # a notification: nothing to answer
             return None
+        if not isinstance(params, dict):
+            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "params must be an object"}}
 
         def ok(result: Any) -> dict[str, Any]:
             return {"jsonrpc": "2.0", "id": mid, "result": result}
@@ -770,16 +775,22 @@ class Node:
             args = params.get("arguments") or {}
             if not isinstance(name, str) or not isinstance(args, dict):
                 return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "tools/call needs name and arguments"}}
+            if name not in {t["name"] for t in self.mcp_tools()}:  # a read-only node does not list the write tools
+                return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": f"unknown tool: {name}"}}
             try:
                 result = self.mcp_call(name, args, base)
                 return ok({"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]})
             except NodeError as exc:
                 return ok({"content": [{"type": "text", "text": f"{exc.status}: {exc.message}"}], "isError": True})
+            except Exception as exc:  # noqa: BLE001 - a tool failure is the tool's answer, not an HTTP 500
+                sys.stderr.write(f"[node] error in MCP {name}: {type(exc).__name__}: {exc}\n")
+                return ok({"content": [{"type": "text", "text": "500: internal error on the node"}], "isError": True})
         return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32601, "message": f"method not found: {method}"}}
 
 
 class _Handler(BaseHTTPRequestHandler):
     server_version = "witan-node"
+    timeout = 60  # seconds a read or write on the socket may stall: a client sending its headers slowly frees its thread
     node: Node  # set on the server class per node
 
     def log_message(self, fmt: str, *args: Any) -> None:  # noqa: D401 - http.server hook
@@ -793,7 +804,10 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _base(self) -> str:
         host = self.headers.get("host") or f"{self.server.server_address[0]}:{self.server.server_address[1]}"
-        return f"http://{host}"
+        # behind a TLS proxy the part URLs this node hands out must be https too; the header only shapes
+        # the URLs sent back to the client that sent it, so a false one misleads nobody else
+        proto = (self.headers.get("x-forwarded-proto") or "").split(",")[0].strip().lower()
+        return f"{'https' if proto == 'https' else 'http'}://{host}"
 
     def _send_json(self, status: int, body: Any, extra: dict[str, str] | None = None) -> None:
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -807,6 +821,13 @@ class _Handler(BaseHTTPRequestHandler):
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(data)
+
+    def _accepted(self) -> None:
+        """202 for notifications and responses, with no body (Streamable HTTP)."""
+        self.send_response(202)
+        self.send_header("content-length", "0")
+        self.send_header("x-witan-node", "1")
+        self.end_headers()
 
     def _body(self) -> Any:
         try:
@@ -828,7 +849,7 @@ class _Handler(BaseHTTPRequestHandler):
         if not token:
             return True
         header = self.headers.get("authorization") or ""
-        given = header[7:] if header.startswith("Bearer ") else ""
+        given = header[7:] if header[:7].lower() == "bearer " else ""
         return hmac.compare_digest(given.encode(), token.encode())
 
     def _host_ok(self) -> bool:
@@ -842,7 +863,7 @@ class _Handler(BaseHTTPRequestHandler):
         return (self.headers.get("host") or "").strip().lower() in allowed
 
     def _guard(self, method: str) -> None:
-        if not self._host_ok():
+        if not self._host_ok() and not (self._node.token and self._authorized()):
             raise NodeError(403, "this node answers only to its own address (Host) — a guard against DNS rebinding")
         origin = self.headers.get("origin")
         if origin is not None and not _loopback_origin(origin) and not (self._node.token and self._authorized()):
@@ -889,7 +910,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._route(method)
         except NodeError as exc:
             self.close_connection = True  # a refused request's body may still be unread
-            self._send_json(exc.status, {"error": exc.message})
+            extra = {"www-authenticate": 'Bearer realm="witan-node"'} if exc.status == 401 else None
+            self._send_json(exc.status, {"error": exc.message}, extra)
         except BrokenPipeError:
             pass
         except Exception as exc:  # noqa: BLE001 - one request must not take the node down
@@ -918,12 +940,18 @@ class _Handler(BaseHTTPRequestHandler):
         if path == "/mcp":
             if method != "POST":
                 return self._send_json(405, {"error": "MCP on this node is POST only (Streamable HTTP, JSON responses)"}, {"allow": "POST"})
-            body = self._body()
+            try:
+                body = self._body()
+            except NodeError as exc:
+                if exc.message != "body must be JSON":
+                    raise
+                return self._send_json(400, {"jsonrpc": "2.0", "id": None,
+                                             "error": {"code": -32700, "message": "parse error: the body is not JSON"}})
             if isinstance(body, list):
                 replies = [r for r in (node.mcp(m, self._base()) for m in body) if r is not None]
-                return self._send_json(200, replies) if replies else self._send_json(202, {})
+                return self._send_json(200, replies) if replies else self._accepted()
             reply = node.mcp(body, self._base())
-            return self._send_json(202, {}) if reply is None else self._send_json(200, reply)
+            return self._accepted() if reply is None else self._send_json(200, reply)
         if path == "/projects" and method == "GET":
             return self._send_json(200, {"projects": node.list_projects()})
         if path == "/projects" and method == "POST":
@@ -1049,7 +1077,10 @@ class Follower(threading.Thread):
                     raise WitanError(f"v{m.get('version')} is not available as Parquet parts")
                 detail = self.origin.projects.get(slug)
                 project = {k: detail[k] for k in PROJECT_KEYS if k in detail}
-                (root / slug / "project.json").write_text(json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+                target = root / slug / "project.json"
+                tmp = target.with_name(f".project.json.{os.getpid()}.tmp")
+                tmp.write_text(json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+                os.replace(tmp, target)  # a request reading it sees the old page or the new one, never half
                 changed = status["version"] != m["version"]
                 status.update({"version": int(m["version"]), "at": _now_iso(), "error": None,
                                "signature": m.get("verified"), "from": self.origin.base_url})
@@ -1104,6 +1135,9 @@ class Server:
                  verify: bool | None = None, keep_versions: int | None = None) -> None:
         if not _loopback(host) and not token:
             raise WitanError(f"binding {host} exposes the store beyond this machine — set a token (--token or WITAN_NODE_TOKEN)")
+        if not _loopback(host) and len(token or "") < TOKEN_MIN:
+            raise WitanError(f"a token that guards a node beyond this machine needs {TOKEN_MIN} characters or more "
+                             "(openssl rand -hex 24 makes one)")
         slugs = list(follow)
         bad = [s for s in slugs if not SLUG_RE.match(s)]
         if bad:

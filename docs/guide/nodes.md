@@ -45,7 +45,7 @@ against it by changing the base URL:
 | `POST /projects/{slug}/contribute` | Append records to a local project. |
 | `GET /projects/{slug}/contributions/{id}` | A contribution's answer. |
 | `POST /mcp` | MCP. |
-| `GET /healthz` | Liveness, store summary, follow status. |
+| `GET /healthz` | Liveness, store summary, follow status (`followFailing` names the followed projects whose last sync failed). |
 
 ```python
 from witan_sdk import Witan
@@ -132,10 +132,14 @@ Signatures still verify against the origin's pinned keys, so pin the origin firs
 
 ## Tokens and binding
 
-A node binds to `127.0.0.1` by default. Any address that is not loopback needs a token, or the
-node refuses to start. With a token, every request needs `Authorization: Bearer <token>`,
-except `GET /healthz` and part downloads. Part URLs in manifests are then signed and expire
-after an hour, so clients that fetch parts need no token.
+A node binds to `127.0.0.1` by default. Any address that is not loopback needs a token of 16
+characters or more, or the node refuses to start. With a token, every request needs
+`Authorization: Bearer <token>` (a 401 says so in `WWW-Authenticate`), except `GET /healthz` and
+part downloads. Part URLs in manifests are then signed and expire after an hour, so clients that
+fetch parts need no token. Without the token a request must name the node's own address in `Host`
+(a guard against DNS rebinding); with it, any name does, so a node bound to one address can be
+reached by a DNS name. Behind a TLS proxy that sends `X-Forwarded-Proto: https`, part URLs are
+`https://`.
 
 ```bash
 export WITAN_NODE_TOKEN=...          # a long random string

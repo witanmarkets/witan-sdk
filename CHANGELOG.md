@@ -37,6 +37,20 @@ being deprecated for at least two minor releases — see
 ### Fixed
 
 - The node MCP instructions said the node was read-only while it offered `contribute_records`.
+- A node bound beyond loopback refuses a token shorter than 16 characters (it took `--token abc`).
+- A 401 from a node carries `WWW-Authenticate: Bearer realm="witan-node"`, so MCP clients see a bearer
+  token is wanted instead of looking for an OAuth server; the `Bearer` scheme matches in any letter case.
+- With its token, a request may name the node by any host (a node bound to one IP answered 403 to its
+  DNS name); without the token the Host guard against DNS rebinding is unchanged.
+- Behind a TLS proxy (`X-Forwarded-Proto: https`) the part URLs a node hands out are `https://`.
+- A slow client can hold a node's thread for at most 60 seconds per read or write (no socket timeout before).
+- `GET /healthz` names the followed projects whose last sync failed (`followFailing`); `ok` stays the
+  process's liveness, so a container is not restarted over an origin outage.
+- The follower writes `project.json` in one step (a temporary file, then a rename): a request reading it
+  mid-write saw an empty page — slug as title, `license: unknown`.
+- Node MCP: an unknown tool and `params` that are not an object are JSON-RPC errors (`-32602`), a body
+  that is not JSON is a parse error (`-32700`), a 202 has no body, and an unexpected error inside a tool
+  is that tool's `isError` answer instead of an HTTP 500.
 
 ## 0.27.3 — 2026-10-08
 

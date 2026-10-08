@@ -288,7 +288,10 @@ def test_token_guards_the_api_and_signs_part_urls(store: Path, tmp_path: Path) -
 def test_other_addresses_need_a_token(store: Path) -> None:
     with pytest.raises(WitanError, match="token"):
         Server(store, host="0.0.0.0", port=0)
-    Server(store, host="0.0.0.0", port=0, token="t", quiet=True).close()  # constructs; closing an unstarted node returns
+    with pytest.raises(WitanError, match="16 characters"):  # a token beyond this machine has to be a secret
+        Server(store, host="0.0.0.0", port=0, token="abc")
+    Server(store, host="0.0.0.0", port=0, token="t" * 16, quiet=True).close()  # constructs; closing an unstarted node returns
+    Server(store, port=0, token="t", quiet=True).close()  # on loopback any token will do
 
 
 def test_mcp_over_streamable_http(node) -> None:
@@ -300,7 +303,8 @@ def test_mcp_over_streamable_http(node) -> None:
     init = rpc({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                 "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}}).json()
     assert init["result"]["protocolVersion"] == "2025-06-18" and init["result"]["serverInfo"]["name"] == "witan-node"
-    assert rpc({"jsonrpc": "2.0", "method": "notifications/initialized"}).status_code == 202
+    note = rpc({"jsonrpc": "2.0", "method": "notifications/initialized"})
+    assert note.status_code == 202 and note.content == b""  # Streamable HTTP: 202 carries no body
     tools = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()["result"]["tools"]
     assert [t["name"] for t in tools] == ["list_datasets", "dataset_info", "read_dataset", "dataset_manifest", "query_dataset",
                                           "create_dataset", "contribute_records", "contribution_status"]
@@ -321,6 +325,12 @@ def test_mcp_over_streamable_http(node) -> None:
     assert bad["result"]["isError"] is True
     assert rpc({"jsonrpc": "2.0", "id": 6, "method": "resources/list"}).json()["error"]["code"] == -32601
     assert httpx.get(mcp).status_code == 405
+    # an unknown tool and params that are not an object are invalid params, not a tool's isError answer
+    unknown = rpc({"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "search_knowledge", "arguments": {}}}).json()
+    assert unknown["error"]["code"] == -32602 and "search_knowledge" in unknown["error"]["message"]
+    assert rpc({"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": ["query_dataset"]}).json()["error"]["code"] == -32602
+    parse = httpx.post(mcp, content=b"{not json", headers={"content-type": "application/json"})
+    assert parse.status_code == 400 and parse.json()["error"]["code"] == -32700 and parse.json()["id"] is None
 
 
 def test_follow_pulls_the_latest_version_from_the_origin(tmp_path: Path) -> None:
@@ -390,3 +400,32 @@ def test_a_negative_content_length_is_refused_not_waited_on(node) -> None:
         sock.settimeout(5)
         head = sock.recv(4096).decode("latin-1")
     assert head.startswith("HTTP/1.0 400") or head.startswith("HTTP/1.1 400"), head[:80]
+
+
+def test_a_token_node_says_how_to_authenticate_and_takes_any_host_with_it(store: Path) -> None:
+    srv = Server(store, host="127.0.0.1", port=0, token="s3cret-s3cret-s3cret", quiet=True).start()
+    try:
+        res = httpx.get(f"{srv.url}/projects")
+        assert res.status_code == 401 and res.headers["www-authenticate"] == 'Bearer realm="witan-node"'
+        good = {"authorization": "bearer s3cret-s3cret-s3cret"}  # the scheme in any letter case
+        assert httpx.get(f"{srv.url}/projects", headers=good).status_code == 200
+        port = srv.httpd.server_address[1]
+        # a name the node was not bound to: refused without the token (DNS rebinding), fine with it
+        assert httpx.get(f"{srv.url}/projects", headers={"host": f"node.example:{port}"}).status_code == 403
+        assert httpx.get(f"{srv.url}/projects", headers={**good, "host": f"node.example:{port}"}).status_code == 200
+    finally:
+        srv.close()
+
+
+def test_part_urls_follow_a_tls_proxy(client: Witan, node) -> None:
+    plain = httpx.get(f"{node.url}/projects/{SLUG}/manifest").json()
+    assert all(p["url"].startswith("http://") for p in plain["parts"])
+    proxied = httpx.get(f"{node.url}/projects/{SLUG}/manifest", headers={"x-forwarded-proto": "https"}).json()
+    assert all(p["url"].startswith("https://") for p in proxied["parts"])
+
+
+def test_health_names_the_follows_that_fail(node) -> None:
+    node.node.follow["gone-away"] = {"version": None, "at": "2026-10-08T00:00:00+00:00", "error": "project not found (HTTP 404)"}
+    node.node.follow["fine-one"] = {"version": 3, "at": "2026-10-08T00:00:00+00:00", "error": None}
+    health = httpx.get(f"{node.url}/healthz").json()
+    assert health["ok"] is True and health["followFailing"] == ["gone-away"]

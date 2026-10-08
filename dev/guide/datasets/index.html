@@ -1043,7 +1043,7 @@ downloads one version and returns its local manifest.</p>
 <tbody>
 <tr>
 <td><code>version</code></td>
-<td><code>None</code>: the latest (always asks the server). A number: that version; returned from disk without a request when all its parts are already there.</td>
+<td><code>None</code>: the latest. A number: that version. Either way a version whose parts are all on disk is returned from disk: a number makes no request, <code>None</code> reads the latest version number from the project list.</td>
 </tr>
 <tr>
 <td><code>format</code></td>
@@ -1060,7 +1060,9 @@ downloads one version and returns its local manifest.</p>
 </tbody>
 </table>
 <p>Parts are shared across versions, like image layers. Parts already on disk are skipped, so
-pulling the next version transfers only what changed. Every part is checked against its
+pulling the next version transfers only what changed. A manifest counts its version's part
+bytes as egress, so <code>pull</code> asks for one only when something is missing: pulling a version you
+already hold costs nothing. Every part is checked against its
 sha256 before it gets its final name. Versions the server has not stored as parts yet fall
 back to <code>jsonl</code> automatically.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>witan-data/api-latency-benchmarks/parts/&lt;sha256&gt;.parquet   shared across versions

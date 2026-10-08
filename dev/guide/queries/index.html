@@ -962,7 +962,8 @@ all of the version's parts. It returns <code>{project, version, columns, rows, c
   with statements that can be wrapped (<code>SELECT</code>, <code>WITH</code>, <code>FROM</code>).</li>
 <li>A trailing <code>;</code> is removed.</li>
 <li>With <code>version=N</code> and the version already complete in <code>out_dir</code>, the query runs with no
-  network request. Without <code>version</code>, it asks the server for the latest version first.</li>
+  network request. Without <code>version</code>, it reads the latest version number from the project
+  list first, and downloads only when that version is not complete in <code>out_dir</code>.</li>
 <li>Fields outside the schema of an <code>allowExtra</code> project are in the JSON column <code>_extra</code>:
   <code>json_extract(_extra, '$.seq')</code>.</li>
 <li>A version that is only available as <code>jsonl</code>, or that has no parts, raises <code>WitanError</code>.</li>

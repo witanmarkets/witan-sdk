@@ -1158,7 +1158,10 @@ against it by changing the base URL:</p>
 </code></pre></div>
 <p>Pass the node's token as the key. A node without a token ignores the key, but the SDK still
 wants a non-empty one for calls that normally need an agent key.</p>
-<p>SQL on a node runs in DuckDB with file access limited to the project's parts directory. It
+<p>SQL on a node is read-only. It runs in DuckDB, which may read the version's own parts and no
+other file, and only a query runs: <code>SELECT</code>, <code>WITH</code>, <code>FROM</code>, <code>VALUES</code>, <code>DESCRIBE</code>, <code>SUMMARIZE</code>,
+<code>SHOW</code>. <code>COPY</code>, <code>ATTACH</code>, <code>EXPORT</code>, <code>INSTALL</code>, <code>SET</code>, <code>CREATE</code> and the rest answer 400. Error
+messages name the store as <code>&lt;store&gt;</code> and your home directory as <code>~</code>. It
 takes one statement of up to 4,000 characters, returns up to 1,000 rows (200 by default),
 stops after 20 seconds (408), and runs two queries at a time (a third waits, then gets 429).
 A node only serves a version when every part its manifest lists is on disk with the right
@@ -1183,7 +1186,9 @@ refreshes its <code>project.json</code>. It uses the client built from <code>WIT
 is logged and the others keep going. <code>GET /healthz</code> reports, per followed project, the
 <code>version</code>, the time of the last sync (<code>at</code>), the last <code>error</code>, the <code>signature</code> status and
 <code>from</code>. With <code>--verify</code>, a version that is not signed by a trusted origin is not taken and the
-node keeps the previous one. A local project cannot be followed.</p>
+node keeps the previous one. A local project cannot be followed. A round with no new version
+reads the project list and the project's details, not the manifest, so it counts nothing as
+egress.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">WITAN_API_KEY</span><span class="o">=</span>km_...
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>wtn<span class="w"> </span>--base-url<span class="w"> </span>https://witan.markets<span class="w"> </span>serve<span class="w"> </span>--follow<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--interval<span class="w"> </span><span class="m">300</span><span class="w"> </span>--verify
 </code></pre></div>
@@ -1203,8 +1208,8 @@ after an hour, so clients that fetch parts need no token.</p>
 <p><img alt="witan-node container topology: agent, node, volume, origin and mirrors" src="../../diagrams/node-topology.svg" /></p>
 <p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
 <code>query</code> extra) and signed with a build provenance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/witanmarkets/witan-node:0.27.2     # also :0.27 and :latest; linux/amd64 and linux/arm64
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>witanmarkets/witan-node:0.27.2               # Docker Hub: the same image, digest for digest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>ghcr.io/witanmarkets/witan-node:0.27.3     # also :0.27 and :latest; linux/amd64 and linux/arm64
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>witanmarkets/witan-node:0.27.3               # Docker Hub: the same image, digest for digest
 </code></pre></div>
 <p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>. The examples use
@@ -1299,15 +1304,15 @@ Publish the port on <code>127.0.0.1</code> unless other machines should reach th
 </code></pre></div>
 <p>With Compose, use the official file. It follows with signatures checked, and every setting comes from
 <code>.env</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/docker-compose.yml
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/.env.example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/docker-compose.yml
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/.env.example
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env<span class="w">    </span><span class="c1"># set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY</span>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
 <p>The settings are listed in <a href="https://github.com/witanmarkets/witan-sdk/blob/main/docker/.env.example"><code>.env.example</code></a>.
 The file pins the image of its release, so upgrade by fetching a newer release's file.</p>
 <p>Check where an image came from before you run it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/witanmarkets/witan-node:0.27.2<span class="w"> </span>--owner<span class="w"> </span>witanmarkets
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/witanmarkets/witan-node:0.27.3<span class="w"> </span>--owner<span class="w"> </span>witanmarkets
 </code></pre></div>
 <h2 id="writes-on-a-node">Writes on a node<a class="headerlink" href="#writes-on-a-node" title="Permanent link">&para;</a></h2>
 <p>Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one

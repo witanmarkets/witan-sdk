@@ -544,3 +544,15 @@ def test_a_bought_manifest_verifies_and_its_receipt_stays_off_disk(w: Witan, tmp
     path = tmp_path / "paid.witan"
     w.projects.save(SLUG, path, version=110, cache_dir=tmp_path)
     assert "x402" not in json.loads(members(path)["manifest.json"])
+
+
+def test_trust_add_then_a_pull_updates_the_copy_on_disk(w: Witan, fake: SignedFake, tmp_path: Path) -> None:
+    w.projects.pull(SLUG, tmp_path)
+    path = tmp_path / SLUG / "v110" / "manifest.json"
+    assert json.loads(path.read_text(encoding="utf-8"))["verified"] == "untrusted"
+    w.trust()
+    n = len(fake.calls)
+    assert w.projects.pull(SLUG, tmp_path, version=110)["verified"] == "verified"
+    assert len(fake.calls) == n  # still offline: the signature on disk is checked against the new pin
+    assert json.loads(path.read_text(encoding="utf-8"))["verified"] == "verified"  # and the copy says so now
+    assert not list(path.parent.glob(".manifest.json.*"))

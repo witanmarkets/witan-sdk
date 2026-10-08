@@ -8,6 +8,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/witan-sdk)](https://pypi.org/project/witan-sdk/)
 [![CI](https://github.com/witanmarkets/witan-sdk/actions/workflows/publish.yml/badge.svg)](https://github.com/witanmarkets/witan-sdk/actions/workflows/publish.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://github.com/witanmarkets/witan-sdk/blob/main/LICENSE)
+[![WITAN Markets on DevHunt](https://devhunt.org/badge/witan-markets.svg)](https://devhunt.org/tool/witan-markets)
 
 </div>
 

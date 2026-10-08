@@ -424,6 +424,9 @@ def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
         if r.get("mergedVersion") is not None:
             line += f" → v{r['mergedVersion']}"
         verdict = r.get("verdict") or {}
+        if r["status"] == "rejected" and verdict.get("gate") == "dedup":  # not an error: the data is already there
+            print(f"nothing new  {r['id']}  every record is already in {a.slug} (no new version)")
+            return
         if r["status"] == "rejected":  # which gate, and why: the line to fix is in the reason
             reason = verdict.get("reason") or "no reason given"
             line += f"  {verdict['gate']}: {reason}" if verdict.get("gate") else f"  {reason}"
@@ -442,7 +445,15 @@ def cmd_push(w: Witan, a: argparse.Namespace) -> None:
         mb = r["bytes"] / 1048576
         line = f"pushed {a.slug}: {r['parts']} part{'s' if r['parts'] != 1 else ''} ({mb:.1f} MB, {r['uploadedParts']} transferred) → contribution {r['contributionId']}"
         if a.wait:
-            line += f" → {r['status']}" + (f" (v{r['mergedVersion']}, {r.get('acceptedCount')} accepted)" if r.get("status") == "merged" else "")
+            v = r.get("verdict") or {}
+            if r.get("status") == "merged":
+                line += f" → merged (v{r['mergedVersion']}, {r.get('acceptedCount')} accepted)"
+            elif r.get("status") == "rejected" and v.get("gate") == "dedup":
+                line += " → nothing new: every record is already there (no new version)"
+            elif r.get("status") == "rejected":
+                line += f" → rejected ({v.get('gate', '?')}): {v.get('reason', '')}"
+            else:
+                line += f" → {r.get('status')}"
         print(line)
 
     _emit(r, a.json, human)
@@ -473,6 +484,8 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
             if st == "merged":
                 print(f"merged into {a.push} v{r.get('mergedVersion')} · accepted {r.get('acceptedCount')}/{b['records']} "
                       f"from {b['project']} v{b['version']}")
+            elif st == "rejected" and (r.get("verdict") or {}).get("gate") == "dedup":
+                print(f"nothing new: every record of {b['project']} v{b['version']} is already in {a.push}")
             elif st == "rejected":
                 v = r.get("verdict") or {}
                 print(f"rejected by {a.push} ({v.get('gate', '?')}): {v.get('reason', '')}")
@@ -480,7 +493,7 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
                 print(f"uploaded · contribution {r.get('contributionId')} is {st}; the gates run on the origin")
 
         _emit(r, a.json, human_push)
-        if r.get("status") == "rejected":
+        if r.get("status") == "rejected" and (r.get("verdict") or {}).get("gate") != "dedup":
             raise WitanError(f"the bundle's records were rejected by {a.push}")
         return
     r = w.projects.load(a.file, a.out, check=a.check, verify=True if a.verify else None)
@@ -517,7 +530,8 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
         source = Witan(api_key=a.upstream_token or "node", base_url=a.upstream)
     srv = Server(a.store, host=a.host, port=a.port, token=a.token or None, follow=a.follow, interval=a.interval,
                  origin=source if a.follow else None, quiet=a.quiet, read_only=a.read_only,
-                 verify=True if a.verify else None, keep_versions=a.keep_versions)
+                 verify=True if a.verify else None, keep_versions=a.keep_versions,
+                 max_connections=a.max_connections)
     h = srv.node.health()
     mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
     if h["keepVersions"]:
@@ -1081,6 +1095,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--keep-versions", type=_keep_versions, default=os.environ.get("WITAN_NODE_KEEP_VERSIONS") or None, metavar="N",
                    help="keep the newest N versions of each local or followed project; delete older ones and the parts "
                         "only they used (default: WITAN_NODE_KEEP_VERSIONS, else keep every version)")
+    s.add_argument("--max-connections", type=int, default=int(os.environ.get("WITAN_NODE_MAX_CONNECTIONS") or 64), metavar="N",
+                   help="open connections served at once; one more gets 503 (default: WITAN_NODE_MAX_CONNECTIONS, else 64)")
     s.add_argument("--verify", action="store_true", help="--follow accepts only versions signed by a trusted origin")
     s.add_argument("--upstream", help="follow from this node (a mirror) instead of the origin; signatures still verify against the origin's key")
     s.add_argument("--upstream-token", help="the upstream node's token, if it has one")

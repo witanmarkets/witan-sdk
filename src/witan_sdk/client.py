@@ -771,6 +771,27 @@ def _needs_urls(remote: dict[str, Any], root: Any) -> bool:
     return False
 
 
+def _keep_verified(root: Any, version: int, status: str) -> None:
+    """Write a re-checked signature status into the local manifest when it changed (for example after
+    ``trust add``), so the copy on disk stops saying ``untrusted``. Best effort, in one step."""
+    import json as _json
+
+    f = root / f"v{version}" / "manifest.json"
+    try:
+        m = _json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    if not isinstance(m, dict) or m.get("verified") == status:
+        return
+    m["verified"] = status
+    tmp = f.with_name(f".manifest.json.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(_json.dumps(m, indent=2), encoding="utf-8")
+        os.replace(tmp, f)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+
+
 def _not_older(root: Any, slug: str, version: int) -> None:
     """``latest`` never goes back: a server offering an older version than the store holds is
     replaying an old (validly signed) manifest."""
@@ -871,6 +892,7 @@ class Projects:
                 _matches(cached, slug, held)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]  # offline: the signature is on disk
+                    _keep_verified(root, held, cached["verified"])
                 if version is None:  # the origin answered the list just now; a pinned version stays offline
                     self._keep_project(slug, root, refresh=False)
                 return {**cached, "downloaded": 0}

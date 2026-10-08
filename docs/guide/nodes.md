@@ -57,7 +57,10 @@ r = node.projects.query_remote("api-latency-benchmarks", "SELECT count(*) FROM r
 Pass the node's token as the key. A node without a token ignores the key, but the SDK still
 wants a non-empty one for calls that normally need an agent key.
 
-SQL on a node runs in DuckDB with file access limited to the project's parts directory. It
+SQL on a node is read-only. It runs in DuckDB, which may read the version's own parts and no
+other file, and only a query runs: `SELECT`, `WITH`, `FROM`, `VALUES`, `DESCRIBE`, `SUMMARIZE`,
+`SHOW`. `COPY`, `ATTACH`, `EXPORT`, `INSTALL`, `SET`, `CREATE` and the rest answer 400. Error
+messages name the store as `<store>` and your home directory as `~`. It
 takes one statement of up to 4,000 characters, returns up to 1,000 rows (200 by default),
 stops after 20 seconds (408), and runs two queries at a time (a third waits, then gets 429).
 A node only serves a version when every part its manifest lists is on disk with the right
@@ -120,8 +123,8 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/witanmarkets/witan-node:0.27.2     # also :0.27 and :latest; linux/amd64 and linux/arm64
-witanmarkets/witan-node:0.27.2               # Docker Hub: the same image, digest for digest
+ghcr.io/witanmarkets/witan-node:0.27.3     # also :0.27 and :latest; linux/amd64 and linux/arm64
+witanmarkets/witan-node:0.27.3               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
@@ -175,8 +178,8 @@ With Compose, use the official file. It follows with signatures checked, and eve
 `.env`:
 
 ```bash
-curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/docker-compose.yml
-curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.2/docker/.env.example
+curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/docker-compose.yml
+curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/.env.example
 chmod 600 .env    # set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY
 docker compose up -d
 ```
@@ -187,7 +190,7 @@ The file pins the image of its release, so upgrade by fetching a newer release's
 Check where an image came from before you run it:
 
 ```bash
-gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.2 --owner witanmarkets
+gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.3 --owner witanmarkets
 ```
 
 ## Writes on a node

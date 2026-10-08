@@ -9,9 +9,11 @@ the origin): the schema contract, the personal-data pattern, and record-level du
 against everything the project already holds. It merges inside the request, so the answer
 is final — ``merged`` with the new version, or ``rejected`` with the gate and the reason.
 Accepted records become a content-addressed Parquet part (a small tail part folds into a
-new one, as on the origin) and a new immutable version manifest; the part is written
-before the manifest, so a crash leaves at most an unreferenced part. ``Idempotency-Key``
-replays the first answer for 24 hours.
+new one, as on the origin) and a new immutable version manifest. The part is written first
+and the version's directory is renamed into place in one step, so a crash leaves at most an
+unreferenced part. ``Idempotency-Key`` replays the first answer for 24 hours; the answer and
+the key are written after the version, from a journal in it, and a node stopped in between
+finishes them on its next write.
 
 Duplicate detection hashes each record in the form it is stored in (null fields dropped,
 integers and numbers normalized), so the set rebuilt from the parts after a restart agrees
@@ -20,16 +22,19 @@ with the one kept while running.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as _dt
 import hashlib
 import json
 import os
 import re
+import shutil
+import sys
 import threading
 import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .bundle import EXTRA_COLUMN, SLUG_RE, iter_records
 
@@ -40,7 +45,10 @@ IDEMPOTENCY_TTL_S = 24 * 3600
 FIELD_NAME = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,60}$")
 TAG = re.compile(r"^[a-z0-9-]{2,30}$")
 DUCK_TYPE = {"string": "VARCHAR", "number": "DOUBLE", "integer": "BIGINT", "boolean": "BOOLEAN"}
+BIGINT_MIN, BIGINT_MAX = -(2 ** 63), 2 ** 63 - 1
+DOUBLE_MAX = sys.float_info.max
 CREATE_KEYS = {"slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility"}
+COMMIT_JOURNAL = "commit.json"  # in v<N>/ only from the version's commit until its answer is written
 
 
 class WriteError(Exception):
@@ -158,8 +166,12 @@ def check_record(rec: Any, schema: dict[str, Any]) -> str | None:
             return f'"{name}" must be boolean'
         if kind == "number" and not is_num:
             return f'"{name}" must be number'
+        if kind == "number" and isinstance(v, int) and abs(v) > DOUBLE_MAX:  # stored as DOUBLE
+            return f'"{name}" is out of range for a number (a 64-bit float)'
         if kind == "integer" and not (is_num and (isinstance(v, int) or float(v).is_integer())):
             return f'"{name}" must be integer'
+        if kind == "integer" and not BIGINT_MIN <= int(v) <= BIGINT_MAX:  # stored as BIGINT
+            return f'"{name}" is out of range for an integer ({BIGINT_MIN} to {BIGINT_MAX})'
     if schema.get("allowExtra") is False:
         known = {f["name"] for f in schema["fields"]}
         for k in rec:
@@ -206,10 +218,30 @@ class Writer:
         self._locks: dict[str, threading.Lock] = {}
         self._guard = threading.Lock()
         self._hashes: dict[str, set[str]] = {}
+        self._busy = 0
+        self._idle = threading.Condition()
 
     def _lock(self, slug: str) -> threading.Lock:
         with self._guard:
             return self._locks.setdefault(slug, threading.Lock())
+
+    @contextlib.contextmanager
+    def _writing(self, slug: str) -> Iterator[None]:
+        """The project's lock, counted, so a node that is stopping can let the write finish."""
+        with self._idle:
+            self._busy += 1
+        try:
+            with self._lock(slug):
+                yield
+        finally:
+            with self._idle:
+                self._busy -= 1
+                self._idle.notify_all()
+
+    def wait_idle(self, timeout: float) -> bool:
+        """Wait up to ``timeout`` seconds for writes in progress; True when none is left."""
+        with self._idle:
+            return self._idle.wait_for(lambda: self._busy == 0, timeout)
 
     # ---- projects ----
     def project_file(self, slug: str) -> Path:
@@ -249,7 +281,7 @@ class Writer:
         visibility = body.get("visibility", "private")
         if visibility not in ("public", "private"):
             raise WriteError(400, "body/visibility must be public or private")
-        with self._lock(slug):
+        with self._writing(slug):
             if (self.root / slug).exists() or slug in self.follow:
                 raise WriteError(409, "slug already exists on this node")
             (self.root / slug / "parts").mkdir(parents=True)
@@ -268,10 +300,44 @@ class Writer:
     def contribution(self, slug: str, cid: str) -> dict[str, Any]:
         if not re.fullmatch(r"[0-9a-f-]{36}", cid):
             raise WriteError(400, "invalid contribution id")
+        if not self._contrib_path(slug, cid).is_file() and self.is_local(slug):  # a merge that stopped after its version
+            with self._writing(slug):
+                self._settle(slug, self._latest(slug)[0])
+        return self._view(slug, cid)
+
+    def _view(self, slug: str, cid: str) -> dict[str, Any]:
         try:
             return json.loads(self._contrib_path(slug, cid).read_text(encoding="utf-8"))
         except (OSError, ValueError) as exc:
             raise WriteError(404, "contribution not found") from exc
+
+    def _record(self, slug: str, view: dict[str, Any], idempotency: dict[str, Any] | None) -> None:
+        """The contribution's answer, and its Idempotency-Key for replays."""
+        (self.root / slug / "contributions").mkdir(exist_ok=True)
+        _write_json(self._contrib_path(slug, view["id"]), view)
+        if idempotency:
+            path, keys = self._idempotency(slug)
+            keys[idempotency["key"]] = {k: idempotency[k] for k in ("bodySha", "contributionId", "at")}
+            path.parent.mkdir(exist_ok=True)
+            _write_json(path, keys)
+
+    def _settle(self, slug: str, version: int) -> None:
+        """A version is committed when its directory is renamed into place, with a journal of the
+        answer in it; the answer and the Idempotency-Key are written after that and the journal
+        removed. A node stopped in between leaves the journal: finish its bookkeeping now, so a
+        retry with the same key replays "merged" instead of finding every record a duplicate."""
+        if version < 1:
+            return
+        journal = self.root / slug / f"v{version}" / COMMIT_JOURNAL
+        try:
+            entry = json.loads(journal.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return
+        except (OSError, ValueError):
+            entry = None  # torn: the version stands, its answer cannot be rebuilt
+        if isinstance(entry, dict) and isinstance(entry.get("view"), dict):
+            self._record(slug, entry["view"], entry.get("idempotency"))  # rewriting what did get written is harmless
+        journal.unlink()
 
     def _latest(self, slug: str) -> tuple[int, dict[str, Any] | None]:
         best = 0
@@ -322,19 +388,22 @@ class Writer:
             raise WriteError(400, "Idempotency-Key must be 1-200 characters")
         body_sha = hashlib.sha256(f"{slug}\n{raw}\n{source or ''}".encode("utf-8")).hexdigest()
 
-        with self._lock(slug):
-            idem_path, keys = self._idempotency(slug)
+        with self._writing(slug):
+            parent_v, parent = self._latest(slug)
+            self._settle(slug, parent_v)
+            _, keys = self._idempotency(slug)
             if idem and idem in keys:
                 if keys[idem]["bodySha"] != body_sha:
                     raise WriteError(422, "Idempotency-Key was already used with a different project or body")
-                return 200, self.contribution(slug, keys[idem]["contributionId"]), True
+                return 200, self._view(slug, keys[idem]["contributionId"]), True
 
             project = json.loads(self.project_file(slug).read_text(encoding="utf-8"))
             schema = project["schemaDef"]
             cid = str(uuid.uuid4())
             view: dict[str, Any] = {"id": cid, "status": "rejected", "recordCount": len(records), "acceptedCount": None,
                                     "verdict": None, "mergedVersion": None, "createdAt": _now(), "sourceDeclaration": source}
-            parent_v, parent = self._latest(slug)
+            idempotency = ({"key": idem, "bodySha": body_sha, "contributionId": cid,
+                            "at": _dt.datetime.now(_dt.timezone.utc).timestamp()} if idem else None)
             known = self._known_hashes(slug, parent)
             accepted: list[dict[str, Any]] = []
             batch: set[str] = set()
@@ -360,22 +429,19 @@ class Writer:
 
             if verdict is None:
                 version = parent_v + 1
-                self._merge(slug, schema, parent, version, accepted, cid, dropped)
-                known.update(batch)
                 view.update({"status": "merged", "acceptedCount": len(accepted), "mergedVersion": version,
                              "verdict": {"ok": True, "droppedDuplicates": dropped, "parts": 1}})
+                self._merge(slug, schema, parent, version, accepted, cid, dropped,
+                            journal={"view": view, "idempotency": idempotency})
+                known.update(batch)
+                self._settle(slug, version)  # the answer and the key, then the journal goes
             else:
                 view["verdict"] = verdict
-            (self.root / slug / "contributions").mkdir(exist_ok=True)
-            _write_json(self._contrib_path(slug, cid), view)
-            if idem:
-                keys[idem] = {"bodySha": body_sha, "contributionId": cid, "at": _dt.datetime.now(_dt.timezone.utc).timestamp()}
-                idem_path.parent.mkdir(exist_ok=True)
-                _write_json(idem_path, keys)
+                self._record(slug, view, idempotency)
             return 201, view, False
 
     def _merge(self, slug: str, schema: dict[str, Any], parent: dict[str, Any] | None, version: int,
-               accepted: list[dict[str, Any]], cid: str, dropped: int) -> dict[str, Any]:
+               accepted: list[dict[str, Any]], cid: str, dropped: int, journal: dict[str, Any]) -> dict[str, Any]:
         import duckdb
 
         parts_dir = self.root / slug / "parts"
@@ -438,7 +504,19 @@ class Writer:
             "fragment": {"contributionId": cid, "agentId": "node", "accepted": len(accepted), "droppedDuplicates": dropped},
             "count": sum(int(p["records"]) for p in parts), "file": "parts/<sha256>.parquet", "source": "local",
         }
+        # The version appears in one step: its directory is filled under a name no reader takes for a
+        # version (not v<N>), then renamed. A node stopped before that leaves the temporary directory,
+        # or with 0.27.2 an empty v<N>/; neither has a manifest, so neither is a version — the next
+        # merge of the same number clears it. The part is on disk first: a crash leaves at most an orphan part.
         vdir = self.root / slug / f"v{version}"
-        vdir.mkdir()
-        _write_json(vdir / "manifest.json", manifest)  # the part is on disk first: a crash leaves at most an orphan part
+        tmp = self.root / slug / f".v{version}.tmp"
+        if (vdir / "manifest.json").exists():  # cannot happen: _latest counts it, so version would be past it
+            raise WriteError(500, f"v{version} already exists on this node")
+        for leftover in (tmp, vdir):
+            if leftover.exists():
+                shutil.rmtree(leftover)
+        tmp.mkdir()
+        _write_json(tmp / "manifest.json", manifest)
+        _write_json(tmp / COMMIT_JOURNAL, journal)
+        os.replace(tmp, vdir)
         return manifest

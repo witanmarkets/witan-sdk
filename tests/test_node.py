@@ -5,6 +5,8 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -121,6 +123,106 @@ def test_query_and_its_sandbox(client: Witan, store: Path) -> None:
             client.projects.query_remote(SLUG, sql)
         assert ei.value.status == 400, sql
     assert not (store / "out.csv").exists()
+
+
+def test_sql_cannot_write_attach_or_reach_other_files(node, client: Witan, store: Path) -> None:
+    # 0.27.2: the parts directory was allowed, and DuckDB lets a statement write where it may read —
+    # COPY over a part made the project 404, ATTACH made files next to the parts
+    parts = store / SLUG / "parts"
+    before = {p.name: p.read_bytes() for p in parts.iterdir()}
+    m = client.projects.manifest(SLUG)
+    part = parts / f"{m['parts'][0]['sha256']}.parquet"
+    (parts / "stray.csv").write_text("k\nv\n")
+    writes = [
+        f"COPY (SELECT 42 AS a) TO '{part}' (FORMAT parquet)",
+        f"COPY (SELECT 42 AS a) TO '{part}' (FORMAT parquet, USE_TMP_FILE false)",
+        f"COPY (SELECT 42 AS a) TO '{parts / 'new.parquet'}' (FORMAT parquet)",
+        f"ATTACH '{parts / 'x.db'}'",
+        "ATTACH ':memory:' AS scratch",
+        f"EXPORT DATABASE '{parts}'",
+        "INSTALL httpfs",
+        "CREATE TABLE t AS SELECT 1",
+        "PRAGMA enable_profiling",
+        "CALL pragma_version()",
+        f"EXPLAIN ANALYZE COPY (SELECT 1) TO '{parts / 'e.csv'}'",
+    ]
+    for sql in writes:
+        with pytest.raises(WitanError) as ei:
+            client.projects.query_remote(SLUG, sql)
+        assert ei.value.status == 400 and "read-only" in str(ei.value), sql
+    others = [  # the version's own part files and nothing else: not the directory, not a stray file in it
+        f"SELECT * FROM glob('{parts}/*')",
+        f"SELECT * FROM read_csv('{parts / 'stray.csv'}')",
+        f"SELECT * FROM read_parquet('{parts}/*.parquet', filename = true)",
+    ]
+    for sql in others:
+        with pytest.raises(WitanError) as ei:
+            client.projects.query_remote(SLUG, sql)
+        assert ei.value.status == 400, sql
+    (parts / "stray.csv").unlink()
+    assert {p.name: p.read_bytes() for p in parts.iterdir()} == before  # nothing written, nothing replaced
+    assert client.projects.query_remote(SLUG, "SELECT count(*) FROM records")["rows"] == [[5]]
+    setting = client.projects.query_remote(SLUG, "SELECT current_setting('allowed_directories')::VARCHAR")["rows"][0][0]
+    assert str(parts.resolve()) not in setting and parts.resolve().as_posix() not in setting
+    # the same through MCP query_dataset, the tool an agent is told is read-only
+    call = httpx.post(f"{node.url}/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {
+        "name": "query_dataset", "arguments": {"slug": SLUG, "sql": f"COPY (SELECT 1) TO '{part}' (FORMAT parquet)"}}}).json()
+    assert call["result"]["isError"] is True and "read-only" in call["result"]["content"][0]["text"]
+    assert part.read_bytes() == before[part.name]
+
+
+def test_every_kind_of_query_still_runs(client: Witan) -> None:
+    for sql in ("DESCRIBE records", "SUMMARIZE records", "SHOW records", "FROM records", "VALUES (1), (2)",
+                "WITH k AS (SELECT key FROM records) SELECT count(*) FROM k", "PRAGMA table_info('records')",
+                "SELECT key FROM records UNION ALL SELECT 'x'", "TABLE records"):
+        assert client.projects.query_remote(SLUG, sql)["count"] >= 1, sql
+    # a semicolon inside a string is not a second statement (0.27.2 refused any ';')
+    assert client.projects.query_remote(SLUG, "SELECT ';' AS s")["rows"] == [[";"]]
+    with pytest.raises(WitanError) as ei:
+        client.projects.query_remote(SLUG, "SELECT 1; COPY (SELECT 1) TO 'x.csv'")
+    assert ei.value.status == 400 and "one statement" in str(ei.value)
+
+
+def test_sql_errors_do_not_name_local_paths(client: Witan, store: Path) -> None:
+    with pytest.raises(WitanError) as ei:
+        client.projects.query_remote(SLUG, f"SELECT * FROM read_csv('{store.resolve() / 'secret.csv'}')")
+    msg = str(ei.value)
+    assert ei.value.status == 400 and "<store>" in msg, msg
+    assert str(store.resolve()) not in msg and store.resolve().as_posix() not in msg
+    with pytest.raises(WitanError) as ei:
+        client.projects.query_remote(SLUG, f"SELECT * FROM read_csv('{Path.home() / 'nothing-here.csv'}')")
+    assert str(Path.home()) not in str(ei.value) and "~" in str(ei.value)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="SIGTERM from outside is TerminateProcess on Windows")
+def test_serve_stops_on_sigterm(store: Path) -> None:
+    # as PID 1 in the container a SIGTERM with no handler is ignored: docker stop ended in SIGKILL (137)
+    import signal
+    import socket
+    import subprocess
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    env = {k: v for k, v in os.environ.items() if not k.startswith("WITAN_")}
+    proc = subprocess.Popen([sys.executable, "-m", "witan_sdk.cli", "serve", "--store", str(store), "--port", str(port),
+                             "--quiet"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        for _ in range(100):
+            try:
+                if httpx.get(f"http://127.0.0.1:{port}/healthz", timeout=1).status_code == 200:
+                    break
+            except httpx.HTTPError:
+                time.sleep(0.1)
+        else:
+            raise AssertionError(proc.stderr.read().decode() if proc.poll() is not None else "node did not start")
+        proc.send_signal(signal.SIGTERM)
+        assert proc.wait(timeout=10) == 0  # the Ctrl-C path, not -15
+        assert b"Traceback" not in proc.stderr.read()
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
 
 
 def test_a_long_query_is_interrupted(store: Path) -> None:

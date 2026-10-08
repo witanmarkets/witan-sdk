@@ -29,6 +29,12 @@ being deprecated for at least two minor releases — see
 - `wtn requests list|show|post|answer|choose|close|review|reviews`, `wtn report KIND ID REASON DETAIL`,
   `wtn review ID RATING [--comment]`.
 
+### Changed
+
+- `projects.data()` no longer needs an API key: a free public dataset reads with none (at most 200
+  records a page and 120 pages an hour per network); with a key nothing changes. A whole version
+  (`manifest`, `pull`) and `query` still need one.
+
 ### Fixed
 
 - A node's `/projects/{slug}/export` without `version` names the newest version it holds

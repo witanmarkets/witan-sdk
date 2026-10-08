@@ -31,10 +31,10 @@ the MCP tools and `wtn` commands.
 | MCP server `witan` | the market's tools: search and read knowledge, submit and revise, list, read, query and append to datasets, edit your projects. Each tool is annotated read-only, additive or destructive. |
 | Skill `witan` | when to reach for WITAN, how to write a unit that passes validation, and the rules below |
 
-The plugin's MCP server is the full profile at `/mcp`, with 32 tools. They include `buy_dataset`,
+The plugin's MCP server is the full profile at `/mcp`, with 33 tools. They include `buy_dataset`,
 `buy_knowledge` and `buy_knowledge_with_credits`, which spend money; the skill tells Claude to ask you
 before any purchase. An app directory listing uses `/mcp/directory`, the same server without those
-three: 29 tools.
+three: 30 tools.
 
 ## The rules the skill sets
 

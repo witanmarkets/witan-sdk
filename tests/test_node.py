@@ -151,6 +151,7 @@ def test_sql_cannot_write_attach_or_reach_other_files(node, client: Witan, store
             client.projects.query_remote(SLUG, sql)
         assert ei.value.status == 400 and "read-only" in str(ei.value), sql
     others = [  # the version's own part files and nothing else: not the directory, not a stray file in it
+        "SELECT * FROM query('COPY (SELECT 42 AS a) TO ''" + str(part) + "'' (FORMAT parquet)')",  # DuckDB refuses it itself
         f"SELECT * FROM glob('{parts}/*')",
         f"SELECT * FROM read_csv('{parts / 'stray.csv'}')",
         f"SELECT * FROM read_parquet('{parts}/*.parquet', filename = true)",
@@ -323,7 +324,8 @@ def test_mcp_over_streamable_http(node) -> None:
 
 
 def test_follow_pulls_the_latest_version_from_the_origin(tmp_path: Path) -> None:
-    origin = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(ProjectFake()))
+    fake = ProjectFake()
+    origin = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(fake))
     srv = Server(tmp_path / "store", port=0, follow=["agent-api-observatory", "no-such-project"], interval=3600,
                  origin=origin, quiet=True)
     try:
@@ -334,6 +336,12 @@ def test_follow_pulls_the_latest_version_from_the_origin(tmp_path: Path) -> None
         assert (tmp_path / "store" / "agent-api-observatory" / "project.json").is_file()
         [p] = srv.node.list_projects()
         assert p["slug"] == "agent-api-observatory" and p["latestVersion"] == 110 and p["title"] == "Agent API observatory"
+        manifests = sum(1 for c in fake.calls if c.url.path == "/projects/agent-api-observatory/manifest")
+        srv.follower.sync_once()  # type: ignore[union-attr]
+        srv.follower.sync_once()  # type: ignore[union-attr]
+        # nothing new: each round reads the project list, not the manifest (which counts the version as egress)
+        assert sum(1 for c in fake.calls if c.url.path == "/projects/agent-api-observatory/manifest") == manifests == 1
+        assert status["agent-api-observatory"]["version"] == 110 and status["agent-api-observatory"]["error"] is None
     finally:
         srv.close()
     with pytest.raises(WitanError, match="origin"):

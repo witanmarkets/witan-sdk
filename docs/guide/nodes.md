@@ -116,7 +116,9 @@ refreshes its `project.json`. It uses the client built from `WITAN_BASE_URL` and
 is logged and the others keep going. `GET /healthz` reports, per followed project, the
 `version`, the time of the last sync (`at`), the last `error`, the `signature` status and
 `from`. With `--verify`, a version that is not signed by a trusted origin is not taken and the
-node keeps the previous one. A local project cannot be followed.
+node keeps the previous one. A local project cannot be followed. A round with no new version
+reads the project list and the project's details, not the manifest, so it counts nothing as
+egress.
 
 ```bash
 export WITAN_API_KEY=km_...

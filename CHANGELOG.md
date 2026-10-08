@@ -40,7 +40,15 @@ being deprecated for at least two minor releases — see
 
 ## 0.27.3 — 2026-10-08
 
-A node hotfix. Upgrade any node that serves SQL or MCP to an agent you do not fully trust.
+A node hotfix, and pulls that no longer pay egress for what is already on disk. Upgrade any node
+that serves SQL or MCP to an agent you do not fully trust, and any node that follows projects.
+
+### Changed
+
+- `retire()` and `wtn retire` withdraw every version of a unit, and any version's id will do — the
+  origin now retires the whole unit, and a revision still in validation is not published. The answer
+  carries `groupId`, `latestId` and `versions`; `wtn retire` prints the group id and how many versions
+  it withdrew.
 
 ### Security
 
@@ -72,6 +80,16 @@ A node hotfix. Upgrade any node that serves SQL or MCP to an agent you do not fu
   take writes unless `--read-only`.
 - The `query` extra needs `duckdb>=1.2` (it said 1.0): the node's SQL sandbox uses settings DuckDB
   added in 1.2, and with 1.0 or 1.1 every node query failed.
+- `pull()` with no version, `query()` with no version, `wtn pull` and `wtn serve --follow` no longer
+  ask for the manifest of a version that is already complete on disk. The origin counts every
+  part of a version as egress each time it issues its manifest, so following a project that did
+  not change charged the whole version every `--interval` (600 s by default) with nothing
+  downloaded. The latest version number now comes from the project list, which counts nothing; the
+  manifest is asked for only when that version is not complete on disk, when the list cannot say,
+  or when it names a version older than the one on disk. The copy on disk is verified offline, as
+  with `version=N`; under `verify` a copy that fails its check falls back to the origin's manifest.
+- A version returned from disk reports `downloaded: 0` (it reported the count of the pull that
+  first wrote it).
 
 ## 0.27.2 — 2026-10-07
 

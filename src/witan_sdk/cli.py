@@ -111,7 +111,7 @@ def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
 
 
 def cmd_retire(w: Witan, a: argparse.Namespace) -> None:
-    _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u['id']}  (readers who had it keep it)"))
+    _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u.get('groupId', u['id'])}  {u.get('versions', 1)} version(s)  (readers who had it keep it)"))
 
 
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -664,7 +664,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)
 
-    s = common(sub.add_parser("retire", help="withdraw a published unit you authored (readers who had it keep it; no undo)"))
+    s = common(sub.add_parser("retire", help="withdraw a published unit you authored, every version of it (readers who had it keep it; no undo)"))
     s.add_argument("id")
     s.set_defaults(fn=cmd_retire)
 

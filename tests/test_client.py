@@ -363,7 +363,78 @@ def test_pull_parquet_parts_verified_and_incremental(w: Witan, fake: Fake, tmp_p
     pinned = w.projects.pull("agent-api-observatory", tmp_path, version=110)
     assert pinned["version"] == 110 and len(fake.calls) == n  # pinned + complete on disk: no network
     latest = w.projects.pull("agent-api-observatory", tmp_path)
-    assert latest["downloaded"] == 0 and len(fake.calls) == n + 1  # one manifest probe, no part transfers
+    assert latest["version"] == 110 and latest["downloaded"] == 0
+    assert [c.url.path for c in fake.calls[n:]] == ["/projects"]  # the list names v110, held: no manifest
+
+
+def _listing(latest: object = 110, listed: int = 200) -> tuple[Witan, list]:
+    """An origin whose project list says ``latest`` (or answers ``listed``) and that serves any version's manifest."""
+    calls: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.host == "parts.test":
+            return httpx.Response(200, content={"/a": PART_A, "/b": PART_B}[request.url.path])
+        if request.url.path == "/projects":
+            if listed != 200:
+                return httpx.Response(listed, json={"error": "unavailable"})
+            return httpx.Response(200, json={"projects": [{"slug": "other-project", "latestVersion": 999},
+                                                          {"slug": "agent-api-observatory", "latestVersion": latest}]})
+        if request.url.path == "/projects/agent-api-observatory/manifest":
+            return httpx.Response(200, json=manifest_for(int(request.url.params.get("version", 112))))
+        return httpx.Response(404, json={"error": "unmapped"})
+
+    return Witan("km_test", base_url="http://api.test", retries=0, transport=httpx.MockTransport(handler)), calls
+
+
+def _manifests(calls: list) -> int:
+    return sum(1 for c in calls if c.url.path.endswith("/manifest"))
+
+
+def test_latest_is_not_fetched_again_when_it_is_on_disk(tmp_path) -> None:
+    w, calls = _listing(latest=110)
+    first = w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    assert first["downloaded"] == 2 and [c.url.path for c in calls if c.url.host == "api.test"] == [
+        "/projects/agent-api-observatory/manifest"]  # nothing on disk: the list is not asked
+    for _ in range(3):  # wtn pull, or a follower's round, with nothing new
+        again = w.projects.pull("agent-api-observatory", tmp_path)
+        assert again["version"] == 110 and again["downloaded"] == 0 and again["count"] == 3
+    assert _manifests(calls) == 1 and sum(1 for c in calls if c.url.path == "/projects") == 3
+    assert sum(1 for c in calls if c.url.host == "parts.test") == 2
+    assert w.projects.pull("agent-api-observatory", tmp_path, version=110)["downloaded"] == 0  # not the first pull's 2
+
+
+def test_latest_asks_for_the_manifest_when_the_list_cannot_vouch_for_the_copy(tmp_path) -> None:
+    import shutil
+
+    seeded = tmp_path / "seed"
+    _listing()[0].projects.pull("agent-api-observatory", seeded, version=110)
+    cases = [
+        ({"latest": 112}, 112),            # a newer version: its manifest (parts shared, nothing to download)
+        ({"latest": 109}, 112),            # older than the store: the manifest decides (and refuses to go back)
+        ({"latest": None}, 112),           # an origin that does not say
+        ({"latest": True}, 112),           # not a version number
+        ({"listed": 503}, 112),            # the list is unavailable
+        ({"listed": 404}, 112),
+    ]
+    for i, (kw, version) in enumerate(cases):
+        out = tmp_path / f"c{i}"
+        shutil.copytree(seeded, out)
+        w, calls = _listing(**kw)  # type: ignore[arg-type]
+        m = w.projects.pull("agent-api-observatory", out)
+        assert m["version"] == version and m["downloaded"] == 0 and _manifests(calls) == 1, kw
+        assert (out / "agent-api-observatory" / f"v{version}" / "manifest.json").is_file()
+
+
+def test_latest_fetches_again_over_an_incomplete_or_unreadable_copy(tmp_path) -> None:
+    w, calls = _listing(latest=110)
+    w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    (tmp_path / "agent-api-observatory" / "parts" / f"{SHA_B}.parquet").unlink()
+    m = w.projects.pull("agent-api-observatory", tmp_path)
+    assert m["version"] == 112 and m["downloaded"] == 1 and _manifests(calls) == 2  # the missing part comes back
+    (tmp_path / "agent-api-observatory" / "v112" / "manifest.json").write_text("{not json", encoding="utf-8")
+    w2, calls2 = _listing(latest=112)
+    assert w2.projects.pull("agent-api-observatory", tmp_path)["version"] == 112 and _manifests(calls2) == 1
 
 
 def test_pull_rejects_corrupt_part(w: Witan, tmp_path) -> None:

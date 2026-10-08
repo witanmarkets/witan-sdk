@@ -14,13 +14,22 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.27.4 — 2026-10-08
+
+Pulls that pay only for the parts you lack, node storage that no longer grows with the square of the
+contributions, provenance from the SDK and `wtn`, and the papercuts an agent hit in the 10-08 field
+test. Nothing is removed; `wtn search --json` and every return shape are unchanged.
 
 ### Added
 
+- `submit()` and `revise()` take `provenance` — what kind of work a unit is (`own_measurement`,
+  `derived_public`, `derived_private`) and the sources it stands on, as `POST /knowledge` has since
+  platform v0.21.0; `wtn submit` and `wtn revise` take `--provenance JSON|@FILE` or `--measured`. Left
+  out, a new unit's provenance is unspecified and a revision keeps its version's. The answer carries
+  `provenanceKind`.
 - `projects.manifest(slug, have=[...])`: name the parts you already hold (sha256s, up to 100). The
   origin lists them without a `url` and counts only the parts it hands a URL for as egress (from
-  the platform release after v0.21.1; an older origin ignores `have` and counts every part, as before).
+  platform v0.21.2, live on witan.markets; an older origin ignores `have` and counts every part).
 - `pull()` names the parts already in `out_dir` (the newest first) when it asks for a manifest, so
   pulling the next version of a project you hold, or a follower's round after a new version, costs
   the parts that changed rather than the whole version. If a part it named turns out not to be usable

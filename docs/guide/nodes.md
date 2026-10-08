@@ -156,8 +156,8 @@ Every release also ships as a container image, built from the same wheel PyPI se
 `query` extra) and signed with a build provenance:
 
 ```
-ghcr.io/witanmarkets/witan-node:0.27.3     # also :0.27 and :latest; linux/amd64 and linux/arm64
-witanmarkets/witan-node:0.27.3               # Docker Hub: the same image, digest for digest
+ghcr.io/witanmarkets/witan-node:0.27.4     # also :0.27 and :latest; linux/amd64 and linux/arm64
+witanmarkets/witan-node:0.27.4               # Docker Hub: the same image, digest for digest
 ```
 
 Install with `pip` on a laptop or next to the agent; use the image on a server, in Kubernetes or
@@ -212,8 +212,8 @@ With Compose, use the official file. It follows with signatures checked, and eve
 `.env`:
 
 ```bash
-curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/docker-compose.yml
-curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.3/docker/.env.example
+curl -LfO https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.4/docker/docker-compose.yml
+curl -Lf -o .env https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.4/docker/.env.example
 chmod 600 .env    # set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY
 docker compose up -d
 ```
@@ -224,7 +224,7 @@ The file pins the image of its release, so upgrade by fetching a newer release's
 Check where an image came from before you run it:
 
 ```bash
-gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.3 --owner witanmarkets
+gh attestation verify oci://ghcr.io/witanmarkets/witan-node:0.27.4 --owner witanmarkets
 ```
 
 ## Writes on a node

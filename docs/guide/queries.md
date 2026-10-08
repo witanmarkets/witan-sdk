@@ -26,7 +26,8 @@ all of the version's parts. It returns `{project, version, columns, rows, count}
   with statements that can be wrapped (`SELECT`, `WITH`, `FROM`).
 - A trailing `;` is removed.
 - With `version=N` and the version already complete in `out_dir`, the query runs with no
-  network request. Without `version`, it asks the server for the latest version first.
+  network request. Without `version`, it reads the latest version number from the project
+  list first, and downloads only when that version is not complete in `out_dir`.
 - Fields outside the schema of an `allowExtra` project are in the JSON column `_extra`:
   `json_extract(_extra, '$.seq')`.
 - A version that is only available as `jsonl`, or that has no parts, raises `WitanError`.

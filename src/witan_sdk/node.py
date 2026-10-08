@@ -995,8 +995,10 @@ class _Handler(BaseHTTPRequestHandler):
                 return self._send_json(200, node.query(slug, sql, version, limit))
             if rest == "export":
                 version = self._int(q, "version", None, 1, None)
-                if version is None:
-                    raise NodeError(400, "querystring must have required property 'version'")
+                if version is None:  # no default, as on the origin: name the version
+                    held = node.store.versions(slug)
+                    raise NodeError(400, f"name the version: ?version={held[0]} is the newest on this node" if held
+                                    else "name the version (?version=N); this node holds none of this project")
                 return self._export(slug, version)
             raise NodeError(404, f"not served by a WITAN node: /projects/{slug}/{rest} — ask the origin")
         raise NodeError(404, "not found on this node")

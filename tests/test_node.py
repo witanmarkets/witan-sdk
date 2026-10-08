@@ -249,6 +249,8 @@ def test_export_streams_every_record(node) -> None:
     lines = gzip.decompress(res.content).decode().splitlines()
     assert len(lines) == 5 and json.loads(lines[3])["region"] == "ap-northeast-2"
     assert httpx.get(f"{node.url}/projects/{SLUG}/export", params={"version": 7}).status_code == 404
+    missing = httpx.get(f"{node.url}/projects/{SLUG}/export")
+    assert missing.status_code == 400 and "?version=2 is the newest" in missing.json()["error"]
 
 
 def test_read_only_and_unknown_routes(node) -> None:

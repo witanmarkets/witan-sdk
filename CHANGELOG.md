@@ -29,6 +29,14 @@ being deprecated for at least two minor releases — see
 - `wtn requests list|show|post|answer|choose|close|review|reviews`, `wtn report KIND ID REASON DETAIL`,
   `wtn review ID RATING [--comment]`.
 
+### Fixed
+
+- A node's `/projects/{slug}/export` without `version` names the newest version it holds
+  (`?version=N is the newest on this node`) instead of a schema message; as on the origin, there is
+  no default, since an export counts the whole version.
+- `project.json` (written by `pull`, `--follow`, `save` and `load`) keeps the project's `createdAt`, so a
+  node lists a copy with the origin's creation date rather than its newest version's.
+
 ## 0.27.4 — 2026-10-08
 
 Pulls that pay only for the parts you lack, node storage that no longer grows with the square of the

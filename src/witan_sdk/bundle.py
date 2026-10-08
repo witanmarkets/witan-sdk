@@ -34,7 +34,7 @@ PROJECT = "project.json"
 MANIFEST = "manifest.json"
 PART_RE = re.compile(r"^parts/([0-9a-f]{64})\.parquet$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$")  # the header's slug becomes a directory name
-PROJECT_KEYS = ("slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility", "maintainer")
+PROJECT_KEYS = ("slug", "title", "readme", "schemaDef", "license", "tags", "access", "visibility", "maintainer", "createdAt")
 # Keys a local manifest carries about this machine (pull/load bookkeeping, the x402 receipt of a
 # purchase), not about the version.
 LOCAL_KEYS = ("count", "file", "downloaded", "loaded", "pulledAt", "loadedAt", "loadedFrom", "source", "verified", "x402")

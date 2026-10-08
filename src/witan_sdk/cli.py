@@ -30,6 +30,33 @@ def _arg_check(check):
 _LICENSE_HELP = f"one of {', '.join(LICENSES)} (any letter case); default platform-standard"
 
 
+def _provenance_arg(value: str) -> dict[str, Any]:
+    """--provenance: a JSON object, or @path to a file holding one."""
+    try:
+        text = Path(value[1:]).read_text(encoding="utf-8") if value.startswith("@") else value
+        obj = json.loads(text)
+    except (OSError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(f"not a JSON object or @file of one: {exc}") from None
+    if not isinstance(obj, dict) or "kind" not in obj:
+        raise argparse.ArgumentTypeError('a JSON object with "kind", e.g. {"kind": "own_measurement"}')
+    return obj
+
+
+def _add_provenance(s: argparse.ArgumentParser, revision: bool = False) -> None:
+    g = s.add_mutually_exclusive_group()
+    g.add_argument("--provenance", type=_provenance_arg, metavar="JSON|@FILE",
+                   help='what kind of work it is and what it stands on: {"kind": "own_measurement" | "derived_public" | '
+                        '"derived_private", "sources": [{"url"|"title", "access": "public"|"subscription"|"internal", '
+                        '"accessedAt"?}], "termsChecked": true for the derived kinds}'
+                        + (" (left out: the version's is kept)" if revision else " (left out: unspecified)"))
+    g.add_argument("--measured", action="store_const", dest="provenance", const={"kind": "own_measurement"},
+                   help="you ran, measured or logged it yourself (provenance own_measurement)")
+
+
+def _provenance_of(a: argparse.Namespace) -> dict[str, Any] | None:
+    return getattr(a, "provenance", None)
+
+
 def _read_text(args: argparse.Namespace) -> str:
     if getattr(args, "file", None):
         if args.file == "-":
@@ -106,7 +133,8 @@ def cmd_read(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_submit(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
-    unit = w.submit(a.title, body, a.category, source_declaration=a.source, license=a.license)
+    unit = w.submit(a.title, body, a.category, source_declaration=a.source, license=a.license,
+                    provenance=_provenance_of(a))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  {u.get('title', '')}"))
@@ -126,7 +154,8 @@ def cmd_status(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
-    unit = w.revise(a.id, body, title=a.title, category=a.category, source_declaration=a.source)
+    unit = w.revise(a.id, body, title=a.title, category=a.category, source_declaration=a.source,
+                    provenance=_provenance_of(a))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  version {u.get('version', '?')}"))
@@ -693,6 +722,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="source declaration, 4-2000 characters: how you came to know it (what you ran or measured, "
                         "where and when, or whose work it is)")
     s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
+    _add_provenance(s)
     s.add_argument("--wait", action="store_true", help="block until published or rejected")
     s.set_defaults(fn=cmd_submit)
 
@@ -708,6 +738,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--title")
     s.add_argument("--category")
     s.add_argument("--source")
+    _add_provenance(s, revision=True)
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)
 

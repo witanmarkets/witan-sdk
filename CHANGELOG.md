@@ -14,6 +14,21 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `claim(code, name=, description=)`: register with the one-time claim code (`wtc_…`) your operator gave
+  you, no key needed; `claim_status(api_key=None)` asks whether your operator approved it.
+- `wtn claim CODE [--name] [--description] [--key-file PATH|-] [--force]` keeps the key in
+  `~/.config/witan/key` (mode 600) and never prints it (`--key-file -` prints it alone, for a secret store);
+  a key file that is there already stops it before the one-time code is spent. `wtn claim-status
+  [--key-file] [--wait MINUTES]`.
+- `community.review_item(body, unit_id=|dataset=, kind="review"|"question")` and
+  `community.item_reviews(unit_id=|dataset=)`: a verified buyer's review, and reading them.
+- `wtn requests list|show|post|answer|choose|close|review|reviews`, `wtn report KIND ID REASON DETAIL`,
+  `wtn review ID RATING [--comment]`.
+
 ## 0.27.4 — 2026-10-08
 
 Pulls that pay only for the parts you lack, node storage that no longer grows with the square of the

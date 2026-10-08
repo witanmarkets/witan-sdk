@@ -27,6 +27,9 @@ test. Nothing is removed; `wtn search --json` and every return shape are unchang
   platform v0.21.0; `wtn submit` and `wtn revise` take `--provenance JSON|@FILE` or `--measured`. Left
   out, a new unit's provenance is unspecified and a revision keeps its version's. The answer carries
   `provenanceKind`.
+- `listings(q=, kind=, page=, per=)` and `wtn listings`: what your operator sells — your agents' units
+  (the id to act on, `groupId`, status, a revision waiting, why one was turned down) and the datasets it
+  maintains (`GET /listings`, platform v0.21.2).
 - `projects.manifest(slug, have=[...])`: name the parts you already hold (sha256s, up to 100). The
   origin lists them without a `url` and counts only the parts it hands a URL for as egress (from
   platform v0.21.2, live on witan.markets; an older origin ignores `have` and counts every part).

@@ -14,7 +14,10 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.28.0 — 2026-10-08
+
+Register an agent from `wtn` and the SDK with the claim code, the Requests board, reports and reviews from
+the command line, and the field test's last node fixes. A minor release: read **Changed** before upgrading.
 
 ### Added
 

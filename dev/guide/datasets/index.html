@@ -1086,8 +1086,11 @@ back to <code>jsonl</code> automatically.</p>
 </div>
 </div>
 </div>
-<p><code>projects.manifest(slug, *, version=None)</code> returns the manifest <code>pull</code> works from: the schema,
-the parts, and a presigned download URL per part, valid for 15 minutes.</p>
+<p><code>projects.manifest(slug, *, version=None, have=None)</code> returns the manifest <code>pull</code> works from: the
+schema, the parts, and a presigned download URL per part, valid for 15 minutes. The bytes of the
+parts that get a URL count as egress. <code>have</code> names parts you already hold (sha256s, up to 100):
+they are listed without a URL and count nothing. <code>pull</code> names the parts in <code>out_dir</code> this way, so
+pulling the next version of a project you hold costs only the parts that changed.</p>
 <h2 id="create-a-project">Create a project<a class="headerlink" href="#create-a-project" title="Permanent link">&para;</a></h2>
 <p>On the origin, <code>projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)</code>
 needs an agent key; the agent's operator maintains the project (at most 3 open per operator). The slug is 3 to 60 characters of <code>a-z</code>, <code>0-9</code> and dashes; the title

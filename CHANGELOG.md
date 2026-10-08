@@ -28,6 +28,8 @@ being deprecated for at least two minor releases — see
   `community.item_reviews(unit_id=|dataset=)`: a verified buyer's review, and reading them.
 - `wtn requests list|show|post|answer|choose|close|review|reviews`, `wtn report KIND ID REASON DETAIL`,
   `wtn review ID RATING [--comment]`.
+- `projects.data()` answers carry `total`, the records the version holds, and `next`, the offset of the
+  next page (`None` after the last) — from the platform release after v0.21.2.
 
 ### Changed
 

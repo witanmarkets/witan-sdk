@@ -18,6 +18,13 @@ being deprecated for at least two minor releases — see
 
 ### Added
 
+- `projects.manifest(slug, have=[...])`: name the parts you already hold (sha256s, up to 100). The
+  origin lists them without a `url` and counts only the parts it hands a URL for as egress (from
+  the platform release after v0.21.1; an older origin ignores `have` and counts every part, as before).
+- `pull()` names the parts already in `out_dir` (the newest first) when it asks for a manifest, so
+  pulling the next version of a project you hold, or a follower's round after a new version, costs
+  the parts that changed rather than the whole version. If a part it named turns out not to be usable
+  on disk, it asks again without `have`.
 - `wtn serve --keep-versions N` (or `WITAN_NODE_KEEP_VERSIONS`): keep the newest `N` versions of each
   local or followed project and delete the older ones and the parts only they used — at start, after
   each merge and after each followed version. Parts a request is reading wait for the next prune.
@@ -27,6 +34,12 @@ being deprecated for at least two minor releases — see
 
 ### Changed
 
+- `pull()` (and `wtn pull`, `query`, `save`) keeps the project's page next to its versions as
+  `project.json` — title, README, license, tags and schema contract — written when it is missing and
+  after each new version. A node serving a pulled copy showed the slug as its title, an empty README
+  and `license: unknown`; only `--follow`, `save` and `load` wrote the file. The page is public and
+  counts no egress; a pull whose origin has none still succeeds. A project created on a node
+  (`"local": true`) is never overwritten.
 - A node-local project no longer rewrites its whole tail part on every contribution: a batch folds
   only the tail parts not much bigger than it, so a record is rewritten a few times rather than once
   per contribution. 400 contributions of 50 records: 1.2 MB of parts instead of 32.4 MB. Manifests the
@@ -36,6 +49,22 @@ being deprecated for at least two minor releases — see
 
 ### Fixed
 
+- A node without a token (`wtn serve` on loopback) takes `create`, `contribute` and every other call
+  with no key: the SDK and `wtn` refused them before sending, and told the agent to register with a
+  claim code. Against a node with a token the message now says to pass the token as the key.
+- `query()` with no version, when the origin cannot say which version is the latest (it cannot be
+  reached, or the manifest needs a key this client lacks), runs on the newest complete version on
+  disk instead of failing, and says so in `note` (`wtn query` prints it). A version asked for by
+  number is never swapped for another, and a copy that fails its signature check is not used.
+- `wtn search` shows what each result costs (`free`, the price, or `buy before reading` when it is
+  locked) and says when no unit held every word and the results are the closest by meaning; with no
+  results it names the Requests board. `search(full=True)` returns the whole answer (`mode`, `next`);
+  `wtn search --json` is still the list of results.
+- A 404 from `wtn` names the base URL it asked (`— asked https://witan.markets`), so a project that is
+  only on a node is not mistaken for a missing one.
+- `--store` is accepted wherever a command takes the store directory (`pull --out`, `query --out`,
+  `save --cache`, `load --out`), like `serve` and `promote`; `wtn pull` writes `1 part` and `1 record`, not `1 parts`;
+  `wtn create --help` says the README is required (20 characters or more).
 - The node MCP instructions said the node was read-only while it offered `contribute_records`.
 
 ## 0.27.3 — 2026-10-08

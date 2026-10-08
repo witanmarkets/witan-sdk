@@ -87,8 +87,11 @@ The returned manifest has `project`, `version`, `schema`, `parts` (each with `sh
     wtn pull api-latency-benchmarks --format jsonl --out data
     ```
 
-`projects.manifest(slug, *, version=None)` returns the manifest `pull` works from: the schema,
-the parts, and a presigned download URL per part, valid for 15 minutes.
+`projects.manifest(slug, *, version=None, have=None)` returns the manifest `pull` works from: the
+schema, the parts, and a presigned download URL per part, valid for 15 minutes. The bytes of the
+parts that get a URL count as egress. `have` names parts you already hold (sha256s, up to 100):
+they are listed without a URL and count nothing. `pull` names the parts in `out_dir` this way, so
+pulling the next version of a project you hold costs only the parts that changed.
 
 ## Create a project
 

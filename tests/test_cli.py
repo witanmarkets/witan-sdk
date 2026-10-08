@@ -81,6 +81,16 @@ def test_serve_help_does_not_call_the_node_read_only(capsys: pytest.CaptureFixtu
     assert "(read-only)" not in text and "local projects take writes" in text, text
 
 
+def test_listings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["listings"], client=client) == 0
+    out = capsys.readouterr().out
+    assert f"unit     {UNIT}  published" in out and "$0.25" in out and "2 sold" in out
+    assert "revision v3 u-2 is submitted" in out and "dataset  probe-latency" in out and "(private)" in out
+    assert "page 1 of 1 · 1 unit(s), 1 dataset(s)" in out
+    assert main(["listings", "redis", "--kind", "dataset", "--json"], client=client) == 0
+    assert [r["slug"] for r in json.loads(capsys.readouterr().out)["listings"]] == ["probe-latency"]
+
+
 def test_earnings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["earnings"], client=client) == 0
     out = capsys.readouterr().out
@@ -88,3 +98,51 @@ def test_earnings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[st
     assert "$0.080000 payable from 2026-10-12 09:00 UTC" in out and "waits until payable reaches" in out
     assert main(["earnings", "--json"], client=client) == 0
     assert json.loads(capsys.readouterr().out)["nextPayout"] == "below_threshold"
+
+
+def test_search_says_price_and_how_it_matched(capsys: pytest.CaptureFixture[str]) -> None:
+    hit = {"id": UNIT, "title": "Redis", "category": "databases", "score": "85", "agentName": "witan-lab"}
+    answers = {
+        "free": {"results": [{**hit, "price": "$0", "priceMicro": 0, "locked": False}], "mode": "keyword"},
+        "paid": {"results": [{**hit, "price": "$0.25", "priceMicro": 250000, "locked": True}], "mode": "semantic"},
+        "none": {"results": [], "mode": "semantic", "next": {"note": "Nothing published is close.", "mcpTool": "post_request",
+                                                              "url": "/community/requests"}},
+    }
+    client = Witan("km_test", base_url="http://api.test",
+                   transport=httpx.MockTransport(lambda req: httpx.Response(200, json=answers[req.url.params["q"]])))
+    assert main(["search", "free"], client=client) == 0
+    got = capsys.readouterr()
+    assert "databases · witan-lab · free" in got.out and "closest by meaning" not in got.err
+    assert main(["search", "paid"], client=client) == 0
+    got = capsys.readouterr()
+    assert "$0.25, buy before reading" in got.out and "closest by meaning" in got.err
+    assert main(["search", "none"], client=client) == 0
+    got = capsys.readouterr()
+    assert "no results" in got.out and "Nothing published is close" in got.err and "post_request" in got.err
+    assert main(["search", "free", "--json"], client=client) == 0
+    assert json.loads(capsys.readouterr().out)[0]["priceMicro"] == 0  # --json is still the list of results
+
+
+def test_a_404_says_where_it_was_asked(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["read", "00000000-0000-0000-0000-000000000000"], client=client) == 1
+    assert "asked http://api.test" in capsys.readouterr().err
+
+
+def test_pull_counts_one_part_in_the_singular(capsys: pytest.CaptureFixture[str], tmp_path) -> None:
+    from test_client import PART_A, manifest_for
+
+    one = manifest_for(110)
+    one["parts"] = one["parts"][:1]
+    one["totals"] = {**one["totals"], "records": 2, "parts": 1}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.host == "parts.test":
+            return httpx.Response(200, content=PART_A)
+        if req.url.path.endswith("/manifest"):
+            return httpx.Response(200, json=one)
+        return httpx.Response(404, json={"error": "unmapped"})
+
+    client = Witan("km_test", base_url="http://api.test", retries=0, transport=httpx.MockTransport(handler))
+    assert main(["pull", "agent-api-observatory@110", "--store", str(tmp_path)], client=client) == 0
+    out = capsys.readouterr().out
+    assert "2 records in 1 part →" in out and "1 part downloaded" in out

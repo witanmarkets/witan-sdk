@@ -21,6 +21,7 @@ services:
       WITAN_FOLLOW: ${WITAN_FOLLOW:-}
       WITAN_FOLLOW_INTERVAL: ${WITAN_FOLLOW_INTERVAL:-600}
       WITAN_VERIFY: ${WITAN_VERIFY:-1}
+      WITAN_NODE_KEEP_VERSIONS: ${WITAN_NODE_KEEP_VERSIONS:-}
     ports:
       # 127.0.0.1: only this machine reaches the node. Put TLS in front before opening it wider.
       - "${WITAN_NODE_BIND:-127.0.0.1}:${WITAN_NODE_HOST_PORT:-8686}:8686"

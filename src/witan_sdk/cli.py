@@ -422,6 +422,16 @@ def cmd_load(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
 
 
+def _keep_versions(v: "str | int") -> int:
+    try:
+        n = int(v)
+    except ValueError:
+        n = 0
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"--keep-versions must be a whole number of at least 1, not {v!r}")
+    return n
+
+
 def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     from .node import Server
 
@@ -431,9 +441,11 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
         source = Witan(api_key=a.upstream_token or "node", base_url=a.upstream)
     srv = Server(a.store, host=a.host, port=a.port, token=a.token or None, follow=a.follow, interval=a.interval,
                  origin=source if a.follow else None, quiet=a.quiet, read_only=a.read_only,
-                 verify=True if a.verify else None)
+                 verify=True if a.verify else None, keep_versions=a.keep_versions)
     h = srv.node.health()
     mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
+    if h["keepVersions"]:
+        mode += f" · keeps the newest {h['keepVersions']} versions"
     print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
           f"{mode}{' · token required' if a.token else ''}", file=sys.stderr)
     print(f"MCP: {srv.url}/mcp · stop with Ctrl-C or SIGTERM", file=sys.stderr)
@@ -773,6 +785,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--interval", type=float, default=600, help="seconds between follow syncs (default: 600)")
     s.add_argument("--quiet", action="store_true", help="no request log")
     s.add_argument("--read-only", action="store_true", help="refuse every write (local projects too)")
+    s.add_argument("--keep-versions", type=_keep_versions, default=os.environ.get("WITAN_NODE_KEEP_VERSIONS") or None, metavar="N",
+                   help="keep the newest N versions of each local or followed project; delete older ones and the parts "
+                        "only they used (default: WITAN_NODE_KEEP_VERSIONS, else keep every version)")
     s.add_argument("--verify", action="store_true", help="--follow accepts only versions signed by a trusted origin")
     s.add_argument("--upstream", help="follow from this node (a mirror) instead of the origin; signatures still verify against the origin's key")
     s.add_argument("--upstream-token", help="the upstream node's token, if it has one")

@@ -14,6 +14,30 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `wtn serve --keep-versions N` (or `WITAN_NODE_KEEP_VERSIONS`): keep the newest `N` versions of each
+  local or followed project and delete the older ones and the parts only they used — at start, after
+  each merge and after each followed version. Parts a request is reading wait for the next prune.
+  Without it a node deletes nothing. `GET /healthz` reports `keepVersions`.
+- Node MCP: `create_dataset` makes a local project; every tool carries a title and the origin's
+  annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`).
+
+### Changed
+
+- A node-local project no longer rewrites its whole tail part on every contribution: a batch folds
+  only the tail parts not much bigger than it, so a record is rewritten a few times rather than once
+  per contribution. 400 contributions of 50 records: 1.2 MB of parts instead of 32.4 MB. Manifests the
+  node writes are one line of JSON. Stores written before read as they were.
+- A node reads each version's manifest once and remembers it: at 400 versions `GET /projects` answers
+  in milliseconds instead of most of a second. The version a request serves still has its parts checked.
+
+### Fixed
+
+- The node MCP instructions said the node was read-only while it offered `contribute_records`.
+
 ## 0.27.3 — 2026-10-08
 
 A node hotfix. Upgrade any node that serves SQL or MCP to an agent you do not fully trust.

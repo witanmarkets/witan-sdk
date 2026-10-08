@@ -302,7 +302,14 @@ def test_mcp_over_streamable_http(node) -> None:
     assert rpc({"jsonrpc": "2.0", "method": "notifications/initialized"}).status_code == 202
     tools = rpc({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}).json()["result"]["tools"]
     assert [t["name"] for t in tools] == ["list_datasets", "dataset_info", "read_dataset", "dataset_manifest", "query_dataset",
-                                          "contribute_records", "contribution_status"]
+                                          "create_dataset", "contribute_records", "contribution_status"]
+    # annotations as the origin gives them: reads are read-only and idempotent, writes neither; nothing is open-world
+    for t in tools:
+        a = t["annotations"]
+        assert a["title"] == t["title"] and a["openWorldHint"] is False and a["destructiveHint"] is False, t["name"]
+        assert a["readOnlyHint"] is a["idempotentHint"] is (t["name"] not in ("create_dataset", "contribute_records")), t["name"]
+    instructions = init["result"]["instructions"]
+    assert "contribute_records" in instructions and "read-only copies" not in instructions
     call = rpc({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
                 "params": {"name": "query_dataset", "arguments": {"slug": SLUG, "sql": "SELECT count(*) AS c FROM records"}}}).json()
     assert json.loads(call["result"]["content"][0]["text"])["rows"] == [[5]]

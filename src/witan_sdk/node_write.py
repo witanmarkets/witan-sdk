@@ -8,12 +8,18 @@ A contribution runs the origin's gates without the LLM screen (like a private pr
 the origin): the schema contract, the personal-data pattern, and record-level duplicates
 against everything the project already holds. It merges inside the request, so the answer
 is final — ``merged`` with the new version, or ``rejected`` with the gate and the reason.
-Accepted records become a content-addressed Parquet part (a small tail part folds into a
-new one, as on the origin) and a new immutable version manifest. The part is written first
-and the version's directory is renamed into place in one step, so a crash leaves at most an
-unreferenced part. ``Idempotency-Key`` replays the first answer for 24 hours; the answer and
-the key are written after the version, from a journal in it, and a node stopped in between
-finishes them on its next write.
+Accepted records become a content-addressed Parquet part and a new immutable version
+manifest. The part is written first and the version's directory is renamed into place in one
+step, so a crash leaves at most an unreferenced part. ``Idempotency-Key`` replays the first
+answer for 24 hours; the answer and the key are written after the version, from a journal in
+it, and a node stopped in between finishes them on its next write.
+
+Small parts fold together the way the origin compacts a small tail, but a batch folds only
+the run of tail parts that are not much bigger than it (``fold_run``): part sizes fall
+geometrically towards the tail, so a record is rewritten a few times over the life of a
+project rather than once per contribution, and a version holds a handful of small parts
+behind the full (1 MiB) ones. Older versions keep the parts they listed; ``--keep-versions``
+on ``wtn serve`` drops old versions and the parts only they used.
 
 Duplicate detection hashes each record in the form it is stored in (null fields dropped,
 integers and numbers normalized), so the set rebuilt from the parts after a restart agrees
@@ -34,14 +40,16 @@ import threading
 import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from .bundle import EXTRA_COLUMN, SLUG_RE, iter_records
 
 MAX_BATCH_RECORDS = 500
 MAX_BATCH_BYTES = 512 * 1024
-COMPACT_MAX_BYTES = 1024 * 1024
+COMPACT_MAX_BYTES = 1024 * 1024  # a part this big is full: nothing folds into it again
+FOLD_FACTOR = 2  # a tail part folds into a new batch while it holds at most this many times the batch's records
 IDEMPOTENCY_TTL_S = 24 * 3600
+VERSION_DIR = re.compile(r"v[1-9][0-9]*")
 FIELD_NAME = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]{0,60}$")
 TAG = re.compile(r"^[a-z0-9-]{2,30}$")
 DUCK_TYPE = {"string": "VARCHAR", "number": "DOUBLE", "integer": "BIGINT", "boolean": "BOOLEAN"}
@@ -209,12 +217,43 @@ def _write_json(path: Path, obj: Any) -> None:
     os.replace(tmp, path)
 
 
-class Writer:
-    """Local projects and their contributions, one lock per project."""
+def _write_manifest(path: Path, manifest: dict[str, Any]) -> None:
+    """One line of JSON: every version lists every contribution's sources, so the store holds many of these."""
+    path.write_text(json.dumps(manifest, separators=(",", ":"), ensure_ascii=False), encoding="utf-8")
 
-    def __init__(self, root: Path, follow: set[str] | None = None) -> None:
+
+def fold_run(parts: list[dict[str, Any]], batch_records: int) -> int:
+    """How many tail parts a new batch folds into its part: walking back from the tail, a part
+    joins while it is not full and holds at most ``FOLD_FACTOR`` times the records gathered so far.
+    Equal batches fold like a binary counter: each record is rewritten about log2(part/batch) times,
+    and the small parts after the full ones stay few."""
+    gathered = batch_records
+    n = 0
+    for p in reversed(parts):
+        if int(p["bytes"]) >= COMPACT_MAX_BYTES or int(p["records"]) > FOLD_FACTOR * gathered:
+            break
+        gathered += int(p["records"])
+        n += 1
+    return n
+
+
+def part_sources(part: dict[str, Any]) -> list[dict[str, Any]]:
+    """The contributions inside a part (the origin's partSources: an old part names one, flat)."""
+    if part.get("sources"):
+        return list(part["sources"])
+    return [{"contributionId": part.get("contributionId", ""), "agentId": part.get("agentId", ""),
+             "mergedInVersion": part.get("mergedInVersion", 0), "records": int(part["records"]), "offset": 0}]
+
+
+class Writer:
+    """Local projects and their contributions, one lock per project. ``on_merge(slug)`` runs after
+    each merge with the project's lock still held (the node prunes old versions there)."""
+
+    def __init__(self, root: Path, follow: set[str] | None = None,
+                 on_merge: Callable[[str], None] | None = None) -> None:
         self.root = root
         self.follow = follow or set()
+        self.on_merge = on_merge
         self._locks: dict[str, threading.Lock] = {}
         self._guard = threading.Lock()
         self._hashes: dict[str, set[str]] = {}
@@ -340,14 +379,16 @@ class Writer:
         journal.unlink()
 
     def _latest(self, slug: str) -> tuple[int, dict[str, Any] | None]:
-        best = 0
+        """The newest version with a manifest, looked for from the top (one stat, not one per version)."""
         d = self.root / slug
-        for e in d.iterdir():
-            if e.is_dir() and re.fullmatch(r"v[1-9][0-9]*", e.name) and (e / "manifest.json").is_file():
-                best = max(best, int(e.name[1:]))
-        if best == 0:
-            return 0, None
-        return best, json.loads((d / f"v{best}" / "manifest.json").read_text(encoding="utf-8"))
+        with os.scandir(d) as it:
+            found = sorted((int(e.name[1:]) for e in it if VERSION_DIR.fullmatch(e.name) and e.is_dir()), reverse=True)
+        for v in found:
+            try:
+                return v, json.loads((d / f"v{v}" / "manifest.json").read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                continue
+        return 0, None
 
     def _known_hashes(self, slug: str, manifest: dict[str, Any] | None) -> set[str]:
         """Every record hash the project holds — kept in memory, rebuilt from the parts after a restart."""
@@ -438,6 +479,8 @@ class Writer:
             else:
                 view["verdict"] = verdict
                 self._record(slug, view, idempotency)
+            if view["status"] == "merged" and self.on_merge is not None:
+                self.on_merge(slug)
             return 201, view, False
 
     def _merge(self, slug: str, schema: dict[str, Any], parent: dict[str, Any] | None, version: int,
@@ -446,7 +489,8 @@ class Writer:
 
         parts_dir = self.root / slug / "parts"
         parent_parts = list((parent or {}).get("parts", []))
-        tail = parent_parts[-1] if parent_parts else None
+        folded = parent_parts[len(parent_parts) - fold_run(parent_parts, len(accepted)):]
+        kept = parent_parts[:len(parent_parts) - len(folded)]
         base = {"contributionId": cid, "agentId": "node", "mergedInVersion": version}
         fields = schema["fields"]
         allow_extra = bool(schema.get("allowExtra"))
@@ -461,14 +505,13 @@ class Writer:
                 values.append(json.dumps(extra, ensure_ascii=False) if extra else None)
             return tuple(values)
 
-        compact = tail is not None and int(tail["bytes"]) < COMPACT_MAX_BYTES
         tmp = parts_dir / f".{cid}.parquet.tmp"
         con = duckdb.connect()
         try:
             con.execute(f"CREATE TABLE t ({', '.join(f'{chr(34)}{n}{chr(34)} {ty}' for n, ty in columns)})")
-            if compact:
-                tail_file = str(parts_dir / f"{tail['sha256']}.parquet").replace("'", "''")
-                con.execute(f"INSERT INTO t SELECT {names} FROM read_parquet('{tail_file}', union_by_name = true)")
+            for p in folded:  # oldest first: the rows keep their order across versions
+                part_file = str(parts_dir / f"{p['sha256']}.parquet").replace("'", "''")
+                con.execute(f"INSERT INTO t SELECT {names} FROM read_parquet('{part_file}', union_by_name = true)")
             con.executemany(f"INSERT INTO t VALUES ({', '.join('?' for _ in columns)})", [row(r) for r in accepted])
             con.execute(f"COPY t TO '{str(tmp).replace(chr(39), chr(39) * 2)}' (FORMAT PARQUET, COMPRESSION SNAPPY)")
         finally:
@@ -480,18 +523,14 @@ class Writer:
         else:
             os.replace(tmp, final)
         size = final.stat().st_size
-        if compact:
-            previous = int(tail["records"])  # type: ignore[index]
-            tail_sources = tail.get("sources") or [{  # type: ignore[union-attr]
-                "contributionId": tail.get("contributionId", ""), "agentId": tail.get("agentId", ""),  # type: ignore[union-attr]
-                "mergedInVersion": tail.get("mergedInVersion", 0), "records": previous, "offset": 0}]  # type: ignore[union-attr]
-            ref = {"sha256": sha, "bytes": size, "records": previous + len(accepted), **base,
-                   "sources": [*tail_sources, {**base, "records": len(accepted), "offset": previous}]}
-            parts = parent_parts[:-1] + [ref]
-        else:
-            ref = {"sha256": sha, "bytes": size, "records": len(accepted), **base,
-                   "sources": [{**base, "records": len(accepted), "offset": 0}]}
-            parts = parent_parts + [ref]
+        sources: list[dict[str, Any]] = []
+        offset = 0
+        for p in folded:
+            sources += [{**s, "offset": offset + int(s.get("offset", 0))} for s in part_sources(p)]
+            offset += int(p["records"])
+        sources.append({**base, "records": len(accepted), "offset": offset})
+        ref = {"sha256": sha, "bytes": size, "records": offset + len(accepted), **base, "sources": sources}
+        parts = kept + [ref]
         totals = (parent or {}).get("totals", {})
         manifest = {
             "format": "parquet", "project": slug, "version": version, "parent": version - 1 if version > 1 else None,
@@ -516,7 +555,7 @@ class Writer:
             if leftover.exists():
                 shutil.rmtree(leftover)
         tmp.mkdir()
-        _write_json(tmp / "manifest.json", manifest)
+        _write_manifest(tmp / "manifest.json", manifest)
         _write_json(tmp / COMMIT_JOURNAL, journal)
         os.replace(tmp, vdir)
         return manifest

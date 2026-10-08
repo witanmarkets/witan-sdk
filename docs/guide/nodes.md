@@ -24,6 +24,7 @@ wtn serve                               # http://127.0.0.1:8686, MCP at /mcp
 | `--upstream URL` | Follow from this node instead of the origin. | none |
 | `--upstream-token` | The upstream node's token. | none |
 | `--read-only` | Refuse every write, local projects included. | off |
+| `--keep-versions N` | Keep the newest `N` versions of each local or followed project; delete older ones and the parts only they used. | `WITAN_NODE_KEEP_VERSIONS`, else every version |
 | `--quiet` | No request log. | off |
 
 ## What it serves
@@ -66,6 +67,9 @@ stops after 20 seconds (408), and runs two queries at a time (a third waits, the
 A node only serves a version when every part its manifest lists is on disk with the right
 size. Paths the node does not serve answer 404; ask the origin for those.
 
+A node reads each version's manifest once and remembers it (versions never change), so a store
+with hundreds of versions answers as fast as one with a few.
+
 ## Store layout
 
 ```
@@ -82,6 +86,27 @@ witan-data/
 ```
 
 A copy without `project.json` takes its schema from the manifest.
+
+## Keep the store small
+
+A local project gets a new version for every merged contribution. The node folds small parts
+together (each record is rewritten a few times over the project's life, not once per
+contribution), and every version keeps the parts it lists, so old versions still read as they
+were. Each version's manifest also names every contribution in it, so a project with many small
+contributions holds many growing manifests. Measured with 400 contributions of 50 records each
+(20,000 records, 162 KB of data in the newest version): about 12 MB in the store with every
+version kept, 3 MB with `--keep-versions 50`.
+
+`--keep-versions N` keeps the newest `N` versions of each project the node writes or follows, and
+deletes the older version directories and every part no remaining version lists. It runs at
+start (for local projects it also clears parts a crash left behind), after each merge, and after
+each followed version. A version older than the newest `N` then answers 404, so keep enough for
+whoever pages through or pins versions. Copies the node neither writes nor follows are left alone.
+Without the flag the node deletes nothing.
+
+```bash
+wtn serve --keep-versions 50 --follow api-latency-benchmarks
+```
 
 ## Follow the origin
 
@@ -158,6 +183,7 @@ What the image does with its arguments:
 | `WITAN_TRUST_FILE` | Pinned signing keys, kept in the volume. | `/data/trust.json` |
 | `WITAN_FOLLOW`, `WITAN_FOLLOW_INTERVAL` | Serve with `--follow` these space-separated slugs, every so many seconds. | none, `600` |
 | `WITAN_VERIFY` | With `WITAN_FOLLOW`: `--verify`, after pinning the origin's keys (`wtn trust add`). A node that already holds them still starts when the origin cannot be reached. | off |
+| `WITAN_NODE_KEEP_VERSIONS` | `--keep-versions`: keep the newest so many versions of each followed or local project. | every version |
 | `WITAN_NODE_TOKEN_FILE`, `WITAN_API_KEY_FILE` | Read the value from this file, for Docker or Compose secrets, instead of the environment `docker inspect` shows. | — |
 
 The volume holds the store (`/data/witan-data`) and the pinned keys (`/data/trust.json`), so
@@ -209,6 +235,8 @@ answers 405. Projects created on the node itself are local and take writes.
   answers 422.
 - `projects.push()` is not available on a node (405); send batches with `contribute()`.
 - `--read-only` refuses every write with 405 and hides the write tools from MCP.
+- Each merge writes a new version; see [Keep the store small](#keep-the-store-small) for how
+  the store grows and `--keep-versions`.
 
 === "Python"
 
@@ -271,7 +299,9 @@ Node versions are unsigned, so run `promote` with `WITAN_VERIFY` unset (see [Tru
 ## MCP at /mcp
 
 `POST /mcp` speaks MCP over Streamable HTTP with JSON responses; other methods answer 405. The
-node's token, if set, applies. Point an MCP client at `http://127.0.0.1:8686/mcp`. The tools:
+node's token, if set, applies. Point an MCP client at `http://127.0.0.1:8686/mcp`. Every tool
+carries a title and the origin's annotations (reads are read-only and idempotent; none is
+open-world). The tools:
 
 | Tool | What |
 |---|---|
@@ -280,6 +310,7 @@ node's token, if set, applies. Point an MCP client at `http://127.0.0.1:8686/mcp
 | `read_dataset` | A page of records (50 by default, up to 200). |
 | `dataset_manifest` | The manifest, with part URLs on this node. |
 | `query_dataset` | SQL over `records`, up to 1,000 rows. |
+| `create_dataset` | Create a local project on the node (not on `--read-only` nodes). |
 | `contribute_records` | Append 1 to 500 records to a local project (not on `--read-only` nodes). |
 | `contribution_status` | A contribution's answer (not on `--read-only` nodes). |
 

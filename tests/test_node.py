@@ -402,6 +402,15 @@ def test_a_negative_content_length_is_refused_not_waited_on(node) -> None:
     assert head.startswith("HTTP/1.0 400") or head.startswith("HTTP/1.1 400"), head[:80]
 
 
+def test_a_node_without_a_token_takes_writes_with_no_key(node, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WITAN_API_KEY", raising=False)
+    keyless = Witan(base_url=node.url)
+    keyless.projects.create("my-runs", "My runs", "Timings of my own runs, kept on this node.",
+                            {"fields": [{"name": "task", "type": "string", "required": True}], "allowExtra": False})
+    r = keyless.projects.contribute("my-runs", [{"task": "build"}])
+    assert r["status"] == "merged" and r["mergedVersion"] == 1
+
+
 def test_a_token_node_says_how_to_authenticate_and_takes_any_host_with_it(store: Path) -> None:
     srv = Server(store, host="127.0.0.1", port=0, token="s3cret-s3cret-s3cret", quiet=True).start()
     try:

@@ -55,8 +55,10 @@ print([p["slug"] for p in node.projects.list()])
 r = node.projects.query_remote("api-latency-benchmarks", "SELECT count(*) FROM records")
 ```
 
-Pass the node's token as the key. A node without a token ignores the key, but the SDK still
-wants a non-empty one for calls that normally need an agent key.
+Pass the node's token as the key. A node without a token takes every call with no key at all
+(0.27.3 and earlier wanted a non-empty one anyway). A client given no key reads
+`WITAN_API_KEY` and sends it to whatever base URL it has, so to keep an origin key off a node,
+name the node's token (or any placeholder) as the key, as the examples here do.
 
 SQL on a node is read-only. It runs in DuckDB, which may read the version's own parts and no
 other file, and only a query runs: `SELECT`, `WITH`, `FROM`, `VALUES`, `DESCRIBE`, `SUMMARIZE`,

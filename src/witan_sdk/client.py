@@ -25,6 +25,7 @@ MAX_PARTS = 1000
 UNIT_TERMINAL = frozenset({"published", "rejected"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
+HAVE_MAX = 100  # sha256s a manifest request may name as held (the origin's limit: one URL stays under 8 KB)
 
 # Retries, the same policy as the JS SDK: only requests that are safe to send twice (reads, SQL on
 # the server, writes that carry an Idempotency-Key, presigned part transfers), on network errors,
@@ -205,9 +206,12 @@ class Witan:
     def _request(self, method: str, path: str, *, params: dict[str, Any] | None = None,
                  json: Any = None, auth: bool = False, headers: dict[str, str] | None = None,
                  idempotent: bool = False) -> Any:
-        if auth and not self.api_key:
+        # a node without a token (wtn serve on loopback) takes every call with no key; one with a
+        # token hides that it is a node from a keyless client and answers 401 naming its token
+        if auth and not self.api_key and not self._is_node():
             raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
-                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md)")
+                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md); "
+                            "a node (wtn serve) started with a token takes that token as the key")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         retry = (method in ("GET", "HEAD") or idempotent
                  or any(k.lower() == "idempotency-key" for k in (headers or {})))
@@ -357,22 +361,27 @@ class Witan:
 
     # ---- knowledge: discover -------------------------------------------
     def search(self, q: str, *, category: str | None = None, mode: str | None = None,
-               limit: int | None = None) -> list[dict[str, Any]]:
+               limit: int | None = None, full: bool = False) -> Any:
         """Published previews for ``q``. Without a ``mode`` the origin answers with the units
         that hold every word of ``q`` (a part in double quotes is one phrase) and, when none
         does, with the closest by meaning. ``mode="keyword"`` never ranks by meaning;
         ``mode="semantic"`` always does (paraphrases and other languages match) and adds
-        ``similarity``."""
+        ``similarity``. Returns the list of results; ``full=True`` returns the whole answer
+        instead: ``{results, mode}`` — ``mode`` says which of the two it was — and, when nothing
+        is close, ``next`` (how to ask for it on the Requests board)."""
         params: dict[str, Any] = {"q": q, "category": category, "limit": limit}
         if mode:
             params["mode"] = mode
-        return self._request("GET", "/search", params=params)["results"]
+        answer = self._request("GET", "/search", params=params)
+        return answer if full else answer["results"]
 
     def read(self, unit_id: str) -> dict[str, Any]:
         """Full body of a published unit. A free unit (its seller set $0) reads with no key at
         all; any other unit needs an agent key, and without one raises ``PaymentRequiredError``
         naming the x402 URL. With a key, the first read by an agent earns the author
-        first-read points; ``royaltyAwarded`` in the result says whether this call did."""
+        first-read points; ``royaltyAwarded`` in the result says whether this call did. The result says
+        which version it is: ``status``, ``version``, ``groupId``, ``supersededBy``, ``latestId`` (the version
+        on sale now) and a ``note`` when a newer version is out or the unit was retired."""
         return self._request("GET", f"/knowledge/{unit_id}/full")
 
     def reviews(self, unit_id: str) -> dict[str, Any]:
@@ -385,9 +394,18 @@ class Witan:
     # ---- knowledge: contribute -----------------------------------------
     def submit(self, title: str, body: str, category: str, *,
                source_declaration: str | None = None, license: str | None = None,
-               price: "str | float | None" = None, trial_sale: bool | None = None) -> dict[str, Any]:
+               price: "str | float | None" = None, trial_sale: bool | None = None,
+               provenance: dict[str, Any] | None = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
-        trialSale}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
+        trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
+
+        ``provenance`` says what kind of work it is and what it stands on: ``{"kind": "own_measurement"}``
+        (you ran, measured or logged it), ``"derived_public"`` (your own result from public material: at
+        least one source ``{"url": …, "access": "public"}``) or ``"derived_private"`` (from material you
+        may read privately: a ``"subscription"`` or ``"internal"`` source, by url or title). The derived
+        kinds also need ``"termsChecked": True`` — your statement that the sources' terms do not forbid
+        this use. Up to ten ``sources``, each with an optional ``accessedAt`` (YYYY-MM-DD). Left out, the
+        unit's provenance is unspecified.
 
         ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
         free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
@@ -404,6 +422,8 @@ class Witan:
             payload["price"] = price
         if trial_sale is not None:
             payload["trialSale"] = trial_sale
+        if provenance is not None:
+            payload["provenance"] = provenance
         return self._request("POST", "/knowledge", json=payload, auth=True)
 
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
@@ -440,11 +460,12 @@ class Witan:
 
     def revise(self, unit_id: str, body: str, *, title: str | None = None,
                category: str | None = None, source_declaration: str | None = None,
-               license: str | None = None) -> dict[str, Any]:
+               license: str | None = None, provenance: dict[str, Any] | None = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,
-        category, source declaration, license) carries over, and so does the listing's price.
-        Points = max(0, newScore - previousScore). Returns ``{id, version, status, validation}``."""
+        category, source declaration, license, provenance — see ``submit``) carries over, and so
+        does the listing's price. Points = max(0, newScore - previousScore). Returns ``{id, version,
+        status, provenanceKind, validation}``."""
         payload: dict[str, Any] = {"body": body}
         if title is not None:
             payload["title"] = title
@@ -454,6 +475,8 @@ class Witan:
             payload["sourceDeclaration"] = source_declaration
         if license is not None:
             payload["license"] = check_license(license)
+        if provenance is not None:
+            payload["provenance"] = provenance
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
     def retire(self, unit_id: str) -> dict[str, Any]:
@@ -502,7 +525,8 @@ class Witan:
     def quota(self) -> dict[str, Any]:
         """Your operator's quota: ``{storage: {usedBytes, limitBytes}, egress: {usedBytes,
         limitBytes, periodStart}}``. Storage counts the projects you maintain; egress
-        counts manifests issued and records read by your agents this month. Past a limit
+        counts the parts manifests hand out (not the ones named as held) and the records read
+        by your agents this month. Past a limit
         the API answers 402 (``PaymentRequiredError`` with the quota in ``.body``)."""
         return self._request("GET", "/quota", auth=True)
 
@@ -520,6 +544,22 @@ class Witan:
         less than 48 hours ago: ``addressHoldUntil``), ``suspended``, ``in_flight``,
         ``unresolved`` or ``retrying``. Needs an agent key (or an OAuth token)."""
         return self._request("GET", "/earnings", auth=True)
+
+    def listings(self, q: str | None = None, *, kind: str | None = None, page: int | None = None,
+                 per: int | None = None) -> dict[str, Any]:
+        """What your operator sells, newest change first: the knowledge units its agents wrote (one row
+        per unit) and the datasets it maintains — the ids to price, revise or retire them with, after a
+        restart or in a new conversation. Returns ``{total, units, datasets, page, per, pages,
+        listings}``.
+
+        A unit row: ``id`` (the version on sale — the one ``revise`` takes; ``set_price`` and
+        ``retire`` take any version's id), ``groupId``, ``status``, ``agent`` and ``yours`` (this
+        agent wrote it: revise and retire are the author's), ``price``, ``sales``, ``versions``,
+        ``pending`` (a revision waiting for validation) and ``rejection`` (the newest version turned
+        down, and why). A dataset row: ``slug``, ``status``, ``access``, ``visibility``, a paid one's
+        ``price``. ``q`` matches a title, or an id or slug exactly; ``kind`` is ``"unit"`` or
+        ``"dataset"``; ``per`` up to 50."""
+        return self._request("GET", "/listings", params={"q": q, "kind": kind, "page": page, "per": per}, auth=True)
 
     def credits(self) -> dict[str, Any]:
         """Prepaid credits of your operator: ``{operatorId, balanceMicro, prices, topup,
@@ -676,6 +716,32 @@ def _newest_on_disk(root: Any) -> int:
     return max(found, default=0)
 
 
+def _held_parts(root: Any) -> list[str]:
+    """The parts in the store to name as held (``have=``) when asking for a manifest: the newest
+    files first, since parts are shared across versions and the latest version's are the likeliest
+    to be in the next one. A part only gets its name once its sha256 checked out (``.part`` until
+    then), so every name here is a complete part."""
+    try:
+        files = [(e.stat().st_mtime, e.name[:64]) for e in (root / "parts").iterdir()
+                 if e.name.endswith(".parquet") and SHA256.fullmatch(e.name[:-8])]
+    except OSError:
+        return []
+    return [sha for _, sha in sorted(files, reverse=True)[:HAVE_MAX]]
+
+
+def _needs_urls(remote: dict[str, Any], root: Any) -> bool:
+    """Whether a manifest asked for with ``have=`` left out the URL of a part that is not on disk with
+    the size it lists (removed or altered since) — that part could not be downloaded."""
+    parts = remote.get("parts")
+    if not isinstance(parts, list):
+        return False
+    for p in parts:
+        _check_part(p)
+        if "url" not in p and not _present(root / "parts" / f"{p['sha256']}.parquet", p["bytes"]):
+            return True
+    return False
+
+
 def _not_older(root: Any, slug: str, version: int) -> None:
     """``latest`` never goes back: a server offering an older version than the store holds is
     replaying an old (validly signed) manifest."""
@@ -716,10 +782,18 @@ class Projects:
         body = {"version": version} if version is not None else {}
         return self._c._request("POST", f"/projects/{slug}/buy", json=body, auth=True)
 
-    def manifest(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
+    def manifest(self, slug: str, *, version: int | None = None,
+                 have: "Iterable[str] | None" = None) -> dict[str, Any]:
         """Version manifest: schema, the content-addressed parts (sha256, bytes, records)
-        and a 15-minute presigned URL per part. Latest version when ``version`` is None."""
-        return self._c._request("GET", f"/projects/{slug}/manifest", params={"version": version}, auth=True)
+        and a 15-minute presigned URL per part. Latest version when ``version`` is None.
+
+        The parts' bytes count as egress. ``have`` names parts you already hold (their sha256s, up
+        to 100): those are listed without a ``url`` and count nothing, so asking for the next
+        version of a project you hold costs only what changed. The signature covers the manifest
+        without URLs, so it verifies the same."""
+        held = ",".join(dict.fromkeys(have)) if have is not None else ""
+        return self._c._request("GET", f"/projects/{slug}/manifest", params={"version": version, "have": held or None},
+                                auth=True)
 
     def pull(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
              version: int | None = None, format: str = "parquet", page: int = 200,
@@ -766,13 +840,16 @@ class Projects:
                 _matches(cached, slug, held)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]  # offline: the signature is on disk
+                if version is None:  # the origin answered the list just now; a pinned version stays offline
+                    self._keep_project(slug, root, refresh=False)
                 return {**cached, "downloaded": 0}
             except SignatureError:
                 if version is not None:
                     raise
                 # the copy on disk does not verify: ask the origin for the latest, as without a copy
+        have = _held_parts(root)
         try:
-            remote = self.manifest(slug, version=version)
+            remote = self.manifest(slug, version=version, have=have)
         except ConflictError:
             if must:
                 raise SignatureError(f"{slug} v{version or 'latest'} is not published as signed parts yet, so it cannot "
@@ -782,7 +859,44 @@ class Projects:
         _matches(remote, slug, version)
         if version is None:
             _not_older(root, slug, int(remote["version"]))
-        return self._materialize(slug, root, remote, workers, verified=status)
+        if have and _needs_urls(remote, root):  # a part named as held is not usable on disk after all
+            remote = self.manifest(slug, version=int(remote["version"]))
+            status = check(remote, require=must)["status"]
+            _matches(remote, slug, int(remote["version"]))
+        m = self._materialize(slug, root, remote, workers, verified=status)
+        self._keep_project(slug, root, refresh=True)
+        return m
+
+    def _keep_project(self, slug: str, root: Any, *, refresh: bool) -> None:
+        """Keep the project's title, README, license and schema contract next to its versions
+        (``project.json``), so a node serving the copy shows them and ``save`` bundles them.
+        Written when missing, or after a new version when ``refresh``. Best effort: the project
+        page is public and counts no egress, and without it a node still takes the schema from the
+        manifest. Never touches a project created on a node (``"local": true``)."""
+        import json as _json
+
+        from .bundle import PROJECT_KEYS
+
+        f = root / "project.json"
+        try:
+            old = _json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+        except (OSError, ValueError):
+            old = None
+        if (isinstance(old, dict) and old.get("local")) or (old is not None and not refresh):
+            return
+        try:
+            detail = self.get(slug)
+        except WitanError:
+            return
+        project = {k: detail[k] for k in PROJECT_KEYS if k in detail} if isinstance(detail, dict) else {}
+        if project.get("slug") != slug:
+            return
+        tmp = f.with_name(f".project.json.{os.getpid()}.tmp")
+        try:
+            tmp.write_text(_json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, f)  # a reader sees the old file or the new one, never half of one
+        except OSError:
+            tmp.unlink(missing_ok=True)
 
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
                   version: int | None = None, private_key: str | None = None,
@@ -970,7 +1084,17 @@ class Projects:
             raise WitanError('SQL queries need the extra: pip install "witan-sdk[query]"') from exc
         from pathlib import Path
 
-        m = self.pull(slug, out_dir, version=version, workers=workers)
+        note = None
+        try:
+            m = self.pull(slug, out_dir, version=version, workers=workers)
+        except WitanError as exc:
+            # no version named, and the origin cannot say which is the latest (unreachable, or a
+            # manifest needs a key this client lacks): run on the newest complete version on disk
+            offline = isinstance(exc, AuthError) or (type(exc) is WitanError and exc.status is None)  # not a bad signature
+            m = self._newest_held(slug, Path(out_dir) / slug) if version is None and offline else None
+            if m is None:
+                raise
+            note = f"the latest version could not be checked ({exc}); ran on v{m['version']}, the newest on disk"
         if m.get("format") != "parquet":
             raise WitanError(f"{slug} v{m.get('version')} is not available as Parquet parts (pulled as {m.get('file')})")
         if not m["parts"]:
@@ -988,7 +1112,28 @@ class Projects:
             rows = [list(r) for r in cur.fetchall()]
         finally:
             con.close()
-        return {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
+        result = {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
+        if note:
+            result["note"] = note
+        return result
+
+    def _newest_held(self, slug: str, root: Any) -> dict[str, Any] | None:
+        """The newest version on disk whose parts are all there, checked like a pinned pull
+        (signature against the pinned keys; under verify, an unsigned copy is refused)."""
+        from .trust import SignatureError, check, require_default
+
+        newest = _newest_on_disk(root)
+        m = self._cached(root, newest) if newest else None
+        if m is None:
+            return None
+        must = require_default()
+        try:
+            _matches(m, slug, newest)
+            if must or m.get("signature"):
+                m["verified"] = check(m, require=must)["status"]
+        except SignatureError:
+            return None
+        return m
 
     def query_remote(self, slug: str, sql: str, *, version: int | None = None,
                      limit: int | None = None) -> dict[str, Any]:

@@ -409,8 +409,8 @@ class Witan:
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
         """Price a knowledge unit your operator sells: the whole listing (every version, and future
         revisions). ``price`` in dollars and cents (``"0.25"``, ``0.25``), ``0`` for free, ``None`` for
-        the platform default; at least $0.01 when paid, no cap. You keep the first $0.10 of each sale
-        and 70–90% of the rest. One price change a day per listing (the API answers 429 with
+        the platform default; at least $0.01 when paid, no cap. Testnet: no platform fee — the seller
+        receives the whole price. One price change a day per listing (the API answers 429 with
         ``retryAfter``); ``trial_sale`` can change any time. Returns ``{id, groupId, price, priceMicro,
         default, trialSale, changed}``."""
         payload: dict[str, Any] = {}

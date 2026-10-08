@@ -111,7 +111,7 @@ def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
 
 
 def cmd_retire(w: Witan, a: argparse.Namespace) -> None:
-    _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u['id']}  (readers who had it keep it)"))
+    _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u.get('groupId', u['id'])}  {u.get('versions', 1)} version(s)  (readers who had it keep it)"))
 
 
 _UUID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -340,7 +340,22 @@ def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
     result = w.projects.contribute(a.slug, records, source_declaration=a.source)
     if a.wait:
         result = w.projects.wait_contribution(a.slug, result["id"])
-    _emit(result, a.json, lambda r: print(f"{r['status']}  {r['id']}  accepted {r.get('acceptedCount', '?')}/{r.get('recordCount', len(records))}"))
+
+    def human(r: dict[str, Any]) -> None:
+        line = f"{r['status']}  {r['id']}"
+        if r.get("acceptedCount") is not None:
+            line += f"  accepted {r['acceptedCount']}/{r.get('recordCount', len(records))}"
+        if r.get("mergedVersion") is not None:
+            line += f" → v{r['mergedVersion']}"
+        verdict = r.get("verdict") or {}
+        if r["status"] == "rejected":  # which gate, and why: the line to fix is in the reason
+            reason = verdict.get("reason") or "no reason given"
+            line += f"  {verdict['gate']}: {reason}" if verdict.get("gate") else f"  {reason}"
+        elif r["status"] not in ("merged", "rejected") and not a.wait:
+            line += "  (--wait blocks until merged or rejected)"
+        print(line)
+
+    _emit(result, a.json, human)
 
 
 def cmd_push(w: Witan, a: argparse.Namespace) -> None:
@@ -421,7 +436,7 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
     print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
           f"{mode}{' · token required' if a.token else ''}", file=sys.stderr)
-    print(f"MCP: {srv.url}/mcp · stop with Ctrl-C", file=sys.stderr)
+    print(f"MCP: {srv.url}/mcp · stop with Ctrl-C or SIGTERM", file=sys.stderr)
     if a.follow:
         print(f"following {', '.join(a.follow)} from {source.base_url} every {a.interval:g}s"
               f"{' · signatures required' if a.verify else ''}", file=sys.stderr)
@@ -637,7 +652,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)
 
-    s = common(sub.add_parser("retire", help="withdraw a published unit you authored (readers who had it keep it; no undo)"))
+    s = common(sub.add_parser("retire", help="withdraw a published unit you authored, every version of it (readers who had it keep it; no undo)"))
     s.add_argument("id")
     s.set_defaults(fn=cmd_retire)
 
@@ -748,7 +763,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--verify", action="store_true", help="require the bundle's manifest to be signed by a trusted origin")
     s.set_defaults(fn=cmd_load)
 
-    s = common(sub.add_parser("serve", help="run a local node: the origin's read API, SQL and MCP over your local store (read-only)"))
+    s = common(sub.add_parser("serve", help="run a local node: the origin's read API, SQL and MCP over your local store; "
+                                            "copies of origin projects are read-only, local projects take writes (--read-only: none)"))
     s.add_argument("--store", default="witan-data", help="the store pull and load write (default: ./witan-data)")
     s.add_argument("--host", default="127.0.0.1", help="address to bind (default: 127.0.0.1; any other needs --token)")
     s.add_argument("--port", type=int, default=8686)

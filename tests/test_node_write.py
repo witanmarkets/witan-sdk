@@ -162,6 +162,130 @@ def test_dedup_survives_a_restart(tmp_path: Path) -> None:
         srv.close()
 
 
+def test_a_merge_cut_before_its_manifest_does_not_block_the_project(node, w: Witan) -> None:
+    # 0.27.2 made v<N>/ before writing its manifest: a kill in between left an empty v2/, and every
+    # later contribution took N=2 again and answered 500
+    w.projects.contribute(SLUG, [{"key": "a", "n": 1, "v": 1}])
+    project = Path(node.node.store.root) / SLUG
+    (project / "v2").mkdir()  # what 0.27.2 leaves
+    (project / ".v2.tmp").mkdir()  # what this version leaves: filled, never renamed
+    (project / ".v2.tmp" / "manifest.json").write_text("{}")
+    assert w.projects.get(SLUG)["localVersions"] == [1]  # neither is a version
+    r = w.projects.contribute(SLUG, [{"key": "b", "n": 2, "v": 2}])
+    assert r["status"] == "merged" and r["mergedVersion"] == 2, r
+    assert w.projects.data(SLUG)["count"] == 2 and not (project / ".v2.tmp").exists()
+    assert w.projects.contribute(SLUG, [{"key": "c", "n": 3, "v": 3}])["mergedVersion"] == 3
+    assert sorted(p.name for p in project.iterdir() if p.name.startswith(("v", ".v"))) == ["v1", "v2", "v3"]
+    assert not any((project / v / "commit.json").exists() for v in ("v1", "v2", "v3"))  # journals go once answered
+
+
+def test_a_stop_right_after_the_merge_still_replays_merged(node, w: Witan, monkeypatch: pytest.MonkeyPatch) -> None:
+    # the version committed, the node stopped before the answer and the Idempotency-Key were written:
+    # a retry with the same key used to find every record a duplicate and answer "rejected (dedup)"
+    import witan_sdk.node_write as nw
+
+    writer = node.node.writer
+    body = {"records": [{"key": "a", "n": 1, "v": 1}, {"key": "b", "n": 2, "v": 2}], "sourceDeclaration": "run 7"}
+    real = nw._write_json
+
+    def stopped(path: Path, obj) -> None:
+        if path.parent.name in ("contributions", "index"):
+            raise OSError("the node stopped here")
+        real(path, obj)
+
+    monkeypatch.setattr(nw, "_write_json", stopped)
+    with pytest.raises(OSError):
+        writer.contribute(SLUG, body, "run-7")
+    monkeypatch.setattr(nw, "_write_json", real)
+    v1 = Path(node.node.store.root) / SLUG / "v1"
+    assert (v1 / "commit.json").is_file() and w.projects.get(SLUG)["latestVersion"] == 1  # committed, not answered
+
+    status, view, replayed = writer.contribute(SLUG, body, "run-7")
+    assert (status, replayed) == (200, True)
+    assert view["status"] == "merged" and view["mergedVersion"] == 1 and view["acceptedCount"] == 2
+    assert view["id"] == w.projects.manifest(SLUG)["fragment"]["contributionId"] and view["sourceDeclaration"] == "run 7"
+    assert w.projects.get(SLUG)["latestVersion"] == 1 and not (v1 / "commit.json").exists()
+    assert w.projects.contribution(SLUG, view["id"])["status"] == "merged"
+
+
+def test_a_read_of_the_contribution_finishes_its_answer_too(node, w: Witan, monkeypatch: pytest.MonkeyPatch) -> None:
+    import witan_sdk.node_write as nw
+
+    real = nw._write_json
+
+    def stopped(path: Path, obj) -> None:
+        if path.parent.name == "contributions":
+            raise OSError("the node stopped here")
+        real(path, obj)
+
+    monkeypatch.setattr(nw, "_write_json", stopped)
+    with pytest.raises(OSError):
+        node.node.writer.contribute(SLUG, {"records": [{"key": "a", "n": 1, "v": 1}]}, None)
+    monkeypatch.setattr(nw, "_write_json", real)
+    cid = w.projects.manifest(SLUG)["fragment"]["contributionId"]
+    assert w.projects.contribution(SLUG, cid)["mergedVersion"] == 1
+
+
+def test_numbers_out_of_range_are_a_schema_rejection(w: Witan) -> None:
+    # 2^70 passed the gate and the merge answered HTTP 500
+    cases = [({"key": "a", "n": 1180591620717411303424, "v": 1}, '"n" is out of range for an integer'),
+             ({"key": "b", "n": -(2 ** 63) - 1, "v": 1}, '"n" is out of range for an integer'),
+             ({"key": "c", "n": 1e300, "v": 1}, '"n" is out of range for an integer'),
+             ({"key": "d", "n": 1, "v": 10 ** 400}, '"v" is out of range for a number')]
+    for rec, reason in cases:
+        r = w.projects.contribute(SLUG, [rec])
+        assert r["status"] == "rejected" and r["verdict"]["gate"] == "schema" and reason in r["verdict"]["reason"], r
+    r = w.projects.contribute(SLUG, [{"key": "max", "n": 2 ** 63 - 1, "v": 1}, {"key": "min", "n": -(2 ** 63), "v": 1}])
+    assert r["status"] == "merged" and r["acceptedCount"] == 2, r
+    assert w.projects.query_remote(SLUG, "SELECT max(n) = 9223372036854775807 AND min(n) = -9223372036854775808 FROM records")["rows"] == [[True]]
+
+
+def test_stopping_the_node_lets_a_write_in_progress_finish(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+    import time
+
+    from witan_sdk.node_write import Writer
+
+    srv = Server(tmp_path / "store", port=0, quiet=True).start()
+    w = Witan("k", base_url=srv.url)
+    w.projects.create(SLUG, "Function state", README, SCHEMA)
+    real = Writer._merge
+
+    def slow(self, *args, **kwargs):
+        time.sleep(0.5)
+        return real(self, *args, **kwargs)
+
+    monkeypatch.setattr(Writer, "_merge", slow)
+    answers: list[dict] = []
+    t = threading.Thread(target=lambda: answers.append(w.projects.contribute(SLUG, [{"key": "a", "n": 1, "v": 1}])))
+    t.start()
+    for _ in range(100):
+        if srv.node.writer._busy:
+            break
+        time.sleep(0.01)
+    srv.close()  # what SIGTERM and Ctrl-C end in
+    store = tmp_path / "store" / SLUG
+    assert (store / "v1" / "manifest.json").is_file() and not (store / "v1" / "commit.json").exists()
+    assert len(list((store / "contributions").iterdir())) == 1
+    t.join(timeout=10)
+    assert answers and answers[0]["status"] == "merged" and srv.node.writer.wait_idle(0)
+
+
+def test_wtn_contribute_says_why_a_batch_was_rejected(w: Witan, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    from witan_sdk.cli import main
+
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text('{"key": "a", "n": 1, "v": 1}\n{"key": "b", "n": 1.5, "v": 1}\n', encoding="utf-8")
+    assert main(["contribute", SLUG, "--file", str(bad)], client=w) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("rejected  ") and 'schema: line 2: "n" must be integer' in out and "None" not in out, out
+    good = tmp_path / "good.jsonl"
+    good.write_text('{"key": "a", "n": 1, "v": 1}\n{"key": "b", "n": 2, "v": 1}\n', encoding="utf-8")
+    assert main(["contribute", SLUG, "--file", str(good)], client=w) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("merged  ") and out.rstrip().endswith("accepted 2/2 → v1"), out
+
+
 def test_copies_uploads_read_only_and_unknown_projects(tmp_path: Path) -> None:
     store = tmp_path / "store"
     copy = store / "origin-copy" / "v1"

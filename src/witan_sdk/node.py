@@ -22,8 +22,8 @@ Copies of origin projects (pulled, loaded, followed) are read-only; projects cre
 node itself (``POST /projects``) take writes at ``POST /projects/{slug}/contribute`` with the
 origin's gates and merge inside the request (see ``node_write``). ``--read-only`` turns
 writes off. ``follow`` keeps chosen projects current by pulling their latest version from
-the origin on an interval. SQL runs in DuckDB with file
-access limited to the project's parts directory. Bound to loopback by default; any other
+the origin on an interval. SQL runs in DuckDB, read-only: one SELECT, with file access
+limited to the version's own parts. Bound to loopback by default; any other
 address requires a token. Web pages cannot use a node behind its user's back: a request must
 name the node's own address in Host (DNS rebinding), an Origin header must be a loopback one
 unless the request carries the token, and POST bodies must be declared JSON.
@@ -39,6 +39,7 @@ import json
 import math
 import os
 import re
+import signal
 import sys
 import threading
 import time
@@ -58,6 +59,7 @@ PART_URL_TTL = 3600
 MAX_BODY = 1024 * 1024
 WRAPPABLE = re.compile(r"(?is)^\s*(select|with|from|values|describe|summarize)\b")
 SHA_RE = re.compile(r"^[0-9a-f]{64}$")
+READ_ONLY_SQL = "queries are read-only — SELECT, WITH, FROM, DESCRIBE, SUMMARIZE or VALUES over the table records"
 MCP_VERSIONS = ("2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05")
 
 
@@ -226,6 +228,15 @@ class Node:
         self.quiet = quiet
         self.started = _now_iso()
         self.follow: dict[str, dict[str, Any]] = {}
+        hidden = {str(store.root.resolve()): "<store>"}
+        try:
+            home = str(Path.home())
+        except RuntimeError:  # no home directory to name
+            home = ""
+        if len(Path(home).parts) > 1:  # never "/" itself
+            hidden.setdefault(home, "~")
+        both = {**hidden, **{p.replace("\\", "/"): n for p, n in hidden.items()}}  # Windows paths come both ways
+        self._hidden_paths = sorted(both.items(), key=lambda pn: -len(pn[0]))  # the store before the home it sits in
 
     # ---- signed part URLs (a presigned-URL stand-in when the node has a token) ----
     def sign(self, slug: str, sha: str, exp: int) -> str:
@@ -304,26 +315,39 @@ class Node:
         m["urlExpiresAt"] = (_dt.datetime.now(_dt.timezone.utc) + _dt.timedelta(seconds=PART_URL_TTL)).isoformat(timespec="seconds")
         return m
 
+    def _redact(self, message: str) -> str:
+        """A DuckDB message without this machine's paths: the store as <store>, the home directory as ~."""
+        for path, name in self._hidden_paths:
+            message = message.replace(path, name)
+        return message
+
     def query(self, slug: str, sql: str, version: int | None, limit: int) -> dict[str, Any]:
         m = self.store.manifest(slug, version)
         statement = sql.strip().rstrip(";").strip()
         if not statement:
             raise NodeError(400, "empty statement")
-        if ";" in statement:
-            raise NodeError(400, "one statement at a time")
         if not self.queries.acquire(timeout=10):
             raise NodeError(429, "too many queries at once on this node — retry shortly")
         duckdb = _duckdb()
         try:
             con = duckdb.connect(config={"autoinstall_known_extensions": "false", "autoload_known_extensions": "false"})
             try:
+                # DuckDB's file allow-lists do not tell reading from writing: an allowed directory takes
+                # COPY TO and ATTACH as well. So the list holds exactly this version's parts (no directory
+                # to list, attach in or add files to), and only a SELECT runs — DESCRIBE, SUMMARIZE, SHOW,
+                # VALUES and FROM are SELECTs too; COPY, ATTACH, EXPORT, INSTALL, SET, CREATE are not.
                 files = ", ".join(_quote(str(f.resolve())) for f in self.store.files(slug, m))
-                parts_dir = str(self.store.parts_dir(slug).resolve()) + os.sep
-                con.execute(f"SET allowed_directories = [{_quote(parts_dir)}]")
+                con.execute(f"SET allowed_paths = [{files}]")
                 con.execute(f"CREATE VIEW records AS SELECT * FROM read_parquet([{files}], union_by_name = true)")
                 con.execute("SET enable_external_access = false")
                 con.execute("SET lock_configuration = true")
                 wrapped = f"SELECT * FROM ({statement}) AS q LIMIT {limit + 1}" if WRAPPABLE.match(statement) else statement
+                for text in (statement, wrapped):  # parsed here, by the parser that runs it, after the lock
+                    found = con.extract_statements(text)
+                    if len(found) != 1:
+                        raise NodeError(400, "one statement at a time")
+                    if found[0].type != duckdb.StatementType.SELECT:
+                        raise NodeError(400, READ_ONLY_SQL)
                 timer = threading.Timer(self.query_timeout, con.interrupt)
                 t0 = time.monotonic()
                 timer.start()
@@ -337,7 +361,7 @@ class Node:
             except duckdb.InterruptException as exc:
                 raise NodeError(408, f"the query ran longer than {self.query_timeout:g} s") from exc
             except duckdb.Error as exc:
-                raise NodeError(400, str(exc).splitlines()[0][:300]) from exc
+                raise NodeError(400, self._redact(str(exc).splitlines()[0])[:300]) from exc
             finally:
                 con.close()
         finally:
@@ -788,6 +812,10 @@ class Follower(threading.Thread):
             self.stop.wait(self.interval)
 
 
+def _interrupt(signum: int, frame: Any) -> None:
+    raise KeyboardInterrupt
+
+
 def _loopback(host: str) -> bool:
     if host == "localhost":
         return True
@@ -853,21 +881,29 @@ class Server:
         self._thread.start()
         return self
 
-    def close(self) -> None:
+    def close(self, drain: float = 5.0) -> None:
+        """Stop taking requests, give writes in progress up to ``drain`` seconds to finish, close."""
         if self.follower:
             self.follower.stop.set()
         if self._serving:
             self.httpd.shutdown()
             self._serving = False
+        self.node.writer.wait_idle(drain)
         self.httpd.server_close()
 
     def serve_forever(self) -> None:
+        """Serve until Ctrl-C or SIGTERM (docker stop, Kubernetes): both stop the node the same way.
+        As PID 1 in a container, a SIGTERM with no handler is ignored and ends in SIGKILL."""
         if self.follower:
             self.follower.start()
         self._serving = True
+        main = threading.current_thread() is threading.main_thread()  # signal handlers live on the main thread
+        previous = signal.signal(signal.SIGTERM, _interrupt) if main else None
         try:
             self.httpd.serve_forever()
         except KeyboardInterrupt:
             pass
         finally:
+            if main:  # a second SIGTERM while draining gets the old disposition
+                signal.signal(signal.SIGTERM, previous if previous is not None else signal.SIG_DFL)
             self.close()

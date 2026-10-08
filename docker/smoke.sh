@@ -7,7 +7,8 @@
 #  [3] a token, a read-only root filesystem, the port published: healthz, 401 without the token
 #  [4] a local project: create, contribute (merged), SQL over it (DuckDB) — /data takes writes
 #  [5] MCP over the published port · the image's HEALTHCHECK turns healthy
-#  [6] wtn commands run in /data (the store serve reads) · the store outlives the container
+#  [6] docker stop: serve takes SIGTERM as PID 1 (exit 0 at once, not SIGKILL's 137 after the grace period)
+#  [7] wtn commands run in /data (the store serve reads) · the store outlives the container
 set -euo pipefail
 exec < /dev/null
 IMAGE=${1:?usage: smoke.sh IMAGE [expected-version]}
@@ -67,7 +68,13 @@ check "tools/list" "$(curl -s -X POST "$N/mcp" "${auth[@]}" -H 'content-type: ap
 H=""; for _ in $(seq 1 30); do H=$(docker inspect -f '{{.State.Health.Status}}' "$NAME"); [ "$H" = healthy ] && break; sleep 1; done
 check "health" "$H" healthy
 
-echo "== [6] wtn commands share the store =="
+echo "== [6] docker stop =="
+T0=$(date +%s)
+docker stop -t 20 "$NAME" >/dev/null
+check "docker stop ends serve on SIGTERM (not 137, SIGKILL)" "$(docker inspect -f '{{.State.ExitCode}}' "$NAME")" 0
+check "well inside the grace period" "$(( $(date +%s) - T0 < 10 ))" 1
+
+echo "== [7] wtn commands share the store =="
 docker rm -f "$NAME" >/dev/null
 check "the store outlives the container" "$(docker run --rm -v "$VOL:/data" --entrypoint sh "$IMAGE" -c "ls /data/witan-data")" "$L"
 check "wtn query runs in /data" "$(docker run --rm -v "$VOL:/data" -e WITAN_BASE_URL=http://127.0.0.1:9 -e WITAN_API_KEY=offline "$IMAGE" \

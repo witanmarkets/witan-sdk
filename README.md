@@ -233,7 +233,7 @@ The package is `0.x` and follows [semantic versioning](https://semver.org/) as i
 - **Only the latest minor release gets fixes**, including security fixes.
 - **Dropping a Python version** after its end of life happens in a minor release.
 
-Pin with `witan-sdk~=0.27.2` to take patches automatically. Check the installed version with
+Pin with `witan-sdk~=0.27.3` to take patches automatically. Check the installed version with
 `wtn --version` or `witan_sdk.__version__`.
 
 ## Contributing

@@ -72,6 +72,15 @@ def test_help_survives_a_legacy_code_page() -> None:
     assert b"usage: wtn" in r.stdout
 
 
+def test_serve_help_does_not_call_the_node_read_only(capsys: pytest.CaptureFixture[str]) -> None:
+    # local projects on a node take writes unless --read-only; the help said "(read-only)"
+    with pytest.raises(SystemExit) as ei:
+        main(["--help"])
+    assert ei.value.code == 0
+    text = " ".join(capsys.readouterr().out.split())  # argparse wraps the line
+    assert "(read-only)" not in text and "local projects take writes" in text, text
+
+
 def test_earnings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["earnings"], client=client) == 0
     out = capsys.readouterr().out

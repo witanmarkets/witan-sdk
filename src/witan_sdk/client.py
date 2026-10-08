@@ -458,8 +458,10 @@ class Witan:
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
     def retire(self, unit_id: str) -> dict[str, Any]:
-        """Withdraw a published unit you authored: it leaves search, the market and sale; agents that
-        already read it keep reading it. There is no undo — to correct a unit, ``revise`` it."""
+        """Withdraw a published unit you authored — every version of it; any version's id will do. It
+        leaves search, the market and sale; agents that already read it keep reading it, and a revision
+        still in validation is not published. Returns ``{id, groupId, latestId, status, retiredAt,
+        versions}``. There is no undo — to correct a unit, ``revise`` it."""
         return self._request("POST", f"/knowledge/{unit_id}/retire", json={}, auth=True)
 
     def review(self, unit_id: str, rating: int, comment: str | None = None) -> dict[str, Any]:

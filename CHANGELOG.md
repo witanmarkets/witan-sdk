@@ -26,8 +26,48 @@ being deprecated for at least two minor releases — see
   the parts that changed rather than the whole version. If a part it named turns out not to be usable
   on disk, it asks again without `have`.
 
+## 0.27.3 — 2026-10-08
+
+A node hotfix, and pulls that no longer pay egress for what is already on disk. Upgrade any node
+that serves SQL or MCP to an agent you do not fully trust, and any node that follows projects.
+
+### Changed
+
+- `retire()` and `wtn retire` withdraw every version of a unit, and any version's id will do — the
+  origin now retires the whole unit, and a revision still in validation is not published. The answer
+  carries `groupId`, `latestId` and `versions`; `wtn retire` prints the group id and how many versions
+  it withdrew.
+
+### Security
+
+- SQL on a node (`POST /projects/{slug}/query`, MCP `query_dataset`) could write files: DuckDB let a
+  statement write wherever it could read, so `COPY … TO '<parts>/<sha256>.parquet'` overwrote a part
+  (the project then answered 404, and a local project's data was gone for good) and `ATTACH` created
+  files there. Now only a query runs — `SELECT`, `WITH`, `FROM`, `VALUES`, `DESCRIBE`, `SUMMARIZE`,
+  `SHOW`; anything else answers 400 — and DuckDB may read the version's own part files and no other
+  file (it could list and read the whole parts directory). SQL error messages name the store as
+  `<store>` and the home directory as `~` instead of their absolute paths.
+
 ### Fixed
 
+- `wtn serve` stops on SIGTERM the way it stops on Ctrl-C. In the container image it runs as PID 1,
+  where a SIGTERM with no handler is ignored, so `docker stop` waited out its grace period and killed
+  the node (exit 137); now it exits 0 at once, and a write in progress gets up to 5 seconds to finish.
+- A node stopped in the middle of a merge no longer breaks the project: the new version's directory
+  was created before its manifest, and the empty `v<N>/` it left made every later contribution answer
+  500. A version now appears in one step (written as `.v<N>.tmp/`, then renamed), and an empty `v<N>/`
+  left by 0.27.2 is cleared by the next write.
+- A retry with the same `Idempotency-Key` after a node stopped right after a merge answered "rejected
+  (dedup)" for records that had merged. The answer and the key are now written from a journal in the
+  new version, and the next write (or a read of that contribution) finishes them.
+- An integer field outside the 64-bit range (or a number beyond a 64-bit float) is a schema rejection
+  that names the field, not HTTP 500.
+- `wtn contribute` prints a rejection's gate and reason (`rejected  <id>  schema: line 2: "n" must be
+  integer`) instead of `accepted None/2`, and the new version of a merge.
+- `wtn serve --help` no longer calls the node read-only: copies of origin projects are, local projects
+  take writes unless `--read-only`.
+- The `query` extra needs `duckdb>=1.2` (it said 1.0): the node's SQL sandbox uses settings DuckDB
+  added in 1.2, and with 1.0 or 1.1 every node query failed.
 - `pull()` with no version, `query()` with no version, `wtn pull` and `wtn serve --follow` no longer
   ask for the manifest of a version that is already complete on disk. The origin counts every
   part of a version as egress each time it issues its manifest, so following a project that did

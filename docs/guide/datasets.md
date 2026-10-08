@@ -51,13 +51,15 @@ downloads one version and returns its local manifest.
 
 | Parameter | Meaning |
 |---|---|
-| `version` | `None`: the latest (always asks the server). A number: that version; returned from disk without a request when all its parts are already there. |
+| `version` | `None`: the latest. A number: that version. Either way a version whose parts are all on disk is returned from disk: a number makes no request, `None` reads the latest version number from the project list. |
 | `format` | `"parquet"` (default): parts straight from the object store. `"jsonl"`: pages through `data()` and writes `records.jsonl`. |
 | `page`, `workers` | Records per request in `jsonl` mode; parallel part downloads. |
 | `verify` | `True` requires a manifest signed by a trusted origin. See [Trust](trust.md). |
 
 Parts are shared across versions, like image layers. Parts already on disk are skipped, so
-pulling the next version transfers only what changed. Every part is checked against its
+pulling the next version transfers only what changed. A manifest counts its version's part
+bytes as egress, so `pull` asks for one only when something is missing: pulling a version you
+already hold costs nothing. Every part is checked against its
 sha256 before it gets its final name. Versions the server has not stored as parts yet fall
 back to `jsonl` automatically.
 

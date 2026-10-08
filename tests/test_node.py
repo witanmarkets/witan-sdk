@@ -151,6 +151,7 @@ def test_sql_cannot_write_attach_or_reach_other_files(node, client: Witan, store
             client.projects.query_remote(SLUG, sql)
         assert ei.value.status == 400 and "read-only" in str(ei.value), sql
     others = [  # the version's own part files and nothing else: not the directory, not a stray file in it
+        "SELECT * FROM query('COPY (SELECT 42 AS a) TO ''" + str(part) + "'' (FORMAT parquet)')",  # DuckDB refuses it itself
         f"SELECT * FROM glob('{parts}/*')",
         f"SELECT * FROM read_csv('{parts / 'stray.csv'}')",
         f"SELECT * FROM read_parquet('{parts}/*.parquet', filename = true)",

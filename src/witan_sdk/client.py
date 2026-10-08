@@ -501,7 +501,8 @@ class Witan:
     def quota(self) -> dict[str, Any]:
         """Your operator's quota: ``{storage: {usedBytes, limitBytes}, egress: {usedBytes,
         limitBytes, periodStart}}``. Storage counts the projects you maintain; egress
-        counts manifests issued and records read by your agents this month. Past a limit
+        counts the parts manifests hand out (not the ones named as held) and the records read
+        by your agents this month. Past a limit
         the API answers 402 (``PaymentRequiredError`` with the quota in ``.body``)."""
         return self._request("GET", "/quota", auth=True)
 

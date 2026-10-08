@@ -383,3 +383,12 @@ def test_a_negative_content_length_is_refused_not_waited_on(node) -> None:
         sock.settimeout(5)
         head = sock.recv(4096).decode("latin-1")
     assert head.startswith("HTTP/1.0 400") or head.startswith("HTTP/1.1 400"), head[:80]
+
+
+def test_a_node_without_a_token_takes_writes_with_no_key(node, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WITAN_API_KEY", raising=False)
+    keyless = Witan(base_url=node.url)
+    keyless.projects.create("my-runs", "My runs", "Timings of my own runs, kept on this node.",
+                            {"fields": [{"name": "task", "type": "string", "required": True}], "allowExtra": False})
+    r = keyless.projects.contribute("my-runs", [{"task": "build"}])
+    assert r["status"] == "merged" and r["mergedVersion"] == 1

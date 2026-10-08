@@ -189,6 +189,8 @@ class Fake:
             recs = [{"ok": True, "latency_ms": 18.2}] if int(q.get("offset", 0)) == 0 else []
             return httpx.Response(200, json={"project": path.split("/")[2], "version": int(q.get("version", 110)),
                                              "count": len(recs), "records": recs})
+        if path == "/projects/agent-api-observatory":
+            return httpx.Response(200, json=DETAIL)  # public, like the origin's project page
         if path == "/projects/agent-api-observatory/manifest":
             return need_key() or httpx.Response(200, json=manifest_for(int(q.get("version", 110))))
         if path == "/projects/legacy/manifest":
@@ -420,7 +422,8 @@ def test_latest_is_not_fetched_again_when_it_is_on_disk(tmp_path) -> None:
     w, calls = _listing(latest=110)
     first = w.projects.pull("agent-api-observatory", tmp_path, version=110)
     assert first["downloaded"] == 2 and [c.url.path for c in calls if c.url.host == "api.test"] == [
-        "/projects/agent-api-observatory/manifest"]  # nothing on disk: the list is not asked
+        "/projects/agent-api-observatory/manifest",  # nothing on disk: the list is not asked
+        "/projects/agent-api-observatory"]           # then the project page, for project.json (none here)
     for _ in range(3):  # wtn pull, or a follower's round, with nothing new
         again = w.projects.pull("agent-api-observatory", tmp_path)
         assert again["version"] == 110 and again["downloaded"] == 0 and again["count"] == 3
@@ -651,7 +654,8 @@ def test_requests_write_needs_key(anon: Witan, fake: Fake) -> None:
                  lambda: anon.community.close_request(REQ)):
         with pytest.raises(AuthError):
             call()
-    assert len(fake.calls) == n   # refused before sending
+    # refused before sending: the only request is one look at /healthz (is the base URL a node?)
+    assert [c.url.path for c in fake.calls[n:]] == ["/healthz"]
 
 
 def test_requests_write(w: Witan, fake: Fake) -> None:
@@ -774,3 +778,99 @@ def test_dispute_status_and_a_dispute_needs_the_paying_wallet(w: Witan, fake: Fa
     assert len(fake.calls) == n  # both refused before any request (signed disputes: test_purchases.py)
     calls = [c for c in fake.calls if c.url.path.startswith("/disputes")]
     assert calls and all("authorization" not in c.headers for c in calls)  # payment proof, not an API key
+
+
+DETAIL = {"slug": "agent-api-observatory", "title": "Agent API observatory", "readme": "Latency of the APIs agents call.",
+          "license": "platform-standard", "access": "public", "visibility": "public", "tags": ["latency"],
+          "schemaDef": {"fields": [{"name": "ok", "type": "boolean"}], "allowExtra": False},
+          "versions": [{"version": 110}], "stars": 3, "contributors": []}
+
+
+def test_pull_keeps_the_project_page_next_to_its_versions(tmp_path) -> None:
+    calls: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.host == "parts.test":
+            return httpx.Response(200, content={"/a": PART_A, "/b": PART_B}[request.url.path])
+        if request.url.path == "/projects":
+            return httpx.Response(200, json={"projects": [{"slug": "agent-api-observatory", "latestVersion": 110}]})
+        if request.url.path == "/projects/agent-api-observatory":
+            return httpx.Response(200, json=DETAIL)
+        if request.url.path == "/projects/agent-api-observatory/manifest":
+            return httpx.Response(200, json=manifest_for(110))
+        return httpx.Response(404, json={"error": "unmapped"})
+
+    w = Witan("km_test", base_url="http://api.test", retries=0, transport=httpx.MockTransport(handler))
+    root = tmp_path / "agent-api-observatory"
+    w.projects.pull("agent-api-observatory", tmp_path)
+    saved = json.loads((root / "project.json").read_text(encoding="utf-8"))
+    # what a node shows for the copy and save bundles: title, README, license, schema — not the version list
+    assert saved["title"] == "Agent API observatory" and saved["license"] == "platform-standard"
+    assert saved["schemaDef"]["fields"] == [{"name": "ok", "type": "boolean"}] and saved["readme"].startswith("Latency")
+    assert "versions" not in saved and "stars" not in saved and not list(root.glob(".project.json.*"))
+    n = len(calls)
+    assert w.projects.pull("agent-api-observatory", tmp_path)["downloaded"] == 0
+    assert [c.url.path for c in calls[n:]] == ["/projects"]  # up to date and the page is there: the list only
+    n = len(calls)
+    w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    assert len(calls) == n  # pinned and on disk: no request at all
+    (root / "project.json").unlink()
+    w.projects.pull("agent-api-observatory", tmp_path)
+    assert [c.url.path for c in calls[n:]] == ["/projects", "/projects/agent-api-observatory"]  # a missing page comes back
+    # a project created on a node is never overwritten by the origin's page of the same slug
+    local = {"slug": "agent-api-observatory", "title": "mine", "local": True}
+    (root / "project.json").write_text(json.dumps(local), encoding="utf-8")
+    w.projects._keep_project("agent-api-observatory", root, refresh=True)
+    assert json.loads((root / "project.json").read_text(encoding="utf-8")) == local
+
+
+def test_a_missing_project_page_does_not_fail_the_pull(tmp_path) -> None:
+    w, _ = _listing(latest=110)  # this origin has no project page (404)
+    m = w.projects.pull("agent-api-observatory", tmp_path)
+    assert m["version"] == 112 and not (tmp_path / "agent-api-observatory" / "project.json").exists()
+
+
+def test_query_without_a_version_falls_back_to_the_newest_copy(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    duckdb = pytest.importorskip("duckdb")
+    monkeypatch.delenv("WITAN_VERIFY", raising=False)
+    root = tmp_path / "agent-api-observatory"
+    (root / "parts").mkdir(parents=True)
+    f = root / "parts" / "p.parquet"
+    con = duckdb.connect()
+    con.execute(f"COPY (SELECT 'a' AS target UNION ALL SELECT 'b') TO '{f}' (FORMAT PARQUET)")
+    con.close()
+    sha = hashlib.sha256(f.read_bytes()).hexdigest()
+    size = f.stat().st_size
+    f.rename(root / "parts" / f"{sha}.parquet")
+    (root / "v7").mkdir()
+    (root / "v7" / "manifest.json").write_text(json.dumps({
+        "format": "parquet", "project": "agent-api-observatory", "version": 7,
+        "parts": [{"sha256": sha, "bytes": size, "records": 2}], "totals": {"records": 2}}), encoding="utf-8")
+
+    def down(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route to host", request=request)
+
+    offline = Witan("km_test", base_url="http://api.test", retries=0, transport=httpx.MockTransport(down))
+    r = offline.projects.query("agent-api-observatory", "SELECT count(*) AS n FROM records", out_dir=tmp_path)
+    assert r["rows"] == [[2]] and r["version"] == 7 and "cannot reach" in r["note"] and "newest on disk" in r["note"]
+    monkeypatch.delenv("WITAN_API_KEY", raising=False)
+    keyless = Witan(base_url="http://api.test", retries=0,
+                    transport=httpx.MockTransport(lambda req: httpx.Response(200, json={"projects": []})))
+    r = keyless.projects.query("agent-api-observatory", "SELECT count(*) AS n FROM records", out_dir=tmp_path)
+    assert r["rows"] == [[2]] and "agent API key" in r["note"]
+    with pytest.raises(WitanError, match="cannot reach"):  # a version asked for by number is not swapped for another
+        offline.projects.query("agent-api-observatory", "SELECT 1", version=8, out_dir=tmp_path)
+    with pytest.raises(WitanError, match="cannot reach"):  # nothing on disk to fall back to
+        offline.projects.query("agent-api-observatory", "SELECT 1", out_dir=tmp_path / "empty")
+
+
+def test_search_full_answer_says_how_it_matched(w: Witan) -> None:
+    answer = w.search("redis", full=True)
+    assert answer["mode"] == "keyword" and answer["results"][0]["id"] == UNIT
+    assert w.search("redis") == answer["results"]
+
+
+def test_a_keyless_call_names_the_node_token_too(anon: Witan) -> None:
+    with pytest.raises(AuthError, match="agent API key.*node .*token"):
+        anon.projects.data("agent-api-observatory")

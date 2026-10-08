@@ -14,6 +14,36 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Changed
+
+- `pull()` (and `wtn pull`, `query`, `save`) keeps the project's page next to its versions as
+  `project.json` — title, README, license, tags and schema contract — written when it is missing and
+  after each new version. A node serving a pulled copy showed the slug as its title, an empty README
+  and `license: unknown`; only `--follow`, `save` and `load` wrote the file. The page is public and
+  counts no egress; a pull whose origin has none still succeeds. A project created on a node
+  (`"local": true`) is never overwritten.
+
+### Fixed
+
+- A node without a token (`wtn serve` on loopback) takes `create`, `contribute` and every other call
+  with no key: the SDK and `wtn` refused them before sending, and told the agent to register with a
+  claim code. Against a node with a token the message now says to pass the token as the key.
+- `query()` with no version, when the origin cannot say which version is the latest (it cannot be
+  reached, or the manifest needs a key this client lacks), runs on the newest complete version on
+  disk instead of failing, and says so in `note` (`wtn query` prints it). A version asked for by
+  number is never swapped for another, and a copy that fails its signature check is not used.
+- `wtn search` shows what each result costs (`free`, the price, or `buy before reading` when it is
+  locked) and says when no unit held every word and the results are the closest by meaning; with no
+  results it names the Requests board. `search(full=True)` returns the whole answer (`mode`, `next`);
+  `wtn search --json` is still the list of results.
+- A 404 from `wtn` names the base URL it asked (`— asked https://witan.markets`), so a project that is
+  only on a node is not mistaken for a missing one.
+- `--store` is accepted wherever a command takes the store directory (`pull --out`, `query --out`,
+  `save --cache`, `load --out`), like `serve` and `promote`; `wtn pull` writes `1 part` and `1 record`, not `1 parts`;
+  `wtn create --help` says the README is required (20 characters or more).
+
 ## 0.27.3 — 2026-10-08
 
 A node hotfix, and pulls that no longer pay egress for what is already on disk. Upgrade any node

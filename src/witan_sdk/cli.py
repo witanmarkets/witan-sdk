@@ -48,24 +48,46 @@ def _emit(obj: Any, as_json: bool, human) -> None:
         human(obj)
 
 
+def _n(count: int, noun: str) -> str:
+    return f"{count} {noun}{'' if count == 1 else 's'}"
+
+
 def _score(u: dict[str, Any]) -> str:
     s = u.get("score")
     return "—" if s is None else str(round(float(s)))
 
 
 def cmd_search(w: Witan, a: argparse.Namespace) -> None:
-    results = w.search(a.query, category=a.category, mode="semantic" if a.semantic else None, limit=a.limit)
+    answer = w.search(a.query, category=a.category, mode="semantic" if a.semantic else None, limit=a.limit, full=True)
 
-    def human(rows: list[dict[str, Any]]) -> None:
+    def human(r: dict[str, Any]) -> None:
+        rows = r.get("results") or []
         if not rows:
             print("no results")
+            nxt = r.get("next") if isinstance(r.get("next"), dict) else {}
+            if nxt.get("note"):
+                print(f"{nxt['note']} (MCP {nxt.get('mcpTool', 'post_request')}, or POST {nxt.get('url', '/community/requests')})",
+                      file=sys.stderr)
             return
         for u in rows:
             sim = f"  {round(float(u['similarity']) * 100)}%" if u.get("similarity") else ""
             print(f"{_score(u):>3}  {u['id']}  {u['title']}{sim}")
-            print(f"     {u['category']} · {u['agentName']}")
+            price = _price(u)
+            print(f"     {u['category']} · {u['agentName']}{' · ' + price if price else ''}")
+        if r.get("mode") == "semantic" and not a.semantic:  # the words matched nothing, so meaning ranked these
+            print("(no unit holds every word of the query — these are the closest by meaning)", file=sys.stderr)
 
-    _emit(results, a.json, human)
+    _emit(answer["results"] if a.json else answer, a.json, human)  # --json stays the list it always printed
+
+
+def _price(u: dict[str, Any]) -> str:
+    """What reading the full unit costs: free, or its price (locked: the operator has to buy it
+    first); empty when the origin does not say."""
+    micro = u.get("priceMicro")
+    price = "free" if micro == 0 else u.get("price")
+    if not price:
+        return ""
+    return f"{price}, buy before reading" if u.get("locked") else price
 
 
 def cmd_read(w: Witan, a: argparse.Namespace) -> None:
@@ -316,10 +338,10 @@ def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
             n = len(m["parts"])
             got = m.get("downloaded", n)
             state = "up to date" if got == 0 else f"{got} part{'s' if got != 1 else ''} downloaded"
-            print(f"{m['project']} v{m['version']}: {m['count']} records in {n} parts → {a.out}/{m['project']}/parts/ ({state})"
+            print(f"{m['project']} v{m['version']}: {_n(m['count'], 'record')} in {_n(n, 'part')} → {a.out}/{m['project']}/parts/ ({state})"
                   f"{_signed(m)}")
         else:
-            print(f"{m['project']} v{m['version']}: {m['count']} records → {a.out}/{m['project']}/v{m['version']}/{m['file']}")
+            print(f"{m['project']} v{m['version']}: {_n(m['count'], 'record')} → {a.out}/{m['project']}/v{m['version']}/{m['file']}")
 
     _emit(m, a.json, human)
 
@@ -355,6 +377,8 @@ def cmd_query(w: Witan, a: argparse.Namespace) -> None:
         _print_table(r["columns"], r["rows"])
         more = " · more rows matched" if r.get("truncated") else ""
         print(f"({r['count']} row{'s' if r['count'] != 1 else ''} · {r['project']} v{r['version']}{more})", file=sys.stderr)
+    if r.get("note"):
+        print(f"note: {r['note']}", file=sys.stderr)
 
 
 def cmd_contribute(w: Witan, a: argparse.Namespace) -> None:
@@ -733,7 +757,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("pull", help="download a project version to disk (slug or slug@version)"))
     s.add_argument("target", help="slug, or slug@version")
     s.add_argument("--version", type=int)
-    s.add_argument("--out", default="witan-data", help="root directory (default: ./witan-data)")
+    s.add_argument("--out", "--store", dest="out", default="witan-data", help="root directory, the store (default: ./witan-data)")
     s.add_argument("--format", choices=["parquet", "jsonl"], default="parquet",
                    help="parquet: content-addressed parts from the object store, incremental (default); jsonl: page through /data")
     s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
@@ -748,7 +772,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("target", help="slug, or slug@version")
     s.add_argument("sql", help="SQL over the table `records` — e.g. \"SELECT count(*) FROM records\"; \"DESCRIBE records\" shows the columns")
     s.add_argument("--version", type=int)
-    s.add_argument("--out", default="witan-data", help="where parts are cached (default: ./witan-data)")
+    s.add_argument("--out", "--store", dest="out", default="witan-data", help="where parts are cached, the store (default: ./witan-data)")
     s.add_argument("--limit", type=int, default=100, help="max rows to print for SELECT statements (0 = all)")
     s.add_argument("--format", choices=["table", "jsonl", "csv"], default="table")
     s.add_argument("--remote", action="store_true", help="run on the server instead (no download, no DuckDB; bounded, counts as egress)")
@@ -775,14 +799,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("target", help="slug, or slug@version (latest when omitted)")
     s.add_argument("--version", type=int)
     s.add_argument("-o", "--output", help="bundle path (default: ./<slug>-v<N>.witan)")
-    s.add_argument("--cache", default="witan-data", help="where parts are pulled to and kept (default: ./witan-data)")
+    s.add_argument("--cache", "--store", dest="cache", default="witan-data", help="where parts are pulled to and kept, the store (default: ./witan-data)")
     s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY)")
     s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
     s.set_defaults(fn=cmd_save)
 
     s = common(sub.add_parser("load", help="verify a bundle and lay it out locally like pull, like docker load — or push its records to a project"))
     s.add_argument("file", help="a .witan bundle")
-    s.add_argument("--out", default="witan-data", help="root directory (default: ./witan-data)")
+    s.add_argument("--out", "--store", dest="out", default="witan-data", help="root directory, the store (default: ./witan-data)")
     s.add_argument("--check", action="store_true", help="verify only, write nothing")
     s.add_argument("--push", metavar="SLUG", help="contribute the bundle's records to this project on the origin (needs the query extra)")
     s.add_argument("--source", help="source declaration for --push (default: the bundle's origin and license)")
@@ -818,7 +842,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("create", help="create a dataset project: on the origin (key = agent key km_...) or a local project on a node"))
     s.add_argument("slug")
     s.add_argument("--title", required=True)
-    s.add_argument("--readme", help="README text (or --readme-file)")
+    s.add_argument("--readme", help="README text, 20 characters or more — required, here or as --readme-file")
     s.add_argument("--readme-file", help="README from a file")
     s.add_argument("--schema", required=True, help='the record contract as JSON, or @file.json: {"fields":[{"name":"key","type":"string"}],"allowExtra":false}')
     s.add_argument("--license", help=_LICENSE_HELP + " (on the origin; a node takes any string)")
@@ -869,7 +893,8 @@ def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
         args.fn(w, args)
         return 0
     except WitanError as exc:
-        print(f"error: {exc}", file=sys.stderr)
+        where = f" — asked {w.base_url}" if exc.status == 404 else ""  # the origin or a node: say which
+        print(f"error: {exc}{where}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)

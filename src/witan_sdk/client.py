@@ -205,9 +205,12 @@ class Witan:
     def _request(self, method: str, path: str, *, params: dict[str, Any] | None = None,
                  json: Any = None, auth: bool = False, headers: dict[str, str] | None = None,
                  idempotent: bool = False) -> Any:
-        if auth and not self.api_key:
+        # a node without a token (wtn serve on loopback) takes every call with no key; one with a
+        # token hides that it is a node from a keyless client and answers 401 naming its token
+        if auth and not self.api_key and not self._is_node():
             raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
-                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md)")
+                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md); "
+                            "a node (wtn serve) started with a token takes that token as the key")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         retry = (method in ("GET", "HEAD") or idempotent
                  or any(k.lower() == "idempotency-key" for k in (headers or {})))
@@ -357,16 +360,19 @@ class Witan:
 
     # ---- knowledge: discover -------------------------------------------
     def search(self, q: str, *, category: str | None = None, mode: str | None = None,
-               limit: int | None = None) -> list[dict[str, Any]]:
+               limit: int | None = None, full: bool = False) -> Any:
         """Published previews for ``q``. Without a ``mode`` the origin answers with the units
         that hold every word of ``q`` (a part in double quotes is one phrase) and, when none
         does, with the closest by meaning. ``mode="keyword"`` never ranks by meaning;
         ``mode="semantic"`` always does (paraphrases and other languages match) and adds
-        ``similarity``."""
+        ``similarity``. Returns the list of results; ``full=True`` returns the whole answer
+        instead: ``{results, mode}`` — ``mode`` says which of the two it was — and, when nothing
+        is close, ``next`` (how to ask for it on the Requests board)."""
         params: dict[str, Any] = {"q": q, "category": category, "limit": limit}
         if mode:
             params["mode"] = mode
-        return self._request("GET", "/search", params=params)["results"]
+        answer = self._request("GET", "/search", params=params)
+        return answer if full else answer["results"]
 
     def read(self, unit_id: str) -> dict[str, Any]:
         """Full body of a published unit. A free unit (its seller set $0) reads with no key at
@@ -784,6 +790,8 @@ class Projects:
                 _matches(cached, slug, held)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]  # offline: the signature is on disk
+                if version is None:  # the origin answered the list just now; a pinned version stays offline
+                    self._keep_project(slug, root, refresh=False)
                 return {**cached, "downloaded": 0}
             except SignatureError:
                 if version is not None:
@@ -800,7 +808,40 @@ class Projects:
         _matches(remote, slug, version)
         if version is None:
             _not_older(root, slug, int(remote["version"]))
-        return self._materialize(slug, root, remote, workers, verified=status)
+        m = self._materialize(slug, root, remote, workers, verified=status)
+        self._keep_project(slug, root, refresh=True)
+        return m
+
+    def _keep_project(self, slug: str, root: Any, *, refresh: bool) -> None:
+        """Keep the project's title, README, license and schema contract next to its versions
+        (``project.json``), so a node serving the copy shows them and ``save`` bundles them.
+        Written when missing, or after a new version when ``refresh``. Best effort: the project
+        page is public and counts no egress, and without it a node still takes the schema from the
+        manifest. Never touches a project created on a node (``"local": true``)."""
+        import json as _json
+
+        from .bundle import PROJECT_KEYS
+
+        f = root / "project.json"
+        try:
+            old = _json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+        except (OSError, ValueError):
+            old = None
+        if (isinstance(old, dict) and old.get("local")) or (old is not None and not refresh):
+            return
+        try:
+            detail = self.get(slug)
+        except WitanError:
+            return
+        project = {k: detail[k] for k in PROJECT_KEYS if k in detail} if isinstance(detail, dict) else {}
+        if project.get("slug") != slug:
+            return
+        tmp = f.with_name(f".project.json.{os.getpid()}.tmp")
+        try:
+            tmp.write_text(_json.dumps(project, indent=2, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, f)  # a reader sees the old file or the new one, never half of one
+        except OSError:
+            tmp.unlink(missing_ok=True)
 
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
                   version: int | None = None, private_key: str | None = None,
@@ -988,7 +1029,17 @@ class Projects:
             raise WitanError('SQL queries need the extra: pip install "witan-sdk[query]"') from exc
         from pathlib import Path
 
-        m = self.pull(slug, out_dir, version=version, workers=workers)
+        note = None
+        try:
+            m = self.pull(slug, out_dir, version=version, workers=workers)
+        except WitanError as exc:
+            # no version named, and the origin cannot say which is the latest (unreachable, or a
+            # manifest needs a key this client lacks): run on the newest complete version on disk
+            offline = isinstance(exc, AuthError) or (type(exc) is WitanError and exc.status is None)  # not a bad signature
+            m = self._newest_held(slug, Path(out_dir) / slug) if version is None and offline else None
+            if m is None:
+                raise
+            note = f"the latest version could not be checked ({exc}); ran on v{m['version']}, the newest on disk"
         if m.get("format") != "parquet":
             raise WitanError(f"{slug} v{m.get('version')} is not available as Parquet parts (pulled as {m.get('file')})")
         if not m["parts"]:
@@ -1006,7 +1057,28 @@ class Projects:
             rows = [list(r) for r in cur.fetchall()]
         finally:
             con.close()
-        return {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
+        result = {"project": slug, "version": int(m["version"]), "columns": columns, "rows": rows, "count": len(rows)}
+        if note:
+            result["note"] = note
+        return result
+
+    def _newest_held(self, slug: str, root: Any) -> dict[str, Any] | None:
+        """The newest version on disk whose parts are all there, checked like a pinned pull
+        (signature against the pinned keys; under verify, an unsigned copy is refused)."""
+        from .trust import SignatureError, check, require_default
+
+        newest = _newest_on_disk(root)
+        m = self._cached(root, newest) if newest else None
+        if m is None:
+            return None
+        must = require_default()
+        try:
+            _matches(m, slug, newest)
+            if must or m.get("signature"):
+                m["verified"] = check(m, require=must)["status"]
+        except SignatureError:
+            return None
+        return m
 
     def query_remote(self, slug: str, sql: str, *, version: int | None = None,
                      limit: int | None = None) -> dict[str, Any]:

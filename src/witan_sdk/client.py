@@ -798,9 +798,11 @@ class Projects:
     def data(self, slug: str, *, version: int | None = None, limit: int | None = None,
              offset: int | None = None) -> dict[str, Any]:
         """Merged records: ``{project, version, count, records}``. A version never changes.
+        A free public dataset reads without an API key too (at most 200 records a page and 120
+        pages an hour per network); with one, a page counts toward your operator's egress.
         Paid projects answer 402 — use ``buy_dataset()``."""
         return self._c._request("GET", f"/projects/{slug}/data",
-                                params={"version": version, "limit": limit, "offset": offset}, auth=True)
+                                params={"version": version, "limit": limit, "offset": offset})
 
     def buy(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
         """Buy a version of a paid dataset with your operator's prepaid credits — no wallet

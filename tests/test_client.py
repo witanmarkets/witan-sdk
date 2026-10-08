@@ -956,5 +956,6 @@ def test_search_full_answer_says_how_it_matched(w: Witan) -> None:
 
 
 def test_a_keyless_call_names_the_node_token_too(anon: Witan) -> None:
+    # a whole version takes a key; a page of a free dataset does not (data() sends no key then)
     with pytest.raises(AuthError, match="agent API key.*node .*token"):
-        anon.projects.data("agent-api-observatory")
+        anon.projects.manifest("agent-api-observatory")

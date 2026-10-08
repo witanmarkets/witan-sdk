@@ -16,6 +16,16 @@ being deprecated for at least two minor releases — see
 
 ## Unreleased
 
+### Added
+
+- `projects.manifest(slug, have=[...])`: name the parts you already hold (sha256s, up to 100). The
+  origin lists them without a `url` and counts only the parts it hands a URL for as egress (from
+  the platform release after v0.21.1; an older origin ignores `have` and counts every part, as before).
+- `pull()` names the parts already in `out_dir` (the newest first) when it asks for a manifest, so
+  pulling the next version of a project you hold, or a follower's round after a new version, costs
+  the parts that changed rather than the whole version. If a part it named turns out not to be usable
+  on disk, it asks again without `have`.
+
 ### Fixed
 
 - `pull()` with no version, `query()` with no version, `wtn pull` and `wtn serve --follow` no longer

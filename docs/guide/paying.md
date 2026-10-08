@@ -203,7 +203,8 @@ may change for grants issued later.
 
 `quota()` (or `wtn quota`) returns `{storage: {usedBytes, limitBytes}, egress: {usedBytes,
 limitBytes, periodStart}}` for your operator. Storage counts the projects your operator
-maintains. Egress counts manifests issued and records read by your agents this month. The
+maintains. Egress counts the parts a manifest hands out (not the ones named as held) and the
+records read by your agents this month. The
 server's defaults are 5 GiB of storage and 50 GB of egress a month. Past a limit, credits pay
 for the difference; only when the balance cannot cover it does the API answer 402.
 

@@ -25,6 +25,7 @@ MAX_PARTS = 1000
 UNIT_TERMINAL = frozenset({"published", "rejected"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
+HAVE_MAX = 100  # sha256s a manifest request may name as held (the origin's limit: one URL stays under 8 KB)
 
 # Retries, the same policy as the JS SDK: only requests that are safe to send twice (reads, SQL on
 # the server, writes that carry an Idempotency-Key, presigned part transfers), on network errors,
@@ -674,6 +675,32 @@ def _newest_on_disk(root: Any) -> int:
     return max(found, default=0)
 
 
+def _held_parts(root: Any) -> list[str]:
+    """The parts in the store to name as held (``have=``) when asking for a manifest: the newest
+    files first, since parts are shared across versions and the latest version's are the likeliest
+    to be in the next one. A part only gets its name once its sha256 checked out (``.part`` until
+    then), so every name here is a complete part."""
+    try:
+        files = [(e.stat().st_mtime, e.name[:64]) for e in (root / "parts").iterdir()
+                 if e.name.endswith(".parquet") and SHA256.fullmatch(e.name[:-8])]
+    except OSError:
+        return []
+    return [sha for _, sha in sorted(files, reverse=True)[:HAVE_MAX]]
+
+
+def _needs_urls(remote: dict[str, Any], root: Any) -> bool:
+    """Whether a manifest asked for with ``have=`` left out the URL of a part that is not on disk with
+    the size it lists (removed or altered since) — that part could not be downloaded."""
+    parts = remote.get("parts")
+    if not isinstance(parts, list):
+        return False
+    for p in parts:
+        _check_part(p)
+        if "url" not in p and not _present(root / "parts" / f"{p['sha256']}.parquet", p["bytes"]):
+            return True
+    return False
+
+
 def _not_older(root: Any, slug: str, version: int) -> None:
     """``latest`` never goes back: a server offering an older version than the store holds is
     replaying an old (validly signed) manifest."""
@@ -714,10 +741,18 @@ class Projects:
         body = {"version": version} if version is not None else {}
         return self._c._request("POST", f"/projects/{slug}/buy", json=body, auth=True)
 
-    def manifest(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
+    def manifest(self, slug: str, *, version: int | None = None,
+                 have: "Iterable[str] | None" = None) -> dict[str, Any]:
         """Version manifest: schema, the content-addressed parts (sha256, bytes, records)
-        and a 15-minute presigned URL per part. Latest version when ``version`` is None."""
-        return self._c._request("GET", f"/projects/{slug}/manifest", params={"version": version}, auth=True)
+        and a 15-minute presigned URL per part. Latest version when ``version`` is None.
+
+        The parts' bytes count as egress. ``have`` names parts you already hold (their sha256s, up
+        to 100): those are listed without a ``url`` and count nothing, so asking for the next
+        version of a project you hold costs only what changed. The signature covers the manifest
+        without URLs, so it verifies the same."""
+        held = ",".join(dict.fromkeys(have)) if have is not None else ""
+        return self._c._request("GET", f"/projects/{slug}/manifest", params={"version": version, "have": held or None},
+                                auth=True)
 
     def pull(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
              version: int | None = None, format: str = "parquet", page: int = 200,
@@ -769,8 +804,9 @@ class Projects:
                 if version is not None:
                     raise
                 # the copy on disk does not verify: ask the origin for the latest, as without a copy
+        have = _held_parts(root)
         try:
-            remote = self.manifest(slug, version=version)
+            remote = self.manifest(slug, version=version, have=have)
         except ConflictError:
             if must:
                 raise SignatureError(f"{slug} v{version or 'latest'} is not published as signed parts yet, so it cannot "
@@ -780,6 +816,10 @@ class Projects:
         _matches(remote, slug, version)
         if version is None:
             _not_older(root, slug, int(remote["version"]))
+        if have and _needs_urls(remote, root):  # a part named as held is not usable on disk after all
+            remote = self.manifest(slug, version=int(remote["version"]))
+            status = check(remote, require=must)["status"]
+            _matches(remote, slug, int(remote["version"]))
         return self._materialize(slug, root, remote, workers, verified=status)
 
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,

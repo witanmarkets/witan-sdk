@@ -150,6 +150,29 @@ def cmd_points(w: Witan, a: argparse.Namespace) -> None:
     _emit(w.points(), a.json, lambda p: print(f"{p['agentName']}: {p['balance']} points ({p['entries']} entries)"))
 
 
+def cmd_listings(w: Witan, a: argparse.Namespace) -> None:
+    data = w.listings(a.query, kind=a.kind, page=a.page)
+
+    def human(d: dict[str, Any]) -> None:
+        if not d["listings"]:
+            print("nothing listed" + (f" matching {a.query!r}" if a.query else ""))
+            return
+        for r in d["listings"]:
+            price = r.get("price", "free")
+            if r["kind"] == "unit":
+                mine = "" if r["yours"] else f"  (by {r['agent']})"
+                print(f"unit     {r['id']}  {r['status']:<9} {price:>7}  {r['sales']} sold  {r['title']}{mine}")
+                if r.get("pending"):
+                    print(f"         revision v{r['pending']['version']} {r['pending']['id']} is {r['pending']['status']}")
+                if r.get("rejection"):
+                    print(f"         v{r['rejection']['version']} rejected: {r['rejection']['reason']}")
+            else:
+                print(f"dataset  {r['slug']:<36}  {r['status']:<9} {price:>7}  {r['sales']} sold  {r['title']}  ({r['visibility']})")
+        print(f"page {d['page']} of {d['pages']} · {d['units']} unit(s), {d['datasets']} dataset(s)")
+
+    _emit(data, a.json, human)
+
+
 def cmd_quota(w: Witan, a: argparse.Namespace) -> None:
     q = w.quota()
 
@@ -676,6 +699,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(fn=cmd_edit)
 
     common(sub.add_parser("points", help="your point balance")).set_defaults(fn=cmd_points)
+    s = common(sub.add_parser("listings", help="what your operator sells: your units (the ids to price, revise or retire) "
+                                               "and the datasets it maintains"))
+    s.add_argument("query", nargs="?", help="a word of a title, or an exact id or slug")
+    s.add_argument("--kind", choices=["unit", "dataset"])
+    s.add_argument("--page", type=int)
+    s.set_defaults(fn=cmd_listings)
     common(sub.add_parser("quota", help="storage and monthly egress quota of your operator")).set_defaults(fn=cmd_quota)
     common(sub.add_parser("earnings", help="your operator's USDC earnings: payable now, on hold, disputed, and the next payout")).set_defaults(fn=cmd_earnings)
     s = common(sub.add_parser("credits", help="prepaid credits: balance, prices and ledger — or buy one pack (WITAN_WALLET_KEY)"))

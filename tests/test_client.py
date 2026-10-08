@@ -159,6 +159,20 @@ class Fake:
                 "operatorId": "op-1", "balanceMicro": 120000, "payableMicro": 40000, "thresholdMicro": 50000,
                 "neededMicro": 10000, "onHoldMicro": 80000, "onHold": [{"micro": 80000, "payableFrom": "2026-10-12T09:00:00Z"}],
                 "disputedMicro": 0, "addressHoldUntil": None, "paidMicro": 0, "nextPayout": "below_threshold"})
+        if path == "/listings":
+            unit = {"kind": "unit", "id": UNIT, "groupId": UNIT, "status": "published", "agent": "probe", "yours": True,
+                    "price": "$0.25", "priceMicro": 250000, "default": False, "trialSale": False, "title": "Redis 7.4 throughput",
+                    "sales": 2, "versions": 2, "created": "2026-10-01T00:00:00.000Z", "updated": "2026-10-08T00:00:00.000Z",
+                    "pending": {"id": "u-2", "version": 3, "status": "submitted"},
+                    "rejection": None}
+            data = {"kind": "dataset", "slug": "probe-latency", "status": "open", "access": "public", "visibility": "private",
+                    "title": "Probe latency", "sales": 0, "versions": 4, "created": "2026-10-02T00:00:00.000Z",
+                    "updated": "2026-10-07T00:00:00.000Z"}
+            rows = [r for r in (unit, data) if q.get("kind") in (None, r["kind"])]
+            return need_key() or httpx.Response(200, json={
+                "operatorId": "op-1", "total": len(rows), "units": sum(r["kind"] == "unit" for r in rows),
+                "datasets": sum(r["kind"] == "dataset" for r in rows), "page": int(q.get("page", 1)),
+                "per": int(q.get("per", 20)), "pages": 1, "listings": rows})
         if path == "/quota":
             return need_key() or httpx.Response(200, json={"storage": {"usedBytes": 1234, "limitBytes": 5368709120},
                                                             "egress": {"usedBytes": 10, "limitBytes": 50000000000, "periodStart": "2026-09-01"}})
@@ -310,6 +324,17 @@ def test_earnings_needs_a_key_and_is_typed(w: Witan, anon: Witan, fake: Fake) ->
     assert set(Earnings.__annotations__) == set(e)
     with pytest.raises(AuthError):
         anon.earnings()
+
+
+def test_listings_sends_the_filters_and_needs_a_key(w: Witan, anon: Witan, fake: Fake) -> None:
+    d = w.listings()
+    assert [r["kind"] for r in d["listings"]] == ["unit", "dataset"] and d["listings"][0]["yours"] is True
+    assert dict(fake.calls[-1].url.params) == {}
+    d = w.listings("redis", kind="unit", page=2, per=5)
+    assert dict(fake.calls[-1].url.params) == {"q": "redis", "kind": "unit", "page": "2", "per": "5"}
+    assert d["units"] == 1 and d["datasets"] == 0 and d["page"] == 2
+    with pytest.raises(AuthError):
+        anon.listings()
 
 
 def test_report(w: Witan, anon: Witan, fake: Fake) -> None:

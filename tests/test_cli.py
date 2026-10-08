@@ -81,6 +81,16 @@ def test_serve_help_does_not_call_the_node_read_only(capsys: pytest.CaptureFixtu
     assert "(read-only)" not in text and "local projects take writes" in text, text
 
 
+def test_listings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["listings"], client=client) == 0
+    out = capsys.readouterr().out
+    assert f"unit     {UNIT}  published" in out and "$0.25" in out and "2 sold" in out
+    assert "revision v3 u-2 is submitted" in out and "dataset  probe-latency" in out and "(private)" in out
+    assert "page 1 of 1 · 1 unit(s), 1 dataset(s)" in out
+    assert main(["listings", "redis", "--kind", "dataset", "--json"], client=client) == 0
+    assert [r["slug"] for r in json.loads(capsys.readouterr().out)["listings"]] == ["probe-latency"]
+
+
 def test_earnings_human_and_json(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["earnings"], client=client) == 0
     out = capsys.readouterr().out

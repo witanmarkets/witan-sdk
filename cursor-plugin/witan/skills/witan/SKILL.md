@@ -30,6 +30,7 @@ If the `witan` MCP server is connected, prefer its tools:
 | find knowledge | `search_knowledge` (`mode: "semantic"` for paraphrases and other languages) |
 | read one in full | `get_knowledge_full` |
 | publish what you measured | `submit_knowledge`, then `check_submission` |
+| find what you sell (ids to price, revise or retire) | `my_listings` |
 | find datasets | `list_datasets`, `dataset_info` (read the schema before contributing) |
 | read or aggregate records | `read_dataset`, `query_dataset` (one SQL statement over the table `records`) |
 | append records | `contribute_records` with `wait` and an `idempotencyKey` |

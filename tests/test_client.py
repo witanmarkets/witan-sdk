@@ -465,6 +465,88 @@ def test_latest_fetches_again_over_an_incomplete_or_unreadable_copy(tmp_path) ->
     assert w2.projects.pull("agent-api-observatory", tmp_path)["version"] == 112 and _manifests(calls2) == 1
 
 
+PART_C = b"PAR1" + b"c" * 40 + b"PAR1"
+SHA_C = hashlib.sha256(PART_C).hexdigest()
+
+
+def _honoring_have() -> tuple[Witan, list]:
+    """An origin at v112 (parts A, B and a new C) that, like the API, lists the parts named in have= without a URL."""
+    calls: list = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if request.url.host == "parts.test":
+            return httpx.Response(200, content={"/a": PART_A, "/b": PART_B, "/c": PART_C}[request.url.path])
+        if request.url.path == "/projects":
+            return httpx.Response(200, json={"projects": [{"slug": "agent-api-observatory", "latestVersion": 112}]})
+        if request.url.path == "/projects/agent-api-observatory/manifest":
+            v = int(request.url.params.get("version", 112))
+            m = manifest_for(v)
+            if v == 112:
+                c = {**m["parts"][1], "sha256": SHA_C, "bytes": len(PART_C), "records": 1, "url": "http://parts.test/c"}
+                m = {**m, "parts": m["parts"] + [c], "totals": {**m["totals"], "records": 4, "parts": 3}}
+            held = set(filter(None, request.url.params.get("have", "").split(",")))
+            m["parts"] = [{k: val for k, val in p.items() if k != "url"} if p["sha256"] in held else p for p in m["parts"]]
+            return httpx.Response(200, json=m)
+        return httpx.Response(404, json={"error": "unmapped"})
+
+    return Witan("km_test", base_url="http://api.test", retries=0, transport=httpx.MockTransport(handler)), calls
+
+
+def _manifest_asks(calls: list) -> list:
+    return [c.url.params.get("have") for c in calls if c.url.path.endswith("/manifest")]
+
+
+def test_pull_names_the_parts_it_holds_and_fetches_only_the_rest(tmp_path) -> None:
+    w, calls = _honoring_have()
+    w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    assert _manifest_asks(calls) == [None]  # nothing on disk: nothing to name
+    m = w.projects.pull("agent-api-observatory", tmp_path)
+    assert m["version"] == 112 and m["downloaded"] == 1 and m["count"] == 4
+    assert set(_manifest_asks(calls)[1].split(",")) == {SHA_A, SHA_B}  # held: no URL, no egress
+    assert [c.url.path for c in calls if c.url.host == "parts.test"] == ["/a", "/b", "/c"]
+    assert (tmp_path / "agent-api-observatory" / "parts" / f"{SHA_C}.parquet").read_bytes() == PART_C
+    saved = json.loads((tmp_path / "agent-api-observatory" / "v112" / "manifest.json").read_text(encoding="utf-8"))
+    assert [p["sha256"] for p in saved["parts"]] == [SHA_A, SHA_B, SHA_C] and all("url" not in p for p in saved["parts"])
+
+
+def test_a_part_named_as_held_but_unusable_is_fetched_with_every_url(tmp_path) -> None:
+    w, calls = _honoring_have()
+    parts = tmp_path / "agent-api-observatory" / "parts"
+    w.projects.pull("agent-api-observatory", tmp_path, version=110)
+    (parts / f"{SHA_B}.parquet").write_bytes(b"truncated")  # its name says B, its size does not
+    m = w.projects.pull("agent-api-observatory", tmp_path)
+    asks = _manifest_asks(calls)
+    assert len(asks) == 3 and SHA_B in asks[1] and asks[2] is None  # B came back without a URL: ask again, naming none
+    assert m["version"] == 112 and (parts / f"{SHA_B}.parquet").read_bytes() == PART_B
+
+
+def test_manifest_have_is_sent_once_per_part_and_only_when_given(w: Witan, fake: Fake) -> None:
+    w.projects.manifest("agent-api-observatory", have=[SHA_A, SHA_B, SHA_A])
+    assert fake.calls[-1].url.params["have"] == f"{SHA_A},{SHA_B}"
+    for none in (None, []):
+        w.projects.manifest("agent-api-observatory", have=none)
+        assert "have" not in fake.calls[-1].url.params
+
+
+def test_held_parts_are_the_newest_files_and_at_most_a_hundred(tmp_path) -> None:
+    import os
+
+    from witan_sdk.client import HAVE_MAX, _held_parts
+
+    parts = tmp_path / "parts"
+    parts.mkdir()
+    shas = [hashlib.sha256(str(i).encode()).hexdigest() for i in range(HAVE_MAX + 20)]
+    for i, sha in enumerate(shas):
+        f = parts / f"{sha}.parquet"
+        f.write_bytes(b"x")
+        os.utime(f, (1_000_000 + i, 1_000_000 + i))
+    (parts / f"{SHA_C}.parquet.part").write_bytes(b"x")  # a download in progress is not held
+    (parts / "notes.parquet").write_bytes(b"x")
+    held = _held_parts(tmp_path)
+    assert held == shas[::-1][:HAVE_MAX] and _held_parts(tmp_path / "nothing") == []
+
+
 def test_pull_rejects_corrupt_part(w: Witan, tmp_path) -> None:
     with pytest.raises(WitanError, match="sha256|larger than"):  # the store serves more bytes than listed
         w.projects.pull("agent-api-observatory", tmp_path, version=111)

@@ -18,6 +18,13 @@ being deprecated for at least two minor releases — see
 
 A node hotfix. Upgrade any node that serves SQL or MCP to an agent you do not fully trust.
 
+### Changed
+
+- `retire()` and `wtn retire` withdraw every version of a unit, and any version's id will do — the
+  origin now retires the whole unit, and a revision still in validation is not published. The answer
+  carries `groupId`, `latestId` and `versions`; `wtn retire` prints the group id and how many versions
+  it withdrew.
+
 ### Security
 
 - SQL on a node (`POST /projects/{slug}/query`, MCP `query_dataset`) could write files: DuckDB let a

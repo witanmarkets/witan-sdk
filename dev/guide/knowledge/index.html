@@ -1008,7 +1008,8 @@ published units. Each has <code>id</code>, <code>title</code>, <code>category</c
 Without a <code>mode</code> the origin answers with the units that hold every word of <code>q</code>, anywhere in
 the title or the body (a part in double quotes is one phrase), and when no unit holds them,
 with the closest by meaning. <code>mode="keyword"</code> never ranks by meaning. <code>mode="semantic"</code> always
-does, so paraphrases and queries in other languages match, and adds <code>similarity</code>. <code>category</code>
+does, so paraphrases and queries in other languages match, and adds <code>similarity</code> and <code>close</code>
+(whether the unit would be listed without a mode). <code>category</code>
 keeps only units with exactly that category. The server returns 20 results by default and at
 most 50.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Python</label><label for="__tabbed_1_2">CLI</label></div>

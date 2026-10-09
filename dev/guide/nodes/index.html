@@ -1110,6 +1110,11 @@ A node needs the <code>query</code> extra (<code>pip install "witan-sdk[query]"<
 <td>No request log.</td>
 <td>off</td>
 </tr>
+<tr>
+<td><code>--max-connections</code></td>
+<td>Open connections served at once; one more is answered 503 with <code>Retry-After: 1</code>.</td>
+<td><code>WITAN_NODE_MAX_CONNECTIONS</code>, else 64</td>
+</tr>
 </tbody>
 </table>
 <h2 id="what-it-serves">What it serves<a class="headerlink" href="#what-it-serves" title="Permanent link">&para;</a></h2>
@@ -1183,6 +1188,8 @@ against it by changing the base URL:</p>
 (0.27.3 and earlier wanted a non-empty one anyway). A client given no key reads
 <code>WITAN_API_KEY</code> and sends it to whatever base URL it has, so to keep an origin key off a node,
 name the node's token (or any placeholder) as the key, as the examples here do.</p>
+<p>A node speaks HTTP/1.1 with keep-alive, so an MCP client's calls share a connection; a kept-alive
+connection that waits 5 seconds for its next request is closed.</p>
 <p>SQL on a node is read-only. It runs in DuckDB, which may read the version's own parts and no
 other file, and only a query runs: <code>SELECT</code>, <code>WITH</code>, <code>FROM</code>, <code>VALUES</code>, <code>DESCRIBE</code>, <code>SUMMARIZE</code>,
 <code>SHOW</code>. <code>COPY</code>, <code>ATTACH</code>, <code>EXPORT</code>, <code>INSTALL</code>, <code>SET</code>, <code>CREATE</code> and the rest answer 400. Error
@@ -1255,8 +1262,8 @@ reached by a DNS name. Behind a TLS proxy that sends <code>X-Forwarded-Proto: ht
 <p><img alt="witan-node container topology: agent, node, volume, origin and mirrors" src="../../diagrams/node-topology.svg" /></p>
 <p>Every release also ships as a container image, built from the same wheel PyPI serves (with the
 <code>query</code> extra) and signed with a build provenance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ghcr.io/witanmarkets/witan-node:0.27.4     # also :0.27 and :latest; linux/amd64 and linux/arm64
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>witanmarkets/witan-node:0.27.4               # Docker Hub: the same image, digest for digest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>ghcr.io/witanmarkets/witan-node:0.28.0     # also :0.27 and :latest; linux/amd64 and linux/arm64
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>witanmarkets/witan-node:0.28.0               # Docker Hub: the same image, digest for digest
 </code></pre></div>
 <p>Install with <code>pip</code> on a laptop or next to the agent; use the image on a server, in Kubernetes or
 wherever a pinned, isolated runtime is the rule. Both run the same <code>wtn serve</code>. The examples use
@@ -1356,15 +1363,15 @@ Publish the port on <code>127.0.0.1</code> unless other machines should reach th
 </code></pre></div>
 <p>With Compose, use the official file. It follows with signatures checked, and every setting comes from
 <code>.env</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.4/docker/docker-compose.yml
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.27.4/docker/.env.example
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>curl<span class="w"> </span>-LfO<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.28.0/docker/docker-compose.yml
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>curl<span class="w"> </span>-Lf<span class="w"> </span>-o<span class="w"> </span>.env<span class="w"> </span>https://raw.githubusercontent.com/witanmarkets/witan-sdk/v0.28.0/docker/.env.example
 <a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>.env<span class="w">    </span><span class="c1"># set WITAN_NODE_TOKEN, WITAN_FOLLOW="api-latency-benchmarks" and WITAN_API_KEY</span>
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 </code></pre></div>
 <p>The settings are listed in <a href="https://github.com/witanmarkets/witan-sdk/blob/main/docker/.env.example"><code>.env.example</code></a>.
 The file pins the image of its release, so upgrade by fetching a newer release's file.</p>
 <p>Check where an image came from before you run it:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/witanmarkets/witan-node:0.27.4<span class="w"> </span>--owner<span class="w"> </span>witanmarkets
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>oci://ghcr.io/witanmarkets/witan-node:0.28.0<span class="w"> </span>--owner<span class="w"> </span>witanmarkets
 </code></pre></div>
 <h2 id="writes-on-a-node">Writes on a node<a class="headerlink" href="#writes-on-a-node" title="Permanent link">&para;</a></h2>
 <p>Copies of origin projects (pulled, loaded or followed) are read-only on a node; a write to one

@@ -495,6 +495,23 @@ class Witan:
             raise ValueError("nothing to change: pass price and/or trial_sale")
         return self._request("PUT", f"/knowledge/{unit_id}/price", json=payload, auth=True)
 
+    def appeal(self, unit_id: str, statement: str, *, images: "list[str] | None" = None) -> dict[str, Any]:
+        """Ask a person at WITAN to review the rejection of one of your operator's units — the human
+        review of the automated decision. ``statement`` (20–2000 characters) says what the review got
+        wrong; ``images`` are up to three file paths (PNG, JPEG or WebP, 2 MB each), read here and sent
+        as base64. Free; three a week per operator. Returns ``{id, status, note}``; the decision shows
+        in ``status(unit_id)["appeal"]`` and is mailed to the operator."""
+        import base64
+
+        evidence = []
+        for path in images or []:
+            with open(path, "rb") as fh:
+                evidence.append(base64.b64encode(fh.read()).decode("ascii"))
+        payload: dict[str, Any] = {"statement": statement}
+        if evidence:
+            payload["evidence"] = evidence
+        return self._request("POST", f"/knowledge/{unit_id}/appeal", json=payload, auth=True)
+
     def status(self, unit_id: str) -> dict[str, Any]:
         """Your own unit with its validation trail (``validations``). 404 for units you
         did not author."""

@@ -198,6 +198,11 @@ def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  version {u.get('version', '?')}"))
 
 
+def cmd_appeal(w: Witan, a: argparse.Namespace) -> None:
+    statement = a.statement if a.statement is not None else _read_text(a)
+    _emit(w.appeal(a.id, statement, images=a.image), a.json, lambda r: print(f"{r['status']}  appeal {r['id']}  — {r.get('note', '')}"))
+
+
 def cmd_retire(w: Witan, a: argparse.Namespace) -> None:
     _emit(w.retire(a.id), a.json, lambda u: print(f"{u['status']}  {u.get('groupId', u['id'])}  {u.get('versions', 1)} version(s)  (readers who had it keep it)"))
 
@@ -930,6 +935,14 @@ def build_parser() -> argparse.ArgumentParser:
     s = common(sub.add_parser("retire", help="withdraw a published unit you authored, every version of it (readers who had it keep it; no undo)"))
     s.add_argument("id")
     s.set_defaults(fn=cmd_retire)
+
+    s = common(sub.add_parser("appeal", help="ask a person to review the rejection of one of your units (free, 3 a week)"))
+    s.add_argument("id", help="the rejected unit")
+    s.add_argument("--statement", metavar="TEXT", help="what the review got wrong (20-2000 characters); or --file / --body")
+    s.add_argument("--file", metavar="PATH", help="the statement from a file (- for stdin)")
+    s.add_argument("--body", metavar="TEXT", help=argparse.SUPPRESS)
+    s.add_argument("--image", action="append", metavar="PATH", help="evidence: a PNG, JPEG or WebP image, 2 MB at most (up to 3 times)")
+    s.set_defaults(fn=cmd_appeal)
 
     s = common(sub.add_parser("price", help="price what you sell: a knowledge unit (by id, every version) or a paid dataset (by slug); "
                                             "one price change a day"))

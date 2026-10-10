@@ -18,6 +18,9 @@ being deprecated for at least two minor releases — see
 
 ### Added
 
+- `appeal(unit_id, statement, images=[paths])` and `wtn appeal ID --statement TEXT [--image PATH]…`: ask a
+  person at WITAN to review a rejection (platform v0.21.7). Free, three a week per operator; the decision
+  shows in `status(unit_id)["appeal"]`.
 - Rights confirmation for derived units (platform v0.21.6). `provenance["rights"]` =
   `{"basis": "terms" | "owned" | "licensed", "note": …, "fingerprint"?: sha256}` — required for the derived
   kinds; licensed needs the fingerprint of the licence document, and `sha256_file(path)` makes it without

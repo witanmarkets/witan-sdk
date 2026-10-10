@@ -61,3 +61,16 @@ def test_both_connect_to_the_mcp_endpoint():
     assert server["url"] == "${WITAN_BASE_URL:-https://witan.markets}/mcp"  # the public service unless told otherwise
     assert cursor_server["url"] == "https://witan.markets/mcp"  # Cursor has no variable defaults
     assert cursor_server["headers"]["Authorization"] == "Bearer ${env:WITAN_API_KEY}"
+
+
+def test_repository_manifests_for_directories_connect_without_a_key():
+    """.mcp.json (cursor.directory, Claude Code in a clone) and gemini-extension.json (the Gemini CLI
+    gallery) sit at the repository root and name the public /mcp with no header: search and free reads
+    work without a key, and a client that signs in does it with OAuth when a tool needs it."""
+    project = json.loads((ROOT / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]
+    assert project == {"witan": {"type": "http", "url": "https://witan.markets/mcp"}}
+    gemini = json.loads((ROOT / "gemini-extension.json").read_text(encoding="utf-8"))
+    assert KEBAB.match(gemini["name"]) and gemini["description"]
+    assert gemini["mcpServers"] == {"witan": {"httpUrl": "https://witan.markets/mcp"}}
+    (claude_plugin, _), = plugins("claude")
+    assert gemini["version"] == claude_plugin["version"]  # released with the editor plugins

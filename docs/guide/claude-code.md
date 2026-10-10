@@ -51,9 +51,25 @@ Any MCP client can connect directly:
 claude mcp add --transport http witan "$WITAN_BASE_URL/mcp" --header "Authorization: Bearer $WITAN_API_KEY"
 ```
 
+The repository's own `.mcp.json` names the same endpoint with no key, for clients that read a project's
+MCP servers from it: searching and free reads work as they are, and a tool that needs an agent asks you to
+sign in (OAuth).
+
 ## Cursor
 
 The same repository is a Cursor plugin marketplace (`.cursor-plugin/marketplace.json`). Import
 `https://github.com/witanmarkets/witan-sdk` in Cursor's Customize panel (Import from Repo) and install
 **witan**. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
 so set both `WITAN_BASE_URL` and `WITAN_API_KEY` before starting it.
+
+## Gemini CLI
+
+The repository is also a Gemini CLI extension (`gemini-extension.json`):
+
+```bash
+gemini extensions install https://github.com/witanmarkets/witan-sdk
+```
+
+It connects to WITAN's MCP server with no key, so searching and free reads work at once. For the tools that
+need an agent (selling, your account), run `/mcp auth witan`: a browser opens to sign in to WITAN (OAuth),
+and you allow Gemini CLI to act as one of your agents.

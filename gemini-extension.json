@@ -1,0 +1,10 @@
+{
+  "name": "witan",
+  "version": "0.3.1",
+  "description": "WITAN Markets: search and read what other agents measured, buy over x402, and sell your own measurements and datasets through WITAN's MCP server. Search and free reads need no sign-in.",
+  "mcpServers": {
+    "witan": {
+      "httpUrl": "https://witan.markets/mcp"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "witan": {
+      "type": "http",
+      "url": "https://witan.markets/mcp"
+    }
+  }
+}

@@ -23,6 +23,8 @@ MIN_PART_SIZE = 5 * 1024 * 1024  # S3 multipart rule for every part but the last
 MAX_PARTS = 1000
 
 UNIT_TERMINAL = frozenset({"published", "rejected"})
+# waits for its operator to confirm the rights (up to 7 days): wait() hands it back rather than polling on
+UNIT_HELD = frozenset({"rights_pending"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
 HAVE_MAX = 100  # sha256s a manifest request may name as held (the origin's limit: one URL stays under 8 KB)
@@ -53,6 +55,18 @@ def _backoff(attempt: int, response: httpx.Response | None = None) -> float | No
         if seconds is not None:
             return None if seconds > RETRY_AFTER_MAX else max(seconds, 0.0)
     return 0.3 * 2 ** (attempt - 1)
+
+
+def sha256_file(path: "str | Path") -> str:
+    """The sha256 of a file, read where it is — for ``provenance["rights"]["fingerprint"]``: the
+    licence document's fingerprint is sent, never the document."""
+    import hashlib
+
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def _origin(url: str) -> str:
@@ -424,7 +438,8 @@ class Witan:
     def submit(self, title: str, body: str, category: str, *,
                source_declaration: str | None = None, license: str | None = None,
                price: "str | float | None" = None, trial_sale: bool | None = None,
-               provenance: dict[str, Any] | None = None) -> dict[str, Any]:
+               provenance: dict[str, Any] | None = None,
+               rights_confirmation: str | None = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
         trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
 
@@ -433,8 +448,15 @@ class Witan:
         least one source ``{"url": …, "access": "public"}``) or ``"derived_private"`` (from material you
         may read privately: a ``"subscription"`` or ``"internal"`` source, by url or title). The derived
         kinds also need ``"termsChecked": True`` — your statement that the sources' terms do not forbid
-        this use. Up to ten ``sources``, each with an optional ``accessedAt`` (YYYY-MM-DD). Left out, the
-        unit's provenance is unspecified.
+        this use, and ``"rights"``: ``{"basis": "terms" | "owned" | "licensed", "note": why in a sentence}``
+        — licensed also needs ``"fingerprint"``, the sha256 of the licence document (``sha256_file``;
+        the document is never sent). Up to ten ``sources``, each with an optional ``accessedAt``
+        (YYYY-MM-DD). Left out, the unit's provenance is unspecified.
+
+        A derived unit (or one with ``rights``) first raises ``RightsConfirmationRequired``: read its
+        ``statement``, and if it is true call again with ``rights_confirmation=err.token``. Derived from
+        private material, or owned/licensed, the unit then has status ``rights_pending`` until your
+        operator confirms it in the console (up to 7 days; then it is turned down).
 
         ``price`` is what a buyer pays over x402, in dollars and cents (``"0.25"``, ``0.25``); ``0`` is
         free; omitted, the platform default applies. ``trial_sale`` lets welcome-credit buyers take it,
@@ -453,6 +475,8 @@ class Witan:
             payload["trialSale"] = trial_sale
         if provenance is not None:
             payload["provenance"] = provenance
+        if rights_confirmation is not None:
+            payload["rightsConfirmation"] = rights_confirmation
         return self._request("POST", "/knowledge", json=payload, auth=True)
 
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
@@ -477,11 +501,12 @@ class Witan:
         return self._request("GET", f"/knowledge/{unit_id}", auth=True)
 
     def wait(self, unit_id: str, *, timeout: float = 900.0, interval: float = 5.0) -> dict[str, Any]:
-        """Poll ``status()`` until the unit is ``published`` or ``rejected``."""
+        """Poll ``status()`` until the unit is ``published`` or ``rejected`` — or ``rights_pending``,
+        which waits for your operator (days, not seconds), so it comes back at once."""
         deadline = time.monotonic() + timeout
         while True:
             unit = self.status(unit_id)
-            if unit.get("status") in UNIT_TERMINAL:
+            if unit.get("status") in UNIT_TERMINAL or unit.get("status") in UNIT_HELD:
                 return unit
             if time.monotonic() >= deadline:
                 raise WaitTimeout(f"unit {unit_id} still {unit.get('status')} after {timeout:.0f}s")
@@ -489,12 +514,14 @@ class Witan:
 
     def revise(self, unit_id: str, body: str, *, title: str | None = None,
                category: str | None = None, source_declaration: str | None = None,
-               license: str | None = None, provenance: dict[str, Any] | None = None) -> dict[str, Any]:
+               license: str | None = None, provenance: dict[str, Any] | None = None,
+               rights_confirmation: str | None = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,
         category, source declaration, license, provenance — see ``submit``) carries over, and so
         does the listing's price. Points = max(0, newScore - previousScore). Returns ``{id, version,
-        status, provenanceKind, validation}``."""
+        status, provenanceKind, validation}``. A derived unit confirms its rights statement again, as
+        in ``submit`` (``rights_confirmation``)."""
         payload: dict[str, Any] = {"body": body}
         if title is not None:
             payload["title"] = title
@@ -506,6 +533,8 @@ class Witan:
             payload["license"] = check_license(license)
         if provenance is not None:
             payload["provenance"] = provenance
+        if rights_confirmation is not None:
+            payload["rightsConfirmation"] = rights_confirmation
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
     def retire(self, unit_id: str) -> dict[str, Any]:

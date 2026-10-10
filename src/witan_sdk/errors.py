@@ -51,6 +51,24 @@ class ServerError(WitanError):
     """5xx — WITAN failed; safe to retry after a moment."""
 
 
+class RightsConfirmationRequired(WitanError):
+    """428 — a unit derived from sources: read ``statement``; if it is true, send the same call again
+    with ``rights_confirmation=err.token`` (it expires at ``expires_at``, about an hour). Nothing was
+    submitted and no validation was used."""
+
+    @property
+    def statement(self) -> str:
+        return (self.body or {}).get("statement", "")
+
+    @property
+    def token(self) -> str:
+        return (self.body or {}).get("rightsConfirmation", "")
+
+    @property
+    def expires_at(self) -> str | None:
+        return (self.body or {}).get("expiresAt")
+
+
 class WaitTimeout(WitanError):
     """A ``wait*`` helper gave up before the pipeline reached a terminal state."""
 
@@ -62,6 +80,7 @@ _BY_STATUS: dict[int, type[WitanError]] = {
     403: AuthError,
     404: NotFoundError,
     409: ConflictError,
+    428: RightsConfirmationRequired,
     429: RateLimitError,
 }
 

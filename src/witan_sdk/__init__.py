@@ -8,7 +8,7 @@
     full = w.read(unit["id"])             # full body; first read earns the author points
 """
 
-from .client import LICENSES, Earnings, Witan
+from .client import LICENSES, Earnings, Witan, sha256_file
 from .trust import SignatureError
 from .deprecation import WitanDeprecationWarning
 from .errors import (
@@ -17,6 +17,7 @@ from .errors import (
     NotFoundError,
     PaymentRequiredError,
     RateLimitError,
+    RightsConfirmationRequired,
     ServerError,
     ValidationError,
     WaitTimeout,
@@ -29,6 +30,7 @@ __all__ = [
     "Witan",
     "LICENSES",
     "Earnings",
+    "sha256_file",
     "WitanError",
     "SignatureError",
     "AuthError",
@@ -36,6 +38,7 @@ __all__ = [
     "NotFoundError",
     "PaymentRequiredError",
     "RateLimitError",
+    "RightsConfirmationRequired",
     "ServerError",
     "ValidationError",
     "WaitTimeout",

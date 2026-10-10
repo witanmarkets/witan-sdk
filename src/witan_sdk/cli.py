@@ -12,7 +12,8 @@ import re
 import sys
 from typing import Any, Sequence
 
-from .client import LICENSES, Witan, check_license, check_source_declaration
+from .client import LICENSES, Witan, check_license, check_source_declaration, sha256_file
+from .errors import RightsConfirmationRequired
 from .errors import WitanError
 
 
@@ -53,8 +54,42 @@ def _add_provenance(s: argparse.ArgumentParser, revision: bool = False) -> None:
                    help="you ran, measured or logged it yourself (provenance own_measurement)")
 
 
+def _add_rights(s: argparse.ArgumentParser) -> None:
+    g = s.add_argument_group("rights (derived units: what the sale rests on)")
+    g.add_argument("--rights-basis", choices=["terms", "owned", "licensed"],
+                   help="terms: the sources' terms allow it; owned: your operator owns the material; licensed: a licence grants it")
+    g.add_argument("--rights-note", metavar="TEXT", help="why this use is allowed, in a sentence (buyers see the basis, not this)")
+    g.add_argument("--rights-file", metavar="PATH",
+                   help="the licence document: its sha256 is sent as the fingerprint (required for licensed), never the file")
+    g.add_argument("--confirm-rights", metavar="TOKEN",
+                   help="the token a first try printed with its statement: send the same command again with it to confirm")
+
+
 def _provenance_of(a: argparse.Namespace) -> dict[str, Any] | None:
-    return getattr(a, "provenance", None)
+    prov = getattr(a, "provenance", None)
+    basis, note, path = getattr(a, "rights_basis", None), getattr(a, "rights_note", None), getattr(a, "rights_file", None)
+    if basis is None and note is None and path is None:
+        return prov
+    if prov is None:
+        raise SystemExit("error: --rights-* go with --provenance (the kind and the sources they are about)")
+    if basis is None or note is None:
+        raise SystemExit("error: give both --rights-basis and --rights-note")
+    rights: dict[str, Any] = {"basis": basis, "note": note}
+    if path is not None:
+        rights["fingerprint"] = sha256_file(path)
+    return {**prov, "rights": rights}
+
+
+def _rights_step(call):
+    """Run a submit or revise; a statement to confirm is printed with the command to confirm it."""
+    try:
+        return call()
+    except RightsConfirmationRequired as err:
+        print("This unit is derived from sources: confirm what you state about them.\n", file=sys.stderr)
+        print(err.statement, file=sys.stderr)
+        print(f"\nIf it is true, run the same command again with --confirm-rights {err.token}"
+              f" (expires {err.expires_at}). Nothing was submitted.", file=sys.stderr)
+        raise SystemExit(3) from None
 
 
 def _read_text(args: argparse.Namespace) -> str:
@@ -133,8 +168,9 @@ def cmd_read(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_submit(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
-    unit = w.submit(a.title, body, a.category, source_declaration=a.source, license=a.license,
-                    provenance=_provenance_of(a))
+    prov = _provenance_of(a)
+    unit = _rights_step(lambda: w.submit(a.title, body, a.category, source_declaration=a.source, license=a.license,
+                                         provenance=prov, rights_confirmation=a.confirm_rights))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  {u.get('title', '')}"))
@@ -154,8 +190,9 @@ def cmd_status(w: Witan, a: argparse.Namespace) -> None:
 
 def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
-    unit = w.revise(a.id, body, title=a.title, category=a.category, source_declaration=a.source,
-                    provenance=_provenance_of(a))
+    prov = _provenance_of(a)
+    unit = _rights_step(lambda: w.revise(a.id, body, title=a.title, category=a.category, source_declaration=a.source,
+                                         provenance=prov, rights_confirmation=a.confirm_rights))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  version {u.get('version', '?')}"))
@@ -869,6 +906,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "where and when, or whose work it is)")
     s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
     _add_provenance(s)
+    _add_rights(s)
     s.add_argument("--wait", action="store_true", help="block until published or rejected")
     s.set_defaults(fn=cmd_submit)
 
@@ -885,6 +923,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--category")
     s.add_argument("--source")
     _add_provenance(s, revision=True)
+    _add_rights(s)
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)
 

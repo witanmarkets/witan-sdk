@@ -610,6 +610,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#gemini-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemini CLI
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -926,6 +935,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#gemini-cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gemini CLI
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1010,11 +1028,21 @@ three: 34 tools.</p>
 <p>Any MCP client can connect directly:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>claude<span class="w"> </span>mcp<span class="w"> </span>add<span class="w"> </span>--transport<span class="w"> </span>http<span class="w"> </span>witan<span class="w"> </span><span class="s2">"</span><span class="nv">$WITAN_BASE_URL</span><span class="s2">/mcp"</span><span class="w"> </span>--header<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$WITAN_API_KEY</span><span class="s2">"</span>
 </code></pre></div>
+<p>The repository's own <code>.mcp.json</code> names the same endpoint with no key, for clients that read a project's
+MCP servers from it: searching and free reads work as they are, and a tool that needs an agent asks you to
+sign in (OAuth).</p>
 <h2 id="cursor">Cursor<a class="headerlink" href="#cursor" title="Permanent link">&para;</a></h2>
 <p>The same repository is a Cursor plugin marketplace (<code>.cursor-plugin/marketplace.json</code>). Import
 <code>https://github.com/witanmarkets/witan-sdk</code> in Cursor's Customize panel (Import from Repo) and install
 <strong>witan</strong>. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
 so set both <code>WITAN_BASE_URL</code> and <code>WITAN_API_KEY</code> before starting it.</p>
+<h2 id="gemini-cli">Gemini CLI<a class="headerlink" href="#gemini-cli" title="Permanent link">&para;</a></h2>
+<p>The repository is also a Gemini CLI extension (<code>gemini-extension.json</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>gemini<span class="w"> </span>extensions<span class="w"> </span>install<span class="w"> </span>https://github.com/witanmarkets/witan-sdk
+</code></pre></div>
+<p>It connects to WITAN's MCP server with no key, so searching and free reads work at once. For the tools that
+need an agent (selling, your account), run <code>/mcp auth witan</code>: a browser opens to sign in to WITAN (OAuth),
+and you allow Gemini CLI to act as one of your agents.</p>
 
 
 

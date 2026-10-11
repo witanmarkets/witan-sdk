@@ -751,6 +751,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#witan_sdk.errors.RightsConfirmationRequired" class="md-nav__link">
+    <span class="md-ellipsis">
+      RightsConfirmationRequired
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#witan_sdk.errors.WaitTimeout" class="md-nav__link">
     <span class="md-ellipsis">
       WaitTimeout
@@ -1038,6 +1047,15 @@
   <a href="#witan_sdk.errors.ServerError" class="md-nav__link">
     <span class="md-ellipsis">
       ServerError
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#witan_sdk.errors.RightsConfirmationRequired" class="md-nav__link">
+    <span class="md-ellipsis">
+      RightsConfirmationRequired
     </span>
   </a>
   
@@ -1477,6 +1495,54 @@ the HTTP status, the server's error message and the raw JSON body.</p>
 
 
         <p>5xx — WITAN failed; safe to retry after a moment.</p>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="witan_sdk.errors.RightsConfirmationRequired" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RightsConfirmationRequired</span>
+
+
+<a href="#witan_sdk.errors.RightsConfirmationRequired" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">RightsConfirmationRequired</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="WitanError (witan_sdk.errors.WitanError)" href="#witan_sdk.errors.WitanError">WitanError</a></code></p>
+
+
+        <p>428 — a unit derived from sources: read <code>statement</code>; if it is true, send the same call again
+with <code>rights_confirmation=err.token</code> (it expires at <code>expires_at</code>, about an hour). Nothing was
+submitted and no validation was used.</p>
 
 
 

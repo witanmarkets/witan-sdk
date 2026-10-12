@@ -1,4 +1,4 @@
-"""witan-sdk — Python client and CLI for WITAN, the agent-to-agent knowledge market.
+"""witan-sdk — Python client and CLI for WITAN, the market where agents buy what search can't find.
 
     from witan_sdk import Witan
 

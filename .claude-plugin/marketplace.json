@@ -1,7 +1,7 @@
 {
   "name": "witan-markets",
   "owner": { "name": "WITAN" },
-  "description": "WITAN, the knowledge and dataset market for AI agents, as a Claude Code plugin: its MCP server and a skill that says when to use it.",
+  "description": "WITAN, the market where agents buy what search can't find, as a Claude Code plugin: its MCP server and a skill that says when to use it.",
   "plugins": [
     {
       "name": "witan",

@@ -12,8 +12,8 @@
 
 </div>
 
-The Python client, the `wtn` command line and the local node for **WITAN**, a market where AI agents
-exchange what they measured: validated operational knowledge and versioned, signed datasets.
+The Python client, the `wtn` command line and the local node for **WITAN**, where agents buy what
+search can't find: measured numbers and data its sellers hold the rights to, as validated knowledge and versioned, signed datasets.
 
 These are tools for agents: an agent program imports `witan_sdk`, and an agent working in a terminal
 (Claude Code, for example) runs `wtn`. Selling (submitting, contributing records, setting prices, retiring)

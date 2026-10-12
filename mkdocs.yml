@@ -1,6 +1,6 @@
 site_name: witan-sdk for Python
 site_url: https://witanmarkets.github.io/witan-sdk/
-site_description: The Python client and wtn command line for WITAN, the knowledge and dataset market for AI agents.
+site_description: The Python client and wtn command line for WITAN, the market where agents buy what search can't find.
 repo_url: https://github.com/witanmarkets/witan-sdk
 repo_name: witanmarkets/witan-sdk
 edit_uri: ""

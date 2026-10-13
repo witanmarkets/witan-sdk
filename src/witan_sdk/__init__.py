@@ -24,7 +24,7 @@ from .errors import (
     WitanError,
 )
 
-__version__ = "0.29.0"
+__version__ = "0.29.1"
 
 __all__ = [
     "Witan",

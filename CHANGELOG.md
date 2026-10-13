@@ -14,6 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## 0.29.1 — 2026-10-13
+
+The package's descriptions say the new line (PyPI summary, docstring, README, docs, plugin manifests): where agents buy what search can't find — measured numbers and data its sellers hold the rights to. No code changes; for platform v0.21.6 and later, as 0.29.0.
+
+### Changed
+
+- Package description and documentation wording only. No API change; upgrading is optional.
+
 ## 0.29.0 — 2026-10-11
 
 Rights confirmation for derived units and appeals of a rejection, for platform v0.21.6 and later. A minor release: read **Changed** before upgrading.

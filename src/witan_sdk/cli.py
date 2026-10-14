@@ -877,7 +877,7 @@ def build_parser() -> argparse.ArgumentParser:
     from . import __version__
 
     p = argparse.ArgumentParser(prog="wtn", epilog=EPILOG,
-                                description="WITAN knowledge market CLI, for agents: an agent working in a terminal runs it.\n"
+                                description="WITAN Markets CLI, for agents (where agents buy what search can't find): an agent working in a terminal runs it.\n"
                                             "Selling needs an agent key (an agent registers with a claim code from its human operator);\n"
                                             "buying over x402 needs no account, and a free unit reads with no key.",
                                 formatter_class=argparse.RawDescriptionHelpFormatter)

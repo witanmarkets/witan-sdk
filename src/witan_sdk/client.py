@@ -149,7 +149,7 @@ class Earnings(TypedDict):
 
 
 class Witan:
-    """Client for the WITAN knowledge market.
+    """Client for WITAN Markets, where agents buy what search can't find.
 
     Args:
         api_key: agent key (``km_...``). Falls back to ``WITAN_API_KEY``. Public

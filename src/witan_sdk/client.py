@@ -439,7 +439,8 @@ class Witan:
                source_declaration: str | None = None, license: str | None = None,
                price: "str | float | None" = None, trial_sale: bool | None = None,
                provenance: dict[str, Any] | None = None,
-               rights_confirmation: str | None = None) -> dict[str, Any]:
+               rights_confirmation: str | None = None,
+               verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
         trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
 
@@ -464,7 +465,13 @@ class Witan:
 
         ``source_declaration`` is required (4–2000 characters): how you came to know it. ``license``
         is one of ``LICENSES`` in any letter case; left out, platform-standard. Either one wrong
-        raises ``ValueError`` before anything is sent."""
+        raises ``ValueError`` before anything is sent.
+
+        ``verified_against`` names the upstream products and versions it was verified on, at most 8:
+        ``[{"product": "pypi:anthropic", "version": "0.40.x"}]`` (``ecosystem:name`` for npm, pypi,
+        github and mcp, or a plain name such as ``"postgres"``), each with an optional ``checkedAt``
+        (YYYY-MM-DD, today when left out). Buyers see it; once the newest check is older than 180 days
+        the unit is marked re-check due and ranks lower until ``recheck``."""
         payload: dict[str, Any] = {"title": title, "body": body, "category": category,
                                    "sourceDeclaration": check_source_declaration(source_declaration)}
         if license is not None:
@@ -477,6 +484,8 @@ class Witan:
             payload["provenance"] = provenance
         if rights_confirmation is not None:
             payload["rightsConfirmation"] = rights_confirmation
+        if verified_against is not None:
+            payload["verifiedAgainst"] = verified_against
         return self._request("POST", "/knowledge", json=payload, auth=True)
 
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
@@ -532,13 +541,15 @@ class Witan:
     def revise(self, unit_id: str, body: str, *, title: str | None = None,
                category: str | None = None, source_declaration: str | None = None,
                license: str | None = None, provenance: dict[str, Any] | None = None,
-               rights_confirmation: str | None = None) -> dict[str, Any]:
+               rights_confirmation: str | None = None,
+               verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,
         category, source declaration, license, provenance — see ``submit``) carries over, and so
         does the listing's price. Points = max(0, newScore - previousScore). Returns ``{id, version,
         status, provenanceKind, validation}``. A derived unit confirms its rights statement again, as
-        in ``submit`` (``rights_confirmation``)."""
+        in ``submit`` (``rights_confirmation``). ``verified_against`` (see ``submit``), left out,
+        carries over too; the new version starts with no re-check-due mark."""
         payload: dict[str, Any] = {"body": body}
         if title is not None:
             payload["title"] = title
@@ -552,7 +563,21 @@ class Witan:
             payload["provenance"] = provenance
         if rights_confirmation is not None:
             payload["rightsConfirmation"] = rights_confirmation
+        if verified_against is not None:
+            payload["verifiedAgainst"] = verified_against
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
+
+    def recheck(self, unit_id: str, verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
+        """Say a unit you authored still holds after you ran it again (its latest published version): the
+        products in ``verified_against`` (see ``submit``) replace their entries, the rest move to today;
+        left out, every entry moves to today. A re-check-due mark clears. No new version, no validation —
+        a change to the text is ``revise``. Once a day per unit (429). A unit that names no versions yet
+        needs ``verified_against``. Returns ``{id, version, verifiedAgainst, lastChecked, recheckedAt,
+        recheckDue}``."""
+        payload: dict[str, Any] = {}
+        if verified_against is not None:
+            payload["verifiedAgainst"] = verified_against
+        return self._request("POST", f"/knowledge/{unit_id}/recheck", json=payload, auth=True)
 
     def retire(self, unit_id: str) -> dict[str, Any]:
         """Withdraw a published unit you authored — every version of it; any version's id will do. It

@@ -14,7 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.30.0 — 2026-10-16
+
+Release management for knowledge units: a unit can say which upstream products and versions it was verified on, and its seller can re-check it without a new version. For the platform release that carries POST /knowledge/{id}/recheck (v0.21.32 or later); against an older platform `recheck` answers 404 and `verified_against` 400.
+
+### Added
+
+- `submit(..., verified_against=[{"product": "pypi:anthropic", "version": "0.40.x"}])` and the same on `revise` (left out, it carries over): the upstream products and versions a unit was verified on, each with an optional `checkedAt`.
+- `recheck(unit_id, verified_against=None)`: the unit still holds on the versions named; its days move to today and a re-check-due mark clears. Once a day per unit.
 
 ### Changed
 

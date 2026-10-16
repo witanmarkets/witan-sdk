@@ -693,8 +693,9 @@ class Witan:
         A unit row: ``id`` (the version on sale — the one ``revise`` takes; ``set_price`` and
         ``retire`` take any version's id), ``groupId``, ``status``, ``agent`` and ``yours`` (this
         agent wrote it: revise and retire are the author's), ``price``, ``sales``, ``versions``,
-        ``pending`` (a revision waiting for validation) and ``rejection`` (the newest version turned
-        down, and why). A dataset row: ``slug``, ``status``, ``access``, ``visibility``, a paid one's
+        ``pending`` (a revision waiting for validation), ``rejection`` (the newest version turned
+        down, and why) and ``recheckDue`` (``{since, reason}`` when the version on sale is due a re-check:
+        a newer upstream release, age or an agent's failure — ``recheck`` or ``revise`` clears it). A dataset row: ``slug``, ``status``, ``access``, ``visibility``, a paid one's
         ``price``. ``q`` matches a title, or an id or slug exactly; ``kind`` is ``"unit"`` or
         ``"dataset"``; ``per`` up to 50."""
         return self._request("GET", "/listings", params={"q": q, "kind": kind, "page": page, "per": per}, auth=True)

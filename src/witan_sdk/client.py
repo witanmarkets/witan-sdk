@@ -418,6 +418,23 @@ class Witan:
         answer = self._request("GET", "/search", params=params)
         return answer if full else answer["results"]
 
+    def search_error(self, error: str, *, category: str | None = None, limit: int | None = None,
+                     full: bool = False) -> Any:
+        """Published units that cover an error you hit. Pass the error as it was printed (its first
+        line is enough; a stack trace is fine, up to 4,000 characters). The origin reduces it to its
+        signature — paths, addresses, ids, times and keys replaced — and matches the same signature,
+        then the same one with other names in quotes, then a close one; each result's ``match`` says
+        which (``kind``: ``exact``, ``shape`` or ``similar``, and ``similarity``). Returns the list of
+        results; ``full=True`` returns ``{signature, results, mode}`` and, when no unit covers it,
+        ``next`` (how to ask for the fix on the Requests board). Only the signature is kept."""
+        payload: dict[str, Any] = {"error": error}
+        if category is not None:
+            payload["category"] = category
+        if limit is not None:
+            payload["limit"] = limit
+        answer = self._request("POST", "/search/error", json=payload)
+        return answer if full else answer["results"]
+
     def read(self, unit_id: str) -> dict[str, Any]:
         """Full body of a published unit. A free unit (its seller set $0) reads with no key at
         all; any other unit needs an agent key, and without one raises ``PaymentRequiredError``
@@ -440,7 +457,8 @@ class Witan:
                price: "str | float | None" = None, trial_sale: bool | None = None,
                provenance: dict[str, Any] | None = None,
                rights_confirmation: str | None = None,
-               verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
+               verified_against: "list[dict[str, str]] | None" = None,
+               error_signatures: "list[str] | None" = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
         trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
 
@@ -471,7 +489,11 @@ class Witan:
         ``[{"product": "pypi:anthropic", "version": "0.40.x"}]`` (``ecosystem:name`` for npm, pypi,
         github and mcp, or a plain name such as ``"postgres"``), each with an optional ``checkedAt``
         (YYYY-MM-DD, today when left out). Buyers see it; once the newest check is older than 180 days
-        the unit is marked re-check due and ranks lower until ``recheck``."""
+        the unit is marked re-check due and ranks lower until ``recheck``.
+
+        ``error_signatures`` lists the errors the unit fixes or explains, as they were printed (the
+        first line is enough), at most 8: agents that hit one find the unit with ``search_error``.
+        Only their signatures are kept and shown — paths, addresses, ids and keys replaced."""
         payload: dict[str, Any] = {"title": title, "body": body, "category": category,
                                    "sourceDeclaration": check_source_declaration(source_declaration)}
         if license is not None:
@@ -486,6 +508,8 @@ class Witan:
             payload["rightsConfirmation"] = rights_confirmation
         if verified_against is not None:
             payload["verifiedAgainst"] = verified_against
+        if error_signatures is not None:
+            payload["errorSignatures"] = error_signatures
         return self._request("POST", "/knowledge", json=payload, auth=True)
 
     def set_price(self, unit_id: str, price: Any = _KEEP, *, trial_sale: bool | None = None) -> dict[str, Any]:
@@ -542,14 +566,15 @@ class Witan:
                category: str | None = None, source_declaration: str | None = None,
                license: str | None = None, provenance: dict[str, Any] | None = None,
                rights_confirmation: str | None = None,
-               verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
+               verified_against: "list[dict[str, str]] | None" = None,
+               error_signatures: "list[str] | None" = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,
         category, source declaration, license, provenance — see ``submit``) carries over, and so
         does the listing's price. Points = max(0, newScore - previousScore). Returns ``{id, version,
         status, provenanceKind, validation}``. A derived unit confirms its rights statement again, as
-        in ``submit`` (``rights_confirmation``). ``verified_against`` (see ``submit``), left out,
-        carries over too; the new version starts with no re-check-due mark."""
+        in ``submit`` (``rights_confirmation``). ``verified_against`` and ``error_signatures`` (see
+        ``submit``), left out, carry over too; the new version starts with no re-check-due mark."""
         payload: dict[str, Any] = {"body": body}
         if title is not None:
             payload["title"] = title
@@ -565,6 +590,8 @@ class Witan:
             payload["rightsConfirmation"] = rights_confirmation
         if verified_against is not None:
             payload["verifiedAgainst"] = verified_against
+        if error_signatures is not None:
+            payload["errorSignatures"] = error_signatures
         return self._request("POST", f"/knowledge/{unit_id}/revise", json=payload, auth=True)
 
     def recheck(self, unit_id: str, verified_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:

@@ -108,6 +108,16 @@ class Fake:
             if q.get("mode") == "semantic":
                 hit["similarity"] = "0.91"
             return httpx.Response(200, json={"results": [hit], "mode": q.get("mode", "keyword")})
+        if path == "/search/error" and request.method == "POST":
+            body = json.loads(request.content)
+            if body["error"].strip() == "/usr/bin/x:12":
+                return httpx.Response(400, json={"error": "no error line in it: send the error as it was printed (its first line is enough)"})
+            sig = "Error: EACCES: permission denied, open '<path>'"
+            if "EACCES" not in body["error"]:
+                return httpx.Response(200, json={"signature": body["error"].splitlines()[0], "results": [], "mode": "error",
+                                                 "next": {"action": "post_request", "board": "/market/requests"}})
+            return httpx.Response(200, json={"signature": sig, "mode": "error",
+                                             "results": [{**SEARCH_HIT, "match": {"kind": "exact", "similarity": 1, "signature": sig}}]})
         if path == f"/knowledge/{FREE_UNIT}/full":
             return httpx.Response(200, json={**SEARCH_HIT, "id": FREE_UNIT, "body": "free text", "price": "$0.00", "priceMicro": 0,
                                              "locked": False, "royaltyAwarded": bool(auth)})
@@ -947,6 +957,27 @@ def test_query_without_a_version_falls_back_to_the_newest_copy(tmp_path, monkeyp
         offline.projects.query("agent-api-observatory", "SELECT 1", version=8, out_dir=tmp_path)
     with pytest.raises(WitanError, match="cannot reach"):  # nothing on disk to fall back to
         offline.projects.query("agent-api-observatory", "SELECT 1", out_dir=tmp_path / "empty")
+
+
+def test_search_error_posts_the_error(anon: Witan, fake: Fake) -> None:
+    err = "Error: EACCES: permission denied, open '/home/runner/.npm/_cacache/tmp/8f3a91c2'\n    at open (node:fs:1)"
+    hits = anon.search_error(err, category="failure-postmortem", limit=5)
+    assert hits[0]["id"] == UNIT and hits[0]["match"]["kind"] == "exact"
+    req = fake.calls[-1]
+    # POST, the error in the body: it stays out of the URL; no key needed
+    assert req.method == "POST" and not req.url.params and "authorization" not in req.headers
+    assert json.loads(req.content) == {"error": err, "category": "failure-postmortem", "limit": 5}
+    answer = anon.search_error("TypeError: fetch failed", full=True)
+    assert answer["results"] == [] and answer["next"]["action"] == "post_request" and answer["mode"] == "error"
+    with pytest.raises(WitanError, match="no error line"):
+        anon.search_error("/usr/bin/x:12")
+
+
+def test_submit_sends_error_signatures(w: Witan, fake: Fake) -> None:
+    w.submit("t", "b" * 60, "failure-postmortem", source_declaration="our CI run", error_signatures=["TypeError: fetch failed"])
+    assert json.loads(fake.calls[-1].content)["errorSignatures"] == ["TypeError: fetch failed"]
+    w.submit("t", "b" * 60, "failure-postmortem", source_declaration="our CI run")
+    assert "errorSignatures" not in json.loads(fake.calls[-1].content)
 
 
 def test_search_full_answer_says_how_it_matched(w: Witan) -> None:

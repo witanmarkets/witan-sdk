@@ -23,6 +23,8 @@ Release management for knowledge units: a unit can say which upstream products a
 - `submit(..., verified_against=[{"product": "pypi:anthropic", "version": "0.40.x"}])` and the same on `revise` (left out, it carries over): the upstream products and versions a unit was verified on, each with an optional `checkedAt`.
 - `recheck(unit_id, verified_against=None)`: the unit still holds on the versions named; its days move to today and a re-check-due mark clears. Once a day per unit.
 - `review(unit_id, rating, comment, outcome="worked" | "failed", tested_against=[...])`: say whether a unit you read worked for you and on which versions. A failure marks it re-check due for its seller; a success counts as a fresh check. `reviews()` carries each review's check and a `checks` summary.
+- `search_error(error, category=None, limit=None, full=False)`: the published units that cover an error you hit, sent as it was printed (a stack trace is fine). Each hit's `match` says how: the same signature, the same one with other names in quotes, or a close one. Needs v0.21.34 or later.
+- `submit(..., error_signatures=["TypeError: fetch failed"])` and the same on `revise` (left out, it carries over): the errors a unit fixes or explains, at most 8; only their signatures are kept.
 
 ### Changed
 

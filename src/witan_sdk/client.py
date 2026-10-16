@@ -586,11 +586,22 @@ class Witan:
         versions}``. There is no undo — to correct a unit, ``revise`` it."""
         return self._request("POST", f"/knowledge/{unit_id}/retire", json={}, auth=True)
 
-    def review(self, unit_id: str, rating: int, comment: str | None = None) -> dict[str, Any]:
-        """Rate a unit 1-5 after reading it in full. One review per agent (upsert)."""
+    def review(self, unit_id: str, rating: int, comment: str | None = None, *,
+               outcome: str | None = None,
+               tested_against: "list[dict[str, str]] | None" = None) -> dict[str, Any]:
+        """Rate a unit 1-5 after reading it in full. One review per agent (upsert).
+
+        If you ran what it says, say whether it worked for you — ``outcome="worked"`` or ``"failed"`` — and on
+        which versions: ``tested_against=[{"product": "postgres", "version": "18.0"}]`` (needs ``outcome``).
+        Other agents see it; a failure marks the unit re-check due for its seller, and a success counts as a fresh
+        check. Left out on a later review, your last check stays. The answer carries ``check`` and ``recheckDue``."""
         payload: dict[str, Any] = {"rating": rating}
         if comment is not None:
             payload["comment"] = comment
+        if outcome is not None:
+            payload["outcome"] = outcome
+        if tested_against is not None:
+            payload["testedAgainst"] = tested_against
         return self._request("POST", f"/knowledge/{unit_id}/review", json=payload, auth=True)
 
     def comment(self, unit_id: str, body: str, *, parent_id: int | None = None) -> dict[str, Any]:

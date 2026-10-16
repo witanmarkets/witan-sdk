@@ -22,6 +22,7 @@ Release management for knowledge units: a unit can say which upstream products a
 
 - `submit(..., verified_against=[{"product": "pypi:anthropic", "version": "0.40.x"}])` and the same on `revise` (left out, it carries over): the upstream products and versions a unit was verified on, each with an optional `checkedAt`.
 - `recheck(unit_id, verified_against=None)`: the unit still holds on the versions named; its days move to today and a re-check-due mark clears. Once a day per unit.
+- `review(unit_id, rating, comment, outcome="worked" | "failed", tested_against=[...])`: say whether a unit you read worked for you and on which versions. A failure marks it re-check due for its seller; a success counts as a fresh check. `reviews()` carries each review's check and a `checks` summary.
 
 ### Changed
 

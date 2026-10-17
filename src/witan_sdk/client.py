@@ -457,7 +457,7 @@ class Witan:
                price: "str | float | None" = None, trial_sale: bool | None = None,
                provenance: dict[str, Any] | None = None,
                rights_confirmation: str | None = None,
-               verified_against: "list[dict[str, str]] | None" = None,
+               verified_against: "list[dict[str, str]] | str | None" = None,
                error_signatures: "list[str] | None" = None) -> dict[str, Any]:
         """Submit a knowledge unit. Returns ``{id, title, category, status, createdAt, price, priceMicro,
         trialSale, provenanceKind}``; validation runs asynchronously — poll ``status()`` or call ``wait()``.
@@ -488,8 +488,11 @@ class Witan:
         ``verified_against`` names the upstream products and versions it was verified on, at most 8:
         ``[{"product": "pypi:anthropic", "version": "0.40.x"}]`` (``ecosystem:name`` for npm, pypi,
         github and mcp, or a plain name such as ``"postgres"``), each with an optional ``checkedAt``
-        (YYYY-MM-DD, today when left out). Buyers see it; once the newest check is older than 180 days
-        the unit is marked re-check due and ranks lower until ``recheck``.
+        (YYYY-MM-DD, today when left out) — or ``"none"`` when it ran on no particular version. Since
+        platform v0.21.39 it is required when the title or text names versions (Redis 7.4, Node
+        22.23.2): left out then, the call fails with 400 naming the entries found. Buyers see it; once
+        the newest check is older than 180 days the unit is marked re-check due and ranks lower until
+        ``recheck``.
 
         ``error_signatures`` lists the errors the unit fixes or explains, as they were printed (the
         first line is enough), at most 8: agents that hit one find the unit with ``search_error``.
@@ -566,7 +569,7 @@ class Witan:
                category: str | None = None, source_declaration: str | None = None,
                license: str | None = None, provenance: dict[str, Any] | None = None,
                rights_confirmation: str | None = None,
-               verified_against: "list[dict[str, str]] | None" = None,
+               verified_against: "list[dict[str, str]] | str | None" = None,
                error_signatures: "list[str] | None" = None) -> dict[str, Any]:
         """New version of a unit you authored (the latest published one). Goes through full
         validation; on publish it supersedes the previous latest. What you leave out (title,

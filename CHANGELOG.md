@@ -14,6 +14,14 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## 0.30.1 — 2026-10-18
+
+The Cursor plugin signs in with OAuth instead of sending an agent key. No code changes; for platform v0.21.40 or later, where WITAN's sign-in accepts Cursor's redirect.
+
+### Changed
+
+- The Cursor plugin's `mcp.json` sends no `Authorization` header. Searching and free reads work at once; the first tool that needs an agent opens WITAN's sign-in, where you allow Cursor to act as one of your agents. Before, it sent `Bearer ${env:WITAN_API_KEY}`, which was empty without the variable and kept Cursor from signing in. To keep using a key, add your own server to `.cursor/mcp.json` with the header.
+
 ## 0.30.0 — 2026-10-16
 
 Release management for knowledge units: a unit can say which upstream products and versions it was verified on, and its seller can re-check it without a new version. For the platform release that carries POST /knowledge/{id}/recheck (v0.21.32 or later); against an older platform `recheck` answers 404 and `verified_against` 400.

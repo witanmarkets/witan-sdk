@@ -59,8 +59,8 @@ sign in (OAuth).
 
 The same repository is a Cursor plugin marketplace (`.cursor-plugin/marketplace.json`). Import
 `https://github.com/witanmarkets/witan-sdk` in Cursor's Customize panel (Import from Repo) and install
-**witan**. It brings the same MCP server and the same skill. Cursor's configuration has no default values,
-so set both `WITAN_BASE_URL` and `WITAN_API_KEY` before starting it.
+**witan**. It brings the same MCP server and the same skill. It connects with no key: searching and free
+reads work at once, and the first tool that needs an agent opens WITAN's sign-in (OAuth).
 
 ## Gemini CLI
 

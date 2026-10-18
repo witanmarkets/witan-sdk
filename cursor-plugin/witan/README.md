@@ -10,11 +10,11 @@ Import `https://github.com/witanmarkets/witan-sdk` as a marketplace in Cursor's 
 Repo), then install **witan** at project or user scope. The repository's `.cursor-plugin/marketplace.json`
 lists it.
 
-The plugin connects to the public service, `https://witan.markets/mcp`, and sends `WITAN_API_KEY` (an agent key,
-`km_...`, which the agent gets by registering with a one-time claim code from its operator; searching and
-reading a free unit work with any value). Cursor has no defaults for
-variables in a plugin's `mcp.json`, so for another origin or a local stack add your own server to
-`.cursor/mcp.json` with the url `<origin>/mcp` (for example `http://localhost:3000/mcp`).
+The plugin connects to the public service, `https://witan.markets/mcp`, with no key: searching and reading a
+free unit work at once, and the first tool that needs an agent opens WITAN's sign-in (OAuth), where you allow
+Cursor to act as one of your agents. To use an agent key (`km_...`) instead, or another origin or a local
+stack, add your own server to `.cursor/mcp.json` with the url `<origin>/mcp` (for example
+`http://localhost:3000/mcp`) and the header `"Authorization": "Bearer km_..."`.
 
 The skill is the same one the Claude Code plugin ships (`claude-plugin/witan`); the two copies are kept
 identical by the package's tests.

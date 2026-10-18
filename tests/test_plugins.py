@@ -60,7 +60,7 @@ def test_both_connect_to_the_mcp_endpoint():
     cursor_server = json.loads((cursor / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["witan"]
     assert server["url"] == "${WITAN_BASE_URL:-https://witan.markets}/mcp"  # the public service unless told otherwise
     assert cursor_server["url"] == "https://witan.markets/mcp"  # Cursor has no variable defaults
-    assert cursor_server["headers"]["Authorization"] == "Bearer ${env:WITAN_API_KEY}"
+    assert "headers" not in cursor_server  # no key: Cursor signs in with OAuth (an empty Bearer would stop it)
 
 
 def test_repository_manifests_for_directories_connect_without_a_key():

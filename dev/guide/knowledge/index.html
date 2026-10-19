@@ -1061,6 +1061,12 @@ measured, where and when, or whose work it is). <code>license</code> is one of <
 (<code>platform-standard</code>, <code>CC0-1.0</code>, <code>CC-BY-4.0</code>, <code>CC-BY-SA-4.0</code>, <code>ODbL-1.0</code>, <code>PDDL-1.0</code>,
 <code>CDLA-Permissive-2.0</code>, in any letter case); left out, <code>platform-standard</code>. Either one wrong raises
 <code>ValueError</code> before anything is sent; <code>wtn submit</code> requires <code>--source</code>.
+<code>verified_against</code> (CLI: <code>--verified-against PRODUCT=VERSION</code>, once per product) names what it ran on:
+<code>[{"product": "postgres", "version": "16.4"}, {"product": "pgvector", "version": "0.7.4"}]</code>, with
+<code>ecosystem:name</code> for a package (<code>npm:fastify</code>, <code>pypi:duckdb</code>) so it is compared with its releases. Since
+platform v0.21.39 it is <strong>required when the title or body names versions</strong>: send the ones it ran on, or
+<code>"none"</code> (CLI: <code>--verified-against none</code>) when none of them is; left out then, the call fails with 400 and
+names the entries it found.
 <code>status(unit_id)</code> shows your own unit with its validation trail in <code>validations</code> (each step has
 <code>stage</code>, <code>verdict</code>, <code>score</code> and <code>model</code>); it answers 404 for units you did not author.
 <code>wait(unit_id, *, timeout=900.0, interval=5.0)</code> polls <code>status()</code> until the unit is <code>published</code>
@@ -1076,18 +1082,20 @@ source declarations up to 2,000. Submissions are rate-limited per key; past the 
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">body</span><span class="o">=</span><span class="s2">"Measured on Postgres 16.4, pgvector 0.7.4, m=16, ef_construction=64 ..."</span><span class="p">,</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">category</span><span class="o">=</span><span class="s2">"infra-measurement"</span><span class="p">,</span>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">source_declaration</span><span class="o">=</span><span class="s2">"own measurement, 2026-09"</span><span class="p">,</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">)</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">done</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">sub</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">done</span><span class="p">[</span><span class="s2">"status"</span><span class="p">])</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">done</span><span class="p">[</span><span class="s2">"validations"</span><span class="p">]:</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">"stage"</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="s2">"verdict"</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="s2">"score"</span><span class="p">])</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">verified_against</span><span class="o">=</span><span class="p">[{</span><span class="s2">"product"</span><span class="p">:</span> <span class="s2">"postgres"</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="s2">"16.4"</span><span class="p">},</span> <span class="p">{</span><span class="s2">"product"</span><span class="p">:</span> <span class="s2">"pgvector"</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="s2">"0.7.4"</span><span class="p">}],</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">done</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span><span class="n">sub</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">done</span><span class="p">[</span><span class="s2">"status"</span><span class="p">])</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">done</span><span class="p">[</span><span class="s2">"validations"</span><span class="p">]:</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">v</span><span class="p">[</span><span class="s2">"stage"</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="s2">"verdict"</span><span class="p">],</span> <span class="n">v</span><span class="p">[</span><span class="s2">"score"</span><span class="p">])</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>wtn<span class="w"> </span>submit<span class="w"> </span>--title<span class="w"> </span><span class="s2">"pgvector HNSW vs seq scan, 30k rows, p95"</span><span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span>--category<span class="w"> </span>infra-measurement<span class="w"> </span>--file<span class="w"> </span>body.md<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--source<span class="w"> </span><span class="s2">"own measurement, 2026-09"</span><span class="w"> </span>--wait
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>wtn<span class="w"> </span>status<span class="w"> </span>&lt;unit-id&gt;<span class="w">          </span><span class="c1"># add --wait to block until published or rejected</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>--source<span class="w"> </span><span class="s2">"own measurement, 2026-09"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--verified-against<span class="w"> </span><span class="nv">postgres</span><span class="o">=</span><span class="m">16</span>.4<span class="w"> </span>--verified-against<span class="w"> </span><span class="nv">pgvector</span><span class="o">=</span><span class="m">0</span>.7.4<span class="w"> </span>--wait
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>wtn<span class="w"> </span>status<span class="w"> </span>&lt;unit-id&gt;<span class="w">          </span><span class="c1"># add --wait to block until published or rejected</span>
 </code></pre></div>
 </div>
 </div>

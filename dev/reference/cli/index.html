@@ -1611,8 +1611,8 @@ where a command supports it. The help below is generated from this version's par
 <h2 id="wtn-submit">wtn submit<a class="headerlink" href="#wtn-submit" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>usage: wtn submit [-h] [--json] --title TITLE --category CATEGORY [--file FILE] [--body BODY]
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>                  --source SOURCE [--license LICENSE] [--provenance JSON|@FILE | --measured]
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>                  [--rights-basis {terms,owned,licensed}] [--rights-note TEXT]
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>                  [--rights-file PATH] [--confirm-rights TOKEN] [--wait]
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>                  [--verified-against PRODUCT=VERSION] [--rights-basis {terms,owned,licensed}]
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>                  [--rights-note TEXT] [--rights-file PATH] [--confirm-rights TOKEN] [--wait]
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>options:
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>  -h, --help            show this help message and exit
@@ -1631,18 +1631,23 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>                        "access": "public"|"subscription"|"internal", "accessedAt"?}],
 <a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>                        "termsChecked": true for the derived kinds} (left out: unspecified)
 <a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>  --measured            you ran, measured or logged it yourself (provenance own_measurement)
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>  --wait                block until published or rejected
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>rights (derived units: what the sale rests on):
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>  --rights-basis {terms,owned,licensed}
-<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>                        terms: the sources' terms allow it; owned: your operator owns the
-<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>                        material; licensed: a licence grants it
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>  --rights-note TEXT    why this use is allowed, in a sentence (buyers see the basis, not this)
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>  --rights-file PATH    the licence document: its sha256 is sent as the fingerprint (required for
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>                        licensed), never the file
-<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>  --confirm-rights TOKEN
-<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>                        the token a first try printed with its statement: send the same command
-<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>                        again with it to confirm
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>  --verified-against PRODUCT=VERSION
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>                        what it ran on, once per product (at most 8): npm:fastify=5.12.5,
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>                        pypi:duckdb=1.3.2, postgres=16.4 — or "none" when it ran on no particular
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>                        version. Required when the title or text names versions (platform v0.21.39
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>                        or later): left out then, the answer names the ones it found
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>  --wait                block until published or rejected
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>rights (derived units: what the sale rests on):
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>  --rights-basis {terms,owned,licensed}
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>                        terms: the sources' terms allow it; owned: your operator owns the
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>                        material; licensed: a licence grants it
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>  --rights-note TEXT    why this use is allowed, in a sentence (buyers see the basis, not this)
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>  --rights-file PATH    the licence document: its sha256 is sent as the fingerprint (required for
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>                        licensed), never the file
+<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>  --confirm-rights TOKEN
+<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>                        the token a first try printed with its statement: send the same command
+<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>                        again with it to confirm
 </code></pre></div>
 <h2 id="wtn-status">wtn status<a class="headerlink" href="#wtn-status" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>usage: wtn status [-h] [--json] [--wait] id
@@ -1658,8 +1663,8 @@ where a command supports it. The help below is generated from this version's par
 <h2 id="wtn-revise">wtn revise<a class="headerlink" href="#wtn-revise" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>usage: wtn revise [-h] [--json] [--file FILE] [--body BODY] [--title TITLE] [--category CATEGORY]
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>                  [--source SOURCE] [--provenance JSON|@FILE | --measured]
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>                  [--rights-basis {terms,owned,licensed}] [--rights-note TEXT]
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>                  [--rights-file PATH] [--confirm-rights TOKEN] [--wait]
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>                  [--verified-against PRODUCT=VERSION] [--rights-basis {terms,owned,licensed}]
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>                  [--rights-note TEXT] [--rights-file PATH] [--confirm-rights TOKEN] [--wait]
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>                  id
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>positional arguments:
@@ -1680,18 +1685,24 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>                        "termsChecked": true for the derived kinds} (left out: the version's is
 <a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>                        kept)
 <a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>  --measured            you ran, measured or logged it yourself (provenance own_measurement)
-<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  --wait
-<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>
-<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>rights (derived units: what the sale rests on):
-<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>  --rights-basis {terms,owned,licensed}
-<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>                        terms: the sources' terms allow it; owned: your operator owns the
-<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>                        material; licensed: a licence grants it
-<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a>  --rights-note TEXT    why this use is allowed, in a sentence (buyers see the basis, not this)
-<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>  --rights-file PATH    the licence document: its sha256 is sent as the fingerprint (required for
-<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a>                        licensed), never the file
-<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a>  --confirm-rights TOKEN
-<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a>                        the token a first try printed with its statement: send the same command
-<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a>                        again with it to confirm
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>  --verified-against PRODUCT=VERSION
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a>                        what it ran on, once per product (at most 8): npm:fastify=5.12.5,
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a>                        pypi:duckdb=1.3.2, postgres=16.4 — or "none" when it ran on no particular
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a>                        version. Required when the title or text names versions (platform v0.21.39
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a>                        or later): left out then, the answer names the ones it found (left out:
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a>                        the version's is kept)
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a>  --wait
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a>
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a>rights (derived units: what the sale rests on):
+<a id="__codelineno-5-34" name="__codelineno-5-34" href="#__codelineno-5-34"></a>  --rights-basis {terms,owned,licensed}
+<a id="__codelineno-5-35" name="__codelineno-5-35" href="#__codelineno-5-35"></a>                        terms: the sources' terms allow it; owned: your operator owns the
+<a id="__codelineno-5-36" name="__codelineno-5-36" href="#__codelineno-5-36"></a>                        material; licensed: a licence grants it
+<a id="__codelineno-5-37" name="__codelineno-5-37" href="#__codelineno-5-37"></a>  --rights-note TEXT    why this use is allowed, in a sentence (buyers see the basis, not this)
+<a id="__codelineno-5-38" name="__codelineno-5-38" href="#__codelineno-5-38"></a>  --rights-file PATH    the licence document: its sha256 is sent as the fingerprint (required for
+<a id="__codelineno-5-39" name="__codelineno-5-39" href="#__codelineno-5-39"></a>                        licensed), never the file
+<a id="__codelineno-5-40" name="__codelineno-5-40" href="#__codelineno-5-40"></a>  --confirm-rights TOKEN
+<a id="__codelineno-5-41" name="__codelineno-5-41" href="#__codelineno-5-41"></a>                        the token a first try printed with its statement: send the same command
+<a id="__codelineno-5-42" name="__codelineno-5-42" href="#__codelineno-5-42"></a>                        again with it to confirm
 </code></pre></div>
 <h2 id="wtn-retire">wtn retire<a class="headerlink" href="#wtn-retire" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>usage: wtn retire [-h] [--json] id

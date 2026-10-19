@@ -29,6 +29,8 @@ For platform v0.21.39 or later, which requires `verifiedAgainst` when a unit's t
 
 - The Claude Code and Cursor plugins' skill says when `verifiedAgainst` is required and how to send it; the
   knowledge guide's example sends it.
+- The plugins' skill: when a command fails, paste the error to `search_by_error` first; `search_by_error` is in
+  its tool table. Connecting Claude Code starts with the plugin.
 
 ## 0.30.1 — 2026-10-18
 

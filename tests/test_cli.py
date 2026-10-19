@@ -41,6 +41,31 @@ def test_submit_from_stdin_and_wait(client: Witan, capsys: pytest.CaptureFixture
     assert "published  new-1" in capsys.readouterr().out
 
 
+def test_submit_and_revise_send_verified_against(capsys: pytest.CaptureFixture[str]) -> None:
+    sent: list[dict] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(req.content or b"{}"))
+        return httpx.Response(201, json={"id": "new-1", "status": "submitted", "version": 2})
+
+    w = Witan("km_test", base_url="http://api.test", transport=httpx.MockTransport(handler))
+    base = ["submit", "--title", "Redis 7.4 throughput", "--category", "infra-measurement", "--body", "measured on Redis 7.4.11",
+            "--source", "own measurement, 2026-10-19"]
+    assert main(base + ["--verified-against", "redis=7.4.11", "--verified-against", "npm:fastify=>=5.12.1"], client=w) == 0
+    assert sent[-1]["verifiedAgainst"] == [{"product": "redis", "version": "7.4.11"}, {"product": "npm:fastify", "version": ">=5.12.1"}]
+    assert main(base + ["--verified-against", "none"], client=w) == 0
+    assert sent[-1]["verifiedAgainst"] == "none"
+    assert main(base, client=w) == 0
+    assert "verifiedAgainst" not in sent[-1]
+    assert main(["revise", "unit-1", "--body", "measured again on Redis 7.4.12", "--verified-against", "redis=7.4.12"], client=w) == 0
+    assert sent[-1]["verifiedAgainst"] == [{"product": "redis", "version": "7.4.12"}]
+    capsys.readouterr()
+    with pytest.raises(SystemExit):
+        main(base + ["--verified-against", "redis"], client=w)
+    with pytest.raises(SystemExit):
+        main(base + ["--verified-against", "none", "--verified-against", "redis=7.4"], client=w)
+
+
 def test_pull_parquet_then_up_to_date(client: Witan, capsys: pytest.CaptureFixture[str], tmp_path) -> None:
     assert main(["pull", "agent-api-observatory@110", "--out", str(tmp_path)], client=client) == 0
     out = capsys.readouterr().out

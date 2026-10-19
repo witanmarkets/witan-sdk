@@ -70,6 +70,12 @@ measured, where and when, or whose work it is). `license` is one of `witan_sdk.L
 (`platform-standard`, `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0`, `ODbL-1.0`, `PDDL-1.0`,
 `CDLA-Permissive-2.0`, in any letter case); left out, `platform-standard`. Either one wrong raises
 `ValueError` before anything is sent; `wtn submit` requires `--source`.
+`verified_against` (CLI: `--verified-against PRODUCT=VERSION`, once per product) names what it ran on:
+`[{"product": "postgres", "version": "16.4"}, {"product": "pgvector", "version": "0.7.4"}]`, with
+`ecosystem:name` for a package (`npm:fastify`, `pypi:duckdb`) so it is compared with its releases. Since
+platform v0.21.39 it is **required when the title or body names versions**: send the ones it ran on, or
+`"none"` (CLI: `--verified-against none`) when none of them is; left out then, the call fails with 400 and
+names the entries it found.
 `status(unit_id)` shows your own unit with its validation trail in `validations` (each step has
 `stage`, `verdict`, `score` and `model`); it answers 404 for units you did not author.
 `wait(unit_id, *, timeout=900.0, interval=5.0)` polls `status()` until the unit is `published`
@@ -87,6 +93,7 @@ source declarations up to 2,000. Submissions are rate-limited per key; past the 
         body="Measured on Postgres 16.4, pgvector 0.7.4, m=16, ef_construction=64 ...",
         category="infra-measurement",
         source_declaration="own measurement, 2026-09",
+        verified_against=[{"product": "postgres", "version": "16.4"}, {"product": "pgvector", "version": "0.7.4"}],
     )
     done = w.wait(sub["id"])
     print(done["status"])
@@ -99,7 +106,8 @@ source declarations up to 2,000. Submissions are rate-limited per key; past the 
     ```bash
     wtn submit --title "pgvector HNSW vs seq scan, 30k rows, p95" \
       --category infra-measurement --file body.md \
-      --source "own measurement, 2026-09" --wait
+      --source "own measurement, 2026-09" \
+      --verified-against postgres=16.4 --verified-against pgvector=0.7.4 --wait
     wtn status <unit-id>          # add --wait to block until published or rejected
     ```
 

@@ -54,6 +54,35 @@ def _add_provenance(s: argparse.ArgumentParser, revision: bool = False) -> None:
                    help="you ran, measured or logged it yourself (provenance own_measurement)")
 
 
+def _verified_arg(text: str) -> str | dict[str, str]:
+    """PRODUCT=VERSION (npm:fastify=5.12.5, postgres=16.4, npm:fastify=>=5.12.1), or none."""
+    if text.strip().lower() == "none":
+        return "none"
+    product, sep, version = text.partition("=")
+    if not sep or not product.strip() or not version.strip():
+        raise argparse.ArgumentTypeError('PRODUCT=VERSION, e.g. npm:fastify=5.12.5 or postgres=16.4, or "none"')
+    return {"product": product.strip(), "version": version.strip()}
+
+
+def _add_verified(s: argparse.ArgumentParser, revision: bool = False) -> None:
+    s.add_argument("--verified-against", type=_verified_arg, action="append", metavar="PRODUCT=VERSION",
+                   help="what it ran on, once per product (at most 8): npm:fastify=5.12.5, pypi:duckdb=1.3.2, postgres=16.4 "
+                        '— or "none" when it ran on no particular version. Required when the title or text names '
+                        "versions (platform v0.21.39 or later): left out then, the answer names the ones it found"
+                        + (" (left out: the version's is kept)" if revision else ""))
+
+
+def _verified_of(a: argparse.Namespace) -> str | list[dict[str, str]] | None:
+    given = getattr(a, "verified_against", None)
+    if not given:
+        return None
+    if "none" in given:
+        if len(given) > 1:
+            raise SystemExit('error: --verified-against none goes alone')
+        return "none"
+    return given
+
+
 def _add_rights(s: argparse.ArgumentParser) -> None:
     g = s.add_argument_group("rights (derived units: what the sale rests on)")
     g.add_argument("--rights-basis", choices=["terms", "owned", "licensed"],
@@ -169,8 +198,10 @@ def cmd_read(w: Witan, a: argparse.Namespace) -> None:
 def cmd_submit(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
     prov = _provenance_of(a)
+    verified = _verified_of(a)
     unit = _rights_step(lambda: w.submit(a.title, body, a.category, source_declaration=a.source, license=a.license,
-                                         provenance=prov, rights_confirmation=a.confirm_rights))
+                                         provenance=prov, rights_confirmation=a.confirm_rights,
+                                         verified_against=verified))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  {u.get('title', '')}"))
@@ -191,8 +222,10 @@ def cmd_status(w: Witan, a: argparse.Namespace) -> None:
 def cmd_revise(w: Witan, a: argparse.Namespace) -> None:
     body = _read_text(a)
     prov = _provenance_of(a)
+    verified = _verified_of(a)
     unit = _rights_step(lambda: w.revise(a.id, body, title=a.title, category=a.category, source_declaration=a.source,
-                                         provenance=prov, rights_confirmation=a.confirm_rights))
+                                         provenance=prov, rights_confirmation=a.confirm_rights,
+                                         verified_against=verified))
     if a.wait:
         unit = w.wait(unit["id"])
     _emit(unit, a.json, lambda u: print(f"{u['status']}  {u['id']}  version {u.get('version', '?')}"))
@@ -911,6 +944,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "where and when, or whose work it is)")
     s.add_argument("--license", type=_arg_check(check_license), help=_LICENSE_HELP)
     _add_provenance(s)
+    _add_verified(s)
     _add_rights(s)
     s.add_argument("--wait", action="store_true", help="block until published or rejected")
     s.set_defaults(fn=cmd_submit)
@@ -928,6 +962,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--category")
     s.add_argument("--source")
     _add_provenance(s, revision=True)
+    _add_verified(s, revision=True)
     _add_rights(s)
     s.add_argument("--wait", action="store_true")
     s.set_defaults(fn=cmd_revise)

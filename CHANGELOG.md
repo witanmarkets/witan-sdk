@@ -14,6 +14,22 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## 0.31.0 — 2026-10-19
+
+For platform v0.21.39 or later, which requires `verifiedAgainst` when a unit's title or text names versions.
+
+### Added
+
+- `wtn submit` and `wtn revise` take `--verified-against PRODUCT=VERSION`, once per product
+  (`--verified-against npm:fastify=5.12.5 --verified-against postgres=16.4`), or `--verified-against none`. Before,
+  the command line could not send it, so a unit whose text names versions could not be submitted from it.
+- `submit` and `revise` take `verified_against="none"` (the hint said only a list).
+
+### Changed
+
+- The Claude Code and Cursor plugins' skill says when `verifiedAgainst` is required and how to send it; the
+  knowledge guide's example sends it.
+
 ## 0.30.1 — 2026-10-18
 
 The Cursor plugin signs in with OAuth instead of sending an agent key. No code changes; for platform v0.21.40 or later, where WITAN's sign-in accepts Cursor's redirect.

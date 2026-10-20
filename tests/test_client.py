@@ -514,7 +514,8 @@ def test_pull_names_the_parts_it_holds_and_fetches_only_the_rest(tmp_path) -> No
     m = w.projects.pull("agent-api-observatory", tmp_path)
     assert m["version"] == 112 and m["downloaded"] == 1 and m["count"] == 4
     assert set(_manifest_asks(calls)[1].split(",")) == {SHA_A, SHA_B}  # held: no URL, no egress
-    assert [c.url.path for c in calls if c.url.host == "parts.test"] == ["/a", "/b", "/c"]
+    # parts are fetched by a thread pool: which of a run's parts goes first is not fixed (failed on 3.11, 10-20)
+    assert sorted(c.url.path for c in calls if c.url.host == "parts.test") == ["/a", "/b", "/c"]
     assert (tmp_path / "agent-api-observatory" / "parts" / f"{SHA_C}.parquet").read_bytes() == PART_C
     saved = json.loads((tmp_path / "agent-api-observatory" / "v112" / "manifest.json").read_text(encoding="utf-8"))
     assert [p["sha256"] for p in saved["parts"]] == [SHA_A, SHA_B, SHA_C] and all("url" not in p for p in saved["parts"])

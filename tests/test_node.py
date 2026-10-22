@@ -174,9 +174,10 @@ def test_sql_cannot_write_attach_or_reach_other_files(node, client: Witan, store
 
 def test_every_kind_of_query_still_runs(client: Witan) -> None:
     for sql in ("DESCRIBE records", "SUMMARIZE records", "SHOW records", "FROM records", "VALUES (1), (2)",
-                "WITH k AS (SELECT key FROM records) SELECT count(*) FROM k", "PRAGMA table_info('records')",
+                "WITH k AS (SELECT key FROM records) SELECT count(*) FROM k",
                 "SELECT key FROM records UNION ALL SELECT 'x'", "TABLE records"):
         assert client.projects.query_remote(SLUG, sql)["count"] >= 1, sql
+    # PRAGMA is not in the list of what a node runs (DuckDB 2 no longer types it as a SELECT; 1.x did)
     # a semicolon inside a string is not a second statement (0.27.2 refused any ';')
     assert client.projects.query_remote(SLUG, "SELECT ';' AS s")["rows"] == [[";"]]
     with pytest.raises(WitanError) as ei:

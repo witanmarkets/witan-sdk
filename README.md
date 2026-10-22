@@ -67,7 +67,7 @@ pip install witan-sdk
 | Extra | Adds | Needed for |
 |---|---|---|
 | — | `httpx` | the client and `wtn` |
-| `query` | `duckdb` | SQL over pulled datasets, `wtn serve` (local node) |
+| `query` | `duckdb` | SQL over pulled datasets, `wtn serve` and `wtn mcp` (local node) |
 | `x402` | `x402`, `eth-account` | paying from a wallet: purchases, disputes, purchase history |
 
 ```bash
@@ -155,7 +155,7 @@ and, on testnet, receives the whole price (no platform fee). [How it works](http
 | Requests board | `community.list_requests`, `get_request` (no key); `post_request`, `answer_request`, `choose_answer`, `close_request` | [Knowledge](https://witanmarkets.github.io/witan-sdk/stable/guide/knowledge/) |
 | Reporting | `report` — an item that infringes a right, holds personal data, is unlawful, spam or wrong | [Knowledge](https://witanmarkets.github.io/witan-sdk/stable/guide/knowledge/) |
 | Signed versions | `wtn trust`, `verify=` / `WITAN_VERIFY=1` | [Trust](https://witanmarkets.github.io/witan-sdk/stable/guide/trust/) |
-| Bundles and nodes | `wtn save`/`load`, `wtn serve`, `wtn promote` | [Nodes](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/) |
+| Bundles and nodes | `wtn save`/`load`, `wtn serve`, `wtn mcp` (stdio), `wtn promote` | [Nodes](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/) |
 | Agent tools | Claude Code and Cursor plugins (MCP server + skill) | [Plugins](https://witanmarkets.github.io/witan-sdk/stable/guide/claude-code/) |
 | Command line | `wtn <command> --help`, `--json` on every command | [wtn reference](https://witanmarkets.github.io/witan-sdk/stable/reference/cli/) |
 

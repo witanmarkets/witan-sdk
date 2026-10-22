@@ -16,6 +16,7 @@ against it by changing the base URL:
     POST /projects/{slug}/contribute      append records to a local project; the answer is final
     GET  /projects/{slug}/contributions/{id}
     POST /mcp                             MCP (Streamable HTTP, JSON responses): the dataset tools
+                                          (``wtn mcp`` serves the same tools over stdio, see serve_stdio)
     GET  /healthz                         liveness, store summary, follow status
 
 Copies of origin projects (pulled, loaded, followed) are read-only; projects created on the
@@ -430,6 +431,8 @@ class Node:
         return hmac.new(self.token.encode(), f"{slug}/{sha}/{exp}".encode(), hashlib.sha256).hexdigest()
 
     def part_url(self, base: str, slug: str, sha: str) -> str:
+        if base.startswith("file:"):  # MCP over stdio has no HTTP listener: the part is a file in the store
+            return f"{base}/{slug}/parts/{sha}.parquet"
         url = f"{base}/parts/{slug}/{sha}.parquet"
         if self.token:
             exp = int(time.time()) + PART_URL_TTL
@@ -1184,6 +1187,73 @@ class _NodeHTTPServer(ThreadingHTTPServer):
             self._slots.release()
 
 
+def _open_node(store_dir: "str | os.PathLike[str]", *, token: str | None, follow: Iterable[str], interval: float,
+               origin: Any, query_timeout: float, quiet: bool, read_only: bool, verify: bool | None,
+               keep_versions: int | None) -> tuple[Node, dict[str, int], "Follower | None"]:
+    """The node over ``store_dir``, what pruning dropped before the first request, and the follower (not started)."""
+    slugs = list(follow)
+    bad = [s for s in slugs if not SLUG_RE.match(s)]
+    if bad:
+        raise WitanError(f"not a project slug: {bad[0]}")
+    if slugs and origin is None:
+        raise WitanError("follow needs an origin client")
+    _duckdb()
+    root = Path(store_dir)
+    root.mkdir(parents=True, exist_ok=True)
+    store = Store(root)
+    local = [s for s in slugs if store.is_local(s)]
+    if local:
+        raise WitanError(f"{local[0]} is a local project on this node — there is no origin version to follow")
+    node = Node(store, token=token, query_timeout=query_timeout, quiet=quiet, read_only=read_only, follow_slugs=slugs,
+                keep_versions=keep_versions)
+    pruned = node.prune_all()  # before the first request: old versions, and a local project's crash leftovers
+    if (pruned["versions"] or pruned["parts"]) and not quiet:
+        sys.stderr.write(f"[node] dropped {_gone(pruned)} (--keep-versions {keep_versions})\n")
+    follower = (Follower(node, origin, slugs, interval, log=None if not quiet else (lambda s: None), verify=verify)
+                if slugs else None)
+    return node, pruned, follower
+
+
+def serve_stdio(store_dir: "str | os.PathLike[str]", *, follow: Iterable[str] = (), interval: float = 600.0,
+                origin: Any = None, query_timeout: float = 20.0, quiet: bool = False, read_only: bool = False,
+                verify: bool | None = None, keep_versions: int | None = None,
+                stdin: Any = None, stdout: Any = None) -> None:
+    """MCP over stdio (``wtn mcp``): the node's dataset tools for a client that starts the server itself
+    (Claude Desktop, Cursor, mcp-proxy). One JSON-RPC message per line in, one answer per line out, until
+    stdin closes; nothing else is written to stdout. There is no HTTP listener, so dataset_manifest names
+    each part by its file URL in the store."""
+    stdin = stdin if stdin is not None else sys.stdin
+    stdout = stdout if stdout is not None else sys.stdout
+    node, _, follower = _open_node(store_dir, token=None, follow=follow, interval=interval, origin=origin,
+                                   query_timeout=query_timeout, quiet=quiet, read_only=read_only, verify=verify,
+                                   keep_versions=keep_versions)
+    base = Path(store_dir).resolve().as_uri()
+    if follower:
+        follower.start()
+    try:
+        for line in stdin:
+            if not line.strip():
+                continue
+            try:
+                message = json.loads(line)
+            except ValueError:
+                replies: Any = {"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "parse error: the line is not JSON"}}
+            else:
+                if isinstance(message, list):
+                    replies = [r for r in (node.mcp(m, base) for m in message) if r is not None] or None
+                else:
+                    replies = node.mcp(message, base)
+            if replies is not None:
+                stdout.write(json.dumps(replies, ensure_ascii=False) + "\n")
+                stdout.flush()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if follower:
+            follower.stop.set()
+        node.writer.wait_idle(5.0)
+
+
 class Server:
     """A running node: HTTP server thread plus the optional follower."""
 
@@ -1199,30 +1269,13 @@ class Server:
         if not _loopback(host) and len(token or "") < TOKEN_MIN:
             raise WitanError(f"a token that guards a node beyond this machine needs {TOKEN_MIN} characters or more "
                              "(openssl rand -hex 24 makes one)")
-        slugs = list(follow)
-        bad = [s for s in slugs if not SLUG_RE.match(s)]
-        if bad:
-            raise WitanError(f"not a project slug: {bad[0]}")
-        if slugs and origin is None:
-            raise WitanError("follow needs an origin client")
-        _duckdb()
-        root = Path(store_dir)
-        root.mkdir(parents=True, exist_ok=True)
-        store = Store(root)
-        local = [s for s in slugs if store.is_local(s)]
-        if local:
-            raise WitanError(f"{local[0]} is a local project on this node — there is no origin version to follow")
-        self.node = Node(store, token=token, query_timeout=query_timeout, quiet=quiet, read_only=read_only, follow_slugs=slugs,
-                         keep_versions=keep_versions)
-        self.pruned = self.node.prune_all()  # before the first request: old versions, and a local project's crash leftovers
-        if (self.pruned["versions"] or self.pruned["parts"]) and not quiet:
-            sys.stderr.write(f"[node] dropped {_gone(self.pruned)} (--keep-versions {keep_versions})\n")
+        self.node, self.pruned, self.follower = _open_node(
+            store_dir, token=token, follow=follow, interval=interval, origin=origin, query_timeout=query_timeout,
+            quiet=quiet, read_only=read_only, verify=verify, keep_versions=keep_versions)
         handler = type("NodeHandler", (_Handler,), {})
         self.httpd = _NodeHTTPServer((host, port), handler, max_connections)
         self.httpd.daemon_threads = True
         self.httpd.node = self.node  # type: ignore[attr-defined]
-        self.follower = (Follower(self.node, origin, slugs, interval, log=None if not quiet else (lambda s: None), verify=verify)
-                         if slugs else None)
         self._thread: threading.Thread | None = None
         self._serving = False  # shutdown() waits for serve_forever, so only call it once serving began
 

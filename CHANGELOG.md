@@ -14,6 +14,15 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `wtn mcp`: the local node's dataset tools over MCP on stdio, for clients that start the server
+  themselves (Claude Desktop, Cursor, `mcp-proxy`). It takes the store options of `wtn serve`; there is
+  no port and no token, and `dataset_manifest` names parts by their `file://` URL. In Python:
+  `witan_sdk.node.serve_stdio`.
+
 ## 0.31.0 — 2026-10-19
 
 For platform v0.21.39 or later, which requires `verifiedAgainst` when a unit's title or text names versions.

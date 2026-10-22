@@ -327,3 +327,22 @@ open-world). The tools:
 | `contribution_status` | A contribution's answer (not on `--read-only` nodes). |
 
 Full signatures are in the [API reference](../reference/client.md).
+
+## MCP over stdio
+
+`wtn mcp` serves the same tools over stdio, for a client that starts the server itself: Claude
+Desktop, Cursor, or `mcp-proxy`. It reads one JSON-RPC message per line from stdin and writes one
+answer per line to stdout, until stdin closes. It opens no port and takes no token; logs go to
+stderr. It takes the store options of `wtn serve` (`--store`, `--follow`, `--interval`,
+`--read-only`, `--keep-versions`, `--verify`, `--upstream`).
+
+```json
+{
+  "mcpServers": {
+    "witan-node": { "command": "wtn", "args": ["mcp", "--store", "/path/to/witan-data", "--read-only"] }
+  }
+}
+```
+
+With no HTTP listener, `dataset_manifest` names each part by its `file://` URL in the store
+instead of a URL on the node.

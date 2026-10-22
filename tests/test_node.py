@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import json
 import os
 import sys
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 import httpx
 import pytest
@@ -334,6 +337,33 @@ def test_mcp_over_streamable_http(node) -> None:
     assert rpc({"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": ["query_dataset"]}).json()["error"]["code"] == -32602
     parse = httpx.post(mcp, content=b"{not json", headers={"content-type": "application/json"})
     assert parse.status_code == 400 and parse.json()["error"]["code"] == -32700 and parse.json()["id"] is None
+
+
+def test_mcp_over_stdio(store: Path) -> None:
+    from witan_sdk.node import serve_stdio
+
+    lines = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize",
+         "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        {"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+         "params": {"name": "query_dataset", "arguments": {"slug": SLUG, "sql": "SELECT count(*) AS c FROM records"}}},
+        {"jsonrpc": "2.0", "id": 4, "method": "tools/call", "params": {"name": "dataset_manifest", "arguments": {"slug": SLUG}}},
+        [{"jsonrpc": "2.0", "id": 5, "method": "ping"}, {"jsonrpc": "2.0", "method": "notifications/initialized"}],
+    ]
+    stdin = io.StringIO("\n".join(json.dumps(m) for m in lines) + "\n\n{not json\n")
+    stdout = io.StringIO()
+    serve_stdio(store, quiet=True, stdin=stdin, stdout=stdout)
+    out = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    # one answer per request line, none for the notification, in order; a batch answers as a batch
+    assert [o["id"] if isinstance(o, dict) else [r["id"] for r in o] for o in out] == [1, 2, 3, 4, [5], None]
+    assert out[0]["result"]["serverInfo"]["name"] == "witan-node"
+    assert len(out[1]["result"]["tools"]) == 8
+    assert json.loads(out[2]["result"]["content"][0]["text"])["rows"] == [[5]]
+    parts = json.loads(out[3]["result"]["content"][0]["text"])["parts"]
+    assert parts and all(p["url"].startswith("file://") and Path(url2pathname(urlsplit(p["url"]).path)).is_file() for p in parts)
+    assert out[5]["error"]["code"] == -32700
 
 
 def test_follow_pulls_the_latest_version_from_the_origin(tmp_path: Path) -> None:

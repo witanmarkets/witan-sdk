@@ -621,6 +621,20 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     srv.serve_forever()
 
 
+def cmd_mcp(w: Witan, a: argparse.Namespace) -> None:
+    from .node import serve_stdio
+
+    source = w
+    if a.upstream:  # as for serve: follow a mirror, never sending it the origin's key
+        source = Witan(api_key=a.upstream_token or "node", base_url=a.upstream)
+    if not a.quiet:  # stdout carries only JSON-RPC
+        print(f"witan node over stdio · store {a.store}{' · read-only' if a.read_only else ''}"
+              f"{' · following ' + ', '.join(a.follow) if a.follow else ''}", file=sys.stderr)
+        sys.stderr.flush()
+    serve_stdio(a.store, follow=a.follow, interval=a.interval, origin=source if a.follow else None, quiet=a.quiet,
+                read_only=a.read_only, verify=True if a.verify else None, keep_versions=a.keep_versions)
+
+
 def cmd_create(w: Witan, a: argparse.Namespace) -> None:
     raw = a.schema
     if raw.startswith("@"):
@@ -1188,6 +1202,20 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--upstream", help="follow from this node (a mirror) instead of the origin; signatures still verify against the origin's key")
     s.add_argument("--upstream-token", help="the upstream node's token, if it has one")
     s.set_defaults(fn=cmd_serve)
+
+    s = common(sub.add_parser("mcp", help="MCP over stdio: the local node's dataset tools for a client that starts the "
+                                          "server itself (Claude Desktop, Cursor, mcp-proxy); no port, no token"))
+    s.add_argument("--store", default="witan-data", help="the store pull and load write (default: ./witan-data)")
+    s.add_argument("--follow", nargs="*", default=[], metavar="SLUG", help="keep these projects current: pull their latest version from the origin")
+    s.add_argument("--interval", type=float, default=600, help="seconds between follow syncs (default: 600)")
+    s.add_argument("--quiet", action="store_true", help="nothing on stderr but errors")
+    s.add_argument("--read-only", action="store_true", help="refuse every write (local projects too)")
+    s.add_argument("--keep-versions", type=_keep_versions, default=os.environ.get("WITAN_NODE_KEEP_VERSIONS") or None, metavar="N",
+                   help="keep the newest N versions of each local or followed project (default: WITAN_NODE_KEEP_VERSIONS, else every version)")
+    s.add_argument("--verify", action="store_true", help="--follow accepts only versions signed by a trusted origin")
+    s.add_argument("--upstream", help="follow from this node (a mirror) instead of the origin")
+    s.add_argument("--upstream-token", help="the upstream node's token, if it has one")
+    s.set_defaults(fn=cmd_mcp)
 
     s = common(sub.add_parser("trust", help="pin the signing keys of the origin at WITAN_BASE_URL (add), list them, or remove an origin"))
     s.add_argument("action", nargs="?", choices=["add", "list", "remove"], default="list")

@@ -632,6 +632,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#mcp-over-stdio" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP over stdio
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1011,6 +1020,15 @@
   <a href="#mcp-at-mcp" class="md-nav__link">
     <span class="md-ellipsis">
       MCP at /mcp
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-over-stdio" class="md-nav__link">
+    <span class="md-ellipsis">
+      MCP over stdio
     </span>
   </a>
   
@@ -1494,6 +1512,20 @@ open-world). The tools:</p>
 </tbody>
 </table>
 <p>Full signatures are in the <a href="../../reference/client/">API reference</a>.</p>
+<h2 id="mcp-over-stdio">MCP over stdio<a class="headerlink" href="#mcp-over-stdio" title="Permanent link">&para;</a></h2>
+<p><code>wtn mcp</code> serves the same tools over stdio, for a client that starts the server itself: Claude
+Desktop, Cursor, or <code>mcp-proxy</code>. It reads one JSON-RPC message per line from stdin and writes one
+answer per line to stdout, until stdin closes. It opens no port and takes no token; logs go to
+stderr. It takes the store options of <code>wtn serve</code> (<code>--store</code>, <code>--follow</code>, <code>--interval</code>,
+<code>--read-only</code>, <code>--keep-versions</code>, <code>--verify</code>, <code>--upstream</code>).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">"witan-node"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"wtn"</span><span class="p">,</span><span class="w"> </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"mcp"</span><span class="p">,</span><span class="w"> </span><span class="s2">"--store"</span><span class="p">,</span><span class="w"> </span><span class="s2">"/path/to/witan-data"</span><span class="p">,</span><span class="w"> </span><span class="s2">"--read-only"</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
+</code></pre></div>
+<p>With no HTTP listener, <code>dataset_manifest</code> names each part by its <code>file://</code> URL in the store
+instead of a URL on the node.</p>
 
 
 

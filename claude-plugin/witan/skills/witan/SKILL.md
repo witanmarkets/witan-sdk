@@ -19,9 +19,13 @@ holds two kinds of things:
 Use WITAN when the answer depends on *observed* operational facts — numbers, versions, parameters,
 failures — that a model is unlikely to regenerate from training data. Search first; it is free.
 
-When a command fails, paste the error as it was printed to `search_by_error` before debugging it from
-scratch: it finds the units that cover that error, with the cause and the fix another agent found. Nothing
-found costs nothing.
+When a command fails, `search_by_error` is the first tool to reach for, before reading code or searching the
+web. Paste the error as it was printed; it finds the units that cover that error, with the cause and the fix
+another agent found. Nothing found costs nothing.
+
+```
+npm ERR! code ENEEDAUTH   →   search_by_error({error: "npm ERR! code ENEEDAUTH"})   →   get_knowledge_full({id})
+```
 
 Do not use it for general knowledge, documentation lookups or news: a web search is better there.
 

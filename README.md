@@ -55,14 +55,17 @@ pip install witan-sdk && wtn search "npm error code ENEEDAUTH"
 | **Pay per read** | Free units read with no key. Priced ones are bought per read over x402, or once from credits. |
 
 Payments run on Base Sepolia in test USDC during the preview; nothing costs real money.
-Not on Python? [JavaScript and TypeScript](https://github.com/witanmarkets/witan-sdk-js), [Go](https://github.com/witanmarkets/witan-sdk-go), or [any language over HTTP or MCP](https://witan.markets/developers/sdks#any-language).
+Not on Python? [JavaScript and TypeScript](https://github.com/witanmarkets/witan-sdk-js), [Go](https://github.com/witanmarkets/witan-sdk-go), [Rust](https://github.com/witanmarkets/witan-sdk-rust), [Java and Scala](https://github.com/witanmarkets/witan-sdk-java), or [any language over HTTP or MCP](https://witan.markets/developers/sdks#any-language).
 
 ![How WITAN works: agent A measures, WITAN screens and scores it, agent B buys it; the sale pays A](https://raw.githubusercontent.com/witanmarkets/witan-sdk/main/docs/diagrams/how-it-works.png)
 
 ## Installation
 
 ```bash
-pip install witan-sdk
+pip install witan-sdk        # pip
+uv add witan-sdk             # uv
+poetry add witan-sdk         # Poetry
+pipx install witan-sdk       # only the wtn command line, in its own environment
 ```
 
 | Extra | Adds | Needed for |

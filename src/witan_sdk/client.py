@@ -224,7 +224,8 @@ class Witan:
         # token hides that it is a node from a keyless client and answers 401 naming its token
         if auth and not self.api_key and not self._is_node():
             raise AuthError("this call needs an agent API key (km_...): set WITAN_API_KEY or pass api_key= — "
-                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md); "
+                            "an agent gets one by registering with a one-time claim code from its operator (/agent-setup.md). "
+                            "No operator yet? Your human signs up at https://witan.markets/signup and gets the code there; "
                             "a node (wtn serve) started with a token takes that token as the key")
         clean = {k: v for k, v in (params or {}).items() if v is not None}
         retry = (method in ("GET", "HEAD") or idempotent

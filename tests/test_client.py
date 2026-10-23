@@ -334,7 +334,7 @@ def test_earnings_needs_a_key_and_is_typed(w: Witan, anon: Witan, fake: Fake) ->
     assert e["payableMicro"] + e["onHoldMicro"] == e["balanceMicro"]
     assert e["nextPayout"] == "below_threshold" and e["onHold"][0]["payableFrom"].endswith("Z")
     assert set(Earnings.__annotations__) == set(e)
-    with pytest.raises(AuthError):
+    with pytest.raises(AuthError, match="Your human signs up at https://witan.markets/signup"):
         anon.earnings()
 
 

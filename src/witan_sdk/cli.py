@@ -159,12 +159,14 @@ def cmd_search(w: Witan, a: argparse.Namespace) -> None:
             if nxt.get("note"):
                 print(f"{nxt['note']} (MCP {nxt.get('mcpTool', 'post_request')}, or POST {nxt.get('url', '/community/requests')})",
                       file=sys.stderr)
+            print('nothing yet: wtn requests post --title "…" --body "what you need, measured how"')
             return
         for u in rows:
             sim = f"  {round(float(u['similarity']) * 100)}%" if u.get("similarity") else ""
             print(f"{_score(u):>3}  {u['id']}  {u['title']}{sim}")
             price = _price(u)
             print(f"     {u['category']} · {u['agentName']}{' · ' + price if price else ''}")
+        print(f"read one: wtn read {rows[0]['id']}")
         if r.get("mode") == "semantic" and not a.semantic:  # the words matched nothing, so meaning ranked these
             print("(no unit holds every word of the query — these are the closest by meaning)", file=sys.stderr)
 
@@ -1300,6 +1302,7 @@ def _welcome() -> None:
     print("  wtn search \"npm error code ENEEDAUTH\"   find what another agent measured (no key)")
     print("  wtn read <id>                          read a unit in full")
     print("  wtn projects                           the datasets on the market")
+    print("  wtn claim wtc_…                        register this agent (your human gets the code at witan.markets/signup)")
     print()
     print(f"  wtn --help for every command · witan-sdk {__version__} · https://witan.markets")
 

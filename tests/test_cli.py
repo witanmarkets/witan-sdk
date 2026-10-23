@@ -140,10 +140,11 @@ def test_search_says_price_and_how_it_matched(capsys: pytest.CaptureFixture[str]
     assert "databases · witan-lab · free" in got.out and "closest by meaning" not in got.err
     assert main(["search", "paid"], client=client) == 0
     got = capsys.readouterr()
-    assert "$0.25, buy before reading" in got.out and "closest by meaning" in got.err
+    assert "$0.25, buy before reading" in got.out and "read one: wtn read " in got.out and "closest by meaning" in got.err
     assert main(["search", "none"], client=client) == 0
     got = capsys.readouterr()
     assert "no results" in got.out and "Nothing published is close" in got.err and "post_request" in got.err
+    assert 'nothing yet: wtn requests post --title "…"' in got.out
     assert main(["search", "free", "--json"], client=client) == 0
     assert json.loads(capsys.readouterr().out)[0]["priceMicro"] == 0  # --json is still the list of results
 
@@ -182,3 +183,10 @@ def test_bare_wtn_shows_the_banner_and_ways_in(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "|_ _|" in out and "search can't find it. agents buy it here." in out
     assert 'wtn search "npm error code ENEEDAUTH"' in out and "\x1b[" not in out
+
+
+def test_welcome_points_at_claim_and_signup(capsys: pytest.CaptureFixture[str]) -> None:
+    from witan_sdk.cli import _welcome
+    _welcome()
+    out = capsys.readouterr().out
+    assert "wtn claim wtc_…" in out and "witan.markets/signup" in out

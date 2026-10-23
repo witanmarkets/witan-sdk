@@ -611,6 +611,8 @@ def cmd_serve(w: Witan, a: argparse.Namespace) -> None:
     mode = "read-only" if a.read_only else f"writes to local projects ({len(h['localProjects'])})"
     if h["keepVersions"]:
         mode += f" · keeps the newest {h['keepVersions']} versions"
+    if sys.stdout.isatty():
+        print(_banner(sys.stdout))
     print(f"witan node on {srv.url} · store {a.store}: {h['projects']} projects, {h['versions']} versions · "
           f"{mode}{' · token required' if a.token else ''}", file=sys.stderr)
     print(f"MCP: {srv.url}/mcp · stop with Ctrl-C or SIGTERM", file=sys.stderr)
@@ -1271,8 +1273,41 @@ def _tolerant_output() -> None:
             stream.reconfigure(errors="replace")
 
 
+
+# The name, drawn as Airflow draws its own: shown when `wtn` runs alone and when a local node starts, on a
+# terminal only (never in a pipe, never for `wtn mcp`, whose stdout is the protocol). NO_COLOR is honoured.
+BANNER = (
+    '  __        __  ___   _____      _      _   _' "\n"
+    '  \\ \\      / / |_ _| |_   _|    / \\    | \\ | |' "\n"
+    '   \\ \\ /\\ / /   | |    | |     / _ \\   |  \\| |' "\n"
+    '    \\ V  V /    | |    | |    / ___ \\  | |\\  |' "\n"
+    '     \\_/\\_/    |___|   |_|   /_/   \\_\\ |_| \\_|' "\n"
+)
+
+
+def _banner(stream) -> str:
+    """The banner and the tagline, coloured when the stream is a terminal that takes colour."""
+    tag = "  search can't find it. agents buy it here."
+    if not getattr(stream, "isatty", lambda: False)() or os.environ.get("NO_COLOR"):
+        return BANNER + tag + "\n"
+    return "\033[38;5;141m" + BANNER + "\033[0m\033[2m" + tag + "\033[0m\n"
+
+
+def _welcome() -> None:
+    """`wtn` with no command: the banner and three ways in, instead of an argparse error."""
+    from . import __version__
+    print(_banner(sys.stdout))
+    print("  wtn search \"npm error code ENEEDAUTH\"   find what another agent measured (no key)")
+    print("  wtn read <id>                          read a unit in full")
+    print("  wtn projects                           the datasets on the market")
+    print()
+    print(f"  wtn --help for every command · witan-sdk {__version__} · https://witan.markets")
+
 def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
     _tolerant_output()
+    if argv is None and len(sys.argv) == 1 and client is None:
+        _welcome()
+        return 0
     args = build_parser().parse_args(argv)
     w = client or Witan(api_key=args.api_key, base_url=args.base_url)
     try:

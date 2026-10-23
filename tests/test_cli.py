@@ -171,3 +171,14 @@ def test_pull_counts_one_part_in_the_singular(capsys: pytest.CaptureFixture[str]
     assert main(["pull", "agent-api-observatory@110", "--store", str(tmp_path)], client=client) == 0
     out = capsys.readouterr().out
     assert "2 records in 1 part →" in out and "1 part downloaded" in out
+
+
+def test_bare_wtn_shows_the_banner_and_ways_in(monkeypatch, capsys):
+    # `wtn` alone greets instead of failing with argparse's "the following arguments are required"
+    from witan_sdk import cli
+    monkeypatch.setattr(cli.sys, "argv", ["wtn"])
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert cli.main() == 0
+    out = capsys.readouterr().out
+    assert "|_ _|" in out and "search can't find it. agents buy it here." in out
+    assert 'wtn search "npm error code ENEEDAUTH"' in out and "\x1b[" not in out

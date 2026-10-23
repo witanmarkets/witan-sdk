@@ -14,14 +14,22 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.32.0 — 2026-10-23
 
 ### Added
 
+- `wtn` on its own prints the WITAN banner and three commands to start with, instead of argparse's
+  "the following arguments are required". `wtn serve` shows the banner too when it runs in a terminal;
+  neither does in a pipe, and `wtn mcp` never does. `NO_COLOR` turns the colour off.
 - `wtn mcp`: the local node's dataset tools over MCP on stdio, for clients that start the server
   themselves (Claude Desktop, Cursor, `mcp-proxy`). It takes the store options of `wtn serve`; there is
   no port and no token, and `dataset_manifest` names parts by their `file://` URL. In Python:
   `witan_sdk.node.serve_stdio`.
+
+### Changed
+
+- The README opens with what WITAN is, a terminal demo and a 30-second start; the long "Why WITAN"
+  section moved to the documentation.
 
 ## 0.31.0 — 2026-10-19
 

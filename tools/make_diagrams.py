@@ -434,13 +434,115 @@ def oauth_grant() -> str:
                   "spend; everything is recorded under the agent's name and can be revoked in the console")
 
 
+def split_flow() -> str:
+    """How a sale is paid with splits (api/src/blog/*-payment-splits.md): the buyer pays the item's own address, distribute() pays the rest."""
+    b = [step(1, 100, "The buyer gets a 402", "payTo is the item's own split address"),
+         arrow(38, 150, 38, 162),
+         step(2, 162, "The buyer signs a USDC payment", "it lands in the split, not in a WITAN wallet"),
+         arrow(38, 212, 38, 224),
+         step(3, 224, "distribute() pays each share", "hourly, or by anyone; the rule is fixed", accent=True),
+         arrow(256, 274, 96, 304, violet=True), arrow(256, 274, 240, 304, violet=True),
+         arrow(256, 274, 384, 304, violet=True)]
+    b += [box(32, 306, 128, 62, ["Seller", "the rest"]),
+          box(176, 306, 128, 62, ["Contributors", "by record weight"]),
+          box(320, 306, 128, 62, ["WITAN fee", "none on testnet"], dashed=True),
+          panel(32, 396, 416, 56, dashed=True, rx=12),
+          text(48, 420, "No WITAN wallet in the path", 14.5, INK, 600),
+          text(48, 439, "the split has no owner, so nobody can redirect it", 13, SOFT)]
+    return svg(480, 470, "Paying a split",
+               "The buyer pays the item's address; a fixed rule pays the rest.",
+               b, "A sale with payment splits: the buyer pays the item's own ownerless split address, "
+                  "distribute() pays the seller and each contributor, and no WITAN wallet is in the path")
+
+
+def split_vs_custody() -> str:
+    """Platform wallet against a per-item ownerless split."""
+    b = [header(32, 106, "Until now"), header(248, 106, "With splits")]
+    for x, mid, outcome, accent in (
+            (32, ["Platform wallet", "ours to hold and to lose"], ["Seller, later", "when and how much: us"], ROSE),
+            (248, ["The item's split", "no owner, a fixed rule"], ["Seller and contributors", "paid by distribute()"], VIOLET)):
+        b += [box(x, 118, 200, 52, ["Buyer pays", "USDC"]), arrow(x + 100, 170, x + 100, 202),
+              box(x, 204, 200, 62, mid, accent=accent),
+              arrow(x + 100, 266, x + 100, 298),
+              box(x, 300, 200, 52, outcome)]
+    b += [text(32, 386, "Left, one key and one operator decide. Right, nobody can change the rule,", 13, SOFT),
+          text(32, 406, "and the buyer can read it before paying.", 13, SOFT)]
+    return svg(480, 424, "Custody or a split",
+               "Who holds the money between the buyer and the seller.",
+               b, "Two ways to pay a seller: through a platform wallet that holds the money, "
+                  "or through a per-item ownerless split that pays by a fixed rule")
+
+
+def review_flow() -> str:
+    """The review (api/src/blog/*-why-review-v2.md): checks, a score, and three outcomes with the question band between."""
+    b = [box(32, 100, 416, 52, ["A unit is submitted", "the seller's text"]), arrow(240, 152, 240, 178),
+         panel(32, 180, 416, 62, accent=True, rx=12),
+         text(48, 205, "Code checks, then the review", 14.5, INK, 600),
+         text(48, 224, "numbers recomputed by code; a model reads and scores", 13, SOFT)]
+    for x, tip in ((96, 96), (240, 240), (384, 384)):
+        b.append(arrow(240 if x == 240 else 256 if x == 384 else 224, 242, tip, 274, violet=True))
+    b += [box(32, 276, 128, 108, ["55 or more", "Published", "with a", "verdict card"], accent=GREEN),
+          box(176, 276, 128, 108, ["45 to 55", "Questions and", "72 hours", "(needs_info)"], accent=AMBER),
+          box(320, 276, 128, 108, ["Under 45", "Rejected", "with the", "reason"], accent=ROSE),
+          arrow(240, 384, 240, 412, dashed=True),
+          box(112, 414, 256, 52, ["Seller sends a revision", "checked again; two rounds"], dashed=True)]
+    return svg(480, 486, "Ask before rejecting",
+               "Three outcomes, with a question band in the middle.",
+               b, "The review: a submission gets code checks and a score; 55 or more is published with a verdict card, "
+                  "45 to 55 gets questions and 72 hours, under 45 is rejected")
+
+
+def verdict_card() -> str:
+    """The verdict card a buyer reads: statuses and counts, no reasons."""
+    b = [panel(32, 100, 416, 342, accent=True, rx=14),
+         text(48, 130, "Verdict card", 14.5, INK, 600), text(432, 130, "example", 12.5, DIM, anchor="end")]
+    rows = [("Arithmetic in the text", "verified", GREEN, 72), ("Declared versions", "verified", GREEN, 72),
+            ("Overlap with public sources", "measured", CYAN, 78), ("Reproduction", "not checked", DIM, 94)]
+    for i, (label, status, color, w) in enumerate(rows):
+        y = 150 + 42 * i
+        b.append(text(48, y + 18, label, 13.5, SOFT))
+        b.append(chip(432 - w, y, w, status, color, refused=(status == "not checked")))
+    b += [f'<line x1="48" y1="324" x2="432" y2="324" stroke="{INK}" stroke-opacity=".14"/>',
+          text(48, 350, "Buyers reported", 13.5, SOFT), text(432, 350, "9 worked · 1 failed", 13.5, INK, 600, "end"),
+          header(48, 386, "The three statuses"),
+          chip(48, 396, 72, "verified", GREEN), chip(128, 396, 100, "contradicted", ROSE),
+          chip(236, 396, 94, "not checked", DIM, refused=True),
+          text(32, 470, "Statuses and counts, not the reviewer's reasons: a buyer or an agent", 13, SOFT),
+          text(32, 490, "can filter out numbers that nobody could confirm.", 13, SOFT)]
+    return svg(480, 508, "What a buyer reads",
+               "Each check says verified, contradicted or not checked.",
+               b, "An example verdict card: arithmetic and declared versions verified, overlap measured, "
+                  "reproduction not checked, and the buyers' worked and failed counts")
+
+
+def review_results() -> str:
+    """False rejections of honest controls on the synthetic set, before and after the band."""
+    b = []
+    for gi, (name, before, after) in enumerate((("v1 scorer", 7, 1), ("v2 scorer", 10, 1))):
+        y = 100 + 110 * gi
+        b.append(header(32, y + 6, name))
+        for bi, (label, v, fill) in enumerate((("Cut at 55", before, DIM), ("With the 45 to 55 band", after, "url(#aurora-h)"))):
+            by = y + 20 + 34 * bi
+            b.append(text(32, by + 16, label, 12.5, SOFT))
+            b.append(f'<rect x="196" y="{by}" width="{v * 24}" height="22" rx="6" fill="{fill}"/>')
+            b.append(text(196 + v * 24 + 8, by + 16, str(v), 13.5, INK, 700))
+    b += [text(32, 332, "Honest control units rejected, on the same cases for both columns.", 13, SOFT),
+          text(32, 352, "192 synthetic cases; runs differ by about two. Nothing extra was published.", 13, SOFT)]
+    return svg(480, 370, "False rejections",
+               "Honest units rejected on our synthetic set, before and after.",
+               b, "False rejections of honest controls fell from 7 to 1 with the v1 scorer and from 10 to 1 with v2")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
                      ("overview", overview), ("dataset-model", dataset_model),
                      ("trust-chain", trust_chain), ("node-topology", node_topology),
                      ("x402-flow", x402_flow), ("oauth-signin", oauth_signin),
-                     ("oauth-grant", oauth_grant)]:
+                     ("oauth-grant", oauth_grant),
+                     ("split-flow", split_flow), ("split-vs-custody", split_vs_custody),
+                     ("review-flow", review_flow), ("verdict-card", verdict_card),
+                     ("review-results", review_results)]:
         svg = fn()
         (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
         OUT_API.mkdir(parents=True, exist_ok=True)

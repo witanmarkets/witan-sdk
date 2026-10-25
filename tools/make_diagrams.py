@@ -7,8 +7,6 @@ Styled with the site's tokens (web/src/index.css), one dark card per diagram so 
 """
 from __future__ import annotations
 
-import math
-import random
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -436,217 +434,110 @@ def oauth_grant() -> str:
                   "spend; everything is recorded under the agent's name and can be revoked in the console")
 
 
-# ---- blog figures in the site's own language: a starfield, hairline glass cards, constellations ----
-SKY_INK, SKY_SOFT, SKY_DIM = "#F1F3F8", "#A9B0C0", "#7C85A0"   # the sky pages' tokens (api/src/theme.ts SKY_CSS)
-SKY_GOOD, SKY_AMB = "#3ED6A0", "#FFB35C"
-_TONES = ["200,215,255", "236,240,255"]
-
-
-def svg_plain(w: int, h: int, body: list[str], label: str, seed: int = 3) -> str:
-    """A blog figure: no header (the caption carries the words), a sparse starfield, the sky's near-black ground."""
-    defs = ('<defs><radialGradient id="halo"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".42"/>'
-            '<stop offset="1" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>'
-            '<radialGradient id="cardv" cx="0" cy="0" r="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".12"/>'
-            '<stop offset=".55" stop-color="#7C5CFF" stop-opacity="0"/></radialGradient>'
-            '<radialGradient id="cardr" cx="1" cy="1" r="1"><stop offset="0" stop-color="#FF5C87" stop-opacity=".07"/>'
-            '<stop offset=".6" stop-color="#FF5C87" stop-opacity="0"/></radialGradient></defs>')
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" '
-            f'role="img" aria-label="{escape(label)}" font-family="{FONT}" text-rendering="geometricPrecision">\n'
-            + defs + f'<rect width="{w}" height="{h}" rx="18" fill="#03040A"/>\n'
-            + starfield(w, h, seed) + "\n" + "\n".join(body) + "\n"
-            f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="17.5" fill="none" stroke="{INK}" stroke-opacity=".12"/>\n</svg>\n')
-
-
-def _dots(items: list[tuple[float, float, float, float]], tone: str) -> str:
-    return f'<g fill="rgb({tone})">' + "".join(
-        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.1f}" fill-opacity="{a:.2f}"/>' for x, y, r, a in items) + "</g>"
-
-
-def starfield(w: int, h: int, seed: int, n: int = 150) -> str:
-    rng = random.Random(seed)
-    groups: dict[str, list] = {t: [] for t in _TONES + ["124,92,255", "255,92,135"]}
-    for _ in range(n):
-        far = rng.random() < .85
-        r = .5 + .5 * rng.random() if far else .9 + .5 * rng.random()
-        a = .15 + .25 * rng.random() if far else .35 + .2 * rng.random()
-        t = rng.random()
-        tone = "124,92,255" if t < .04 else "255,92,135" if t < .06 else _TONES[0] if t < .45 else _TONES[1]
-        groups[tone].append((rng.random() * w, rng.random() * h, r, a))
-    return "\n".join(_dots(v, k) for k, v in groups.items() if v)
-
-
-def _bez(p: tuple, t: float) -> tuple[float, float, float, float]:
-    (x0, y0), (x1, y1), (x2, y2), (x3, y3) = p
-    u = 1 - t
-    x = u**3 * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t**3 * x3
-    y = u**3 * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t**3 * y3
-    dx = 3 * u * u * (x1 - x0) + 6 * u * t * (x2 - x1) + 3 * t * t * (x3 - x2)
-    dy = 3 * u * u * (y1 - y0) + 6 * u * t * (y2 - y1) + 3 * t * t * (y3 - y2)
-    n = math.hypot(dx, dy) or 1
-    return x, y, -dy / n, dx / n   # the point and the unit normal
-
-
-def stream(p: tuple, n: int, w0: float, w1: float, seed: int, warm: float = 0.0) -> str:
-    """A stream of tiny stars along a curve, w0..w1 its half-width: density and width carry the amount."""
-    rng = random.Random(seed)
-    groups: dict[str, list] = {t: [] for t in _TONES + ["124,92,255", "94,224,255", "255,179,92"]}
-    for _ in range(n):
-        t = rng.random()
-        x, y, nx, ny = _bez(p, t)
-        off = rng.uniform(-1, 1) * (w0 + (w1 - w0) * t)
-        k = rng.random()
-        tone = ("255,179,92" if k < warm else "124,92,255" if k < warm + .14 else "94,224,255" if k < warm + .24
-                else _TONES[0] if k < .62 else _TONES[1])
-        groups[tone].append((x + nx * off, y + ny * off, .8 + rng.random() * .9, .35 + rng.random() * .5))
-    return "\n".join(_dots(v, k) for k, v in groups.items() if v)
-
-
-def dotted(p: tuple, count: int, tone: str = "185,169,255", r: float = 2.4, a: float = .85) -> str:
-    return _dots([(x, y, r, a) for x, y, _, _ in (_bez(p, i / (count - 1)) for i in range(count))], tone)
-
-
-def star(cx: float, cy: float, r: float, *, seed: int = 1, halo: float = 2.8, spikes: bool = True) -> str:
-    """A constellation node: a soft violet halo, a handful of stars, one bright core."""
-    rng = random.Random(seed)
-    pts = [(cx + math.cos(a) * r * rng.random() ** .7, cy + math.sin(a) * r * rng.random() ** .7, .8 + rng.random() * 1.1,
-            .4 + rng.random() * .5) for a in (rng.random() * 6.283 for _ in range(max(4, int(r * 1.6))))]
-    out = [f'<circle cx="{cx}" cy="{cy}" r="{r * halo:.1f}" fill="url(#halo)"/>', _dots(pts, _TONES[1])]
-    if spikes:
-        L = r * 1.9
-        out.append(f'<path d="M{cx - L} {cy}H{cx + L}M{cx} {cy - L}V{cy + L}" stroke="rgb(236,240,255)" stroke-opacity=".5" '
-                   f'stroke-width="1.4" stroke-linecap="round"/>')
-    out.append(f'<circle cx="{cx}" cy="{cy}" r="{max(2.4, r * .22):.1f}" fill="#fff"/>')
-    return "\n".join(out)
-
-
-def glass(x: float, y: float, w: float, h: float, rx: float = 16) -> str:
-    """A sky card: near-black, the faint violet and pink corner glows, a hairline rim."""
-    return (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="#03030A" fill-opacity=".74"/>'
-            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="url(#cardv)"/>'
-            f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" fill="url(#cardr)"/>'
-            f'<rect x="{x + .5}" y="{y + .5}" width="{w - 1}" height="{h - 1}" rx="{rx}" fill="none" stroke="rgb(190,170,255)" stroke-opacity=".2"/>')
-
-
-def mlabel(x: float, y: float, s: str, fill: str = SKY_DIM, size: float = 22, anchor: str = "start") -> str:
-    """The site's small uppercase mono label."""
-    return (f'<text x="{x}" y="{y}" font-size="{size}" fill="{fill}" text-anchor="{anchor}" letter-spacing="1.6" '
-            f'font-family="{MONO}">{escape(s.upper())}</text>')
+GOOD = "#3ED6A0"   # the market pages' "ok" green (--good in SKY_CSS), as the unit page's review checks use it
 
 
 def split_flow() -> str:
-    """One payment, one split, shares as streams of stars (api/src/blog/*-payment-splits.md)."""
-    b = [mlabel(40, 232, "Payment · USDC"),
-         stream(((40, 280), (160, 280), (280, 280), (410, 280)), 340, 30, 20, 11, warm=.12),
-         text(40, 352, "the buyer pays", 28, SKY_SOFT), text(40, 386, "the item's own address", 28, SKY_SOFT),
-         star(470, 280, 44, seed=4), text(470, 372, "The item's split", 30, SKY_INK, 500, "middle"),
-         mlabel(470, 408, "no owner", SKY_DIM, 21, "middle"),
-         stream(((520, 272), (700, 272), (790, 150), (980, 150)), 640, 36, 36, 21),
-         stream(((520, 292), (700, 292), (790, 334), (980, 334)), 380, 22, 22, 22),
-         f'<path d="M520 300C700 320 790 470 990 470" fill="none" stroke="{SKY_SOFT}" stroke-opacity=".38" stroke-width="1.6"/>',
-         f'<line x1="720" y1="112" x2="720" y2="520" stroke="{SKY_SOFT}" stroke-opacity=".28" stroke-dasharray="2 7"/>',
-         text(720, 62, "distribute()", 28, SKY_INK, 500, "middle", mono=True),
-         mlabel(720, 92, "hourly · or by anyone", SKY_DIM, 19, "middle"),
-         star(1020, 150, 30, seed=5), text(1076, 148, "Seller", 30, SKY_INK, 500), text(1076, 182, "the rest", 24, SKY_SOFT),
-         star(1020, 314, 15, seed=6), star(1020, 346, 12, seed=7), star(1020, 374, 8, seed=8, spikes=False),
-         text(1076, 336, "Contributors", 30, SKY_INK, 500), text(1076, 370, "by record weight", 24, SKY_SOFT),
-         star(1020, 470, 6, seed=9, spikes=False, halo=2), text(1076, 466, "WITAN fee", 26, SKY_SOFT),
-         text(1076, 498, "0% on testnet", 22, SKY_AMB, mono=True),
-         f'<rect x="40.5" y="474.5" width="470" height="52" rx="14" fill="none" stroke="{SKY_SOFT}" stroke-opacity=".3" stroke-dasharray="3 5"/>',
-         text(66, 508, "No WITAN wallet in the path", 26, SKY_SOFT)]
-    return svg_plain(1280, 560, b, "A sale with payment splits, drawn as stars: one USDC payment enters the item's ownerless split "
-                     "address, distribute() sends it on as streams whose width shows each share, to the seller and to the "
-                     "contributors by record weight; WITAN's fee is a faint line at 0% on testnet; no WITAN wallet is in the path", seed=3)
+    """Hub and spoke: the buyer pays the item's split, distribute() pays the three on the right (api/src/blog/*-payment-splits.md)."""
+    b = [box(32, 170, 200, 64, ["Buyer agent", "pays the 402's payTo"]),
+         arrow(236, 202, 376, 202, "pays USDC", lx=306, ly=194), coin(306, 160, 14),
+         box(380, 150, 230, 104, ["The item's split", "no owner · a fixed rule"], accent=VIOLET),
+         text(396, 232, "0xSplits PushSplit", 12, DIM, mono=True),
+         text(662, 112, "distribute()", 11.5, DIM, anchor="middle", mono=True),
+         arrow(612, 176, 724, 132, violet=True), arrow(612, 202, 724, 228, violet=True), arrow(612, 228, 724, 324, violet=True),
+         box(728, 100, 200, 64, ["Seller", "the rest"]),
+         box(728, 196, 200, 64, ["Contributors", "by record weight"]),
+         box(728, 292, 200, 64, ["WITAN fee", "0% on testnet"], dashed=True),
+         text(32, 392, "No WITAN wallet in the path: the split has no owner, so nobody can redirect it.", 12.5, SOFT)]
+    return svg(960, 396, "Paying a split",
+               "The buyer pays the item's own address; a fixed rule pays the rest.",
+               b, "A sale with payment splits: the buyer pays the item's ownerless split address, distribute() pays the "
+                  "seller, the contributors by record weight and WITAN's fee, which is 0% on testnet")
 
 
 def split_vs_custody() -> str:
-    """One bright point held by a key, against stars that follow a printed rule to several points."""
-    b = [glass(24, 24, 606, 512), glass(650, 24, 606, 512), mlabel(56, 74, "Platform wallet"), mlabel(682, 74, "The item's split")]
-    for i, (y0, c) in enumerate(((140, 60), (250, 0), (360, -60), (190, 40), (310, -40))):
-        b.append(stream(((70, y0), (170, y0 + c * .3), (230, 250 + c * .4), (306, 250)), 120, 5, 4, 30 + i))
-    b += [star(330, 250, 26, seed=12, halo=3.2)]
-    ring = [(500 + 26 * math.cos(a), 250 + 26 * math.sin(a), 2.3, .9) for a in (i * 6.2832 / 30 for i in range(30))]
-    shaft = [(474 - i * 4.2, 250, 2.3, .9) for i in range(0, 28)]
-    teeth = [(386 + dx, 250 + k * 5, 2.3, .9) for dx in (0, 22) for k in range(1, 5)]
-    b += [_dots(ring + shaft + teeth, "236,240,255"), mlabel(430, 322, "one owner", SKY_DIM, 21, "middle"),
-          mlabel(56, 420, "who decides"), text(56, 462, "us", 40, SKY_INK, 500), text(56, 502, "one key, one operator", 26, SKY_SOFT)]
-    b += [text(682, 176, "seller        the rest", 22, SKY_SOFT, mono=True), text(682, 206, "contributors  by record weight", 22, SKY_SOFT, mono=True),
-          f'<line x1="682" y1="226" x2="1010" y2="226" stroke="{SKY_SOFT}" stroke-opacity=".4"/>',
-          stream(((676, 270), (760, 270), (840, 270), (920, 270)), 240, 8, 8, 40)]
-    for i, (y, r) in enumerate(((190, 14), (250, 22), (312, 12), (366, 9))):
-        b += [stream(((920, 270), (1010, 270), (1060, y), (1170, y)), 70, 5, 3, 50 + i), star(1190, y, r, seed=60 + i, spikes=r > 10)]
-    b += [mlabel(1190, 410, "no owner", SKY_DIM, 21, "middle"), mlabel(682, 420, "who decides"),
-          text(682, 462, "the rule", 40, SKY_INK, 500), text(682, 502, "readable before paying", 26, SKY_SOFT)]
-    return svg_plain(1280, 560, b, "Two ways to pay a seller, drawn as stars: through a platform wallet, where every payment converges on one point "
-                     "held by one operator's key, or through the item's ownerless split, where the stars follow a printed rule "
-                     "that anyone can read before paying to several points", seed=5)
+    """Two columns, as oauth-grant's: a platform wallet against the item's own split."""
+    b = []
+    for x, name, pills, foot, accent in (
+            (32, "Platform wallet", [("owner: WITAN", 112), ("pays: when we decide", 170)], "one key, one operator", False),
+            (496, "The item's split", [("owner: none", 100), ("pays: by the rule", 150)], "readable before paying", True)):
+        b += [box(x + 116, 100, 200, 56, ["Buyer pays", "USDC"]), arrow(x + 216, 156, x + 216, 196),
+              panel(x, 198, 432, 150, accent=accent, rx=12),
+              text(x + 20, 230, name, 14.5, INK, 600), text(x + 20, 250, "who holds the money, and who decides", 12.5, SOFT)]
+        cx = x + 20
+        for label, w in pills:
+            b.append(chip(cx, 272, w, label, VIOLET if accent else SOFT))
+            cx += w + 8
+        b.append(text(x + 20, 332, foot, 12.5, DIM))
+    return svg(960, 372, "Custody or a split",
+               "Who holds the money between the buyer and the seller.",
+               b, "Two ways to pay a seller: a platform wallet owned by WITAN that pays when WITAN decides, or the item's "
+                  "own split with no owner that pays by a rule anyone can read before paying")
 
 
 def review_flow() -> str:
-    """The score axis, 0 to 100: three tinted zones, units as stars on it, the way back from the question band."""
-    x = lambda v: 80 + v * 11.2
-    y0 = 300
-    b = []
-    for lo, hi, rgb, name, tone, sub in ((0, 45, "255,92,135", "Reject", ROSE, "with the reason"),
-                                         (45, 55, "255,179,92", "Ask first", SKY_AMB, "questions · 72 h"),
-                                         (55, 100, "62,214,160", "Publish", SKY_GOOD, "with a verdict card")):
-        b += [f'<rect x="{x(lo)}" y="190" width="{x(hi) - x(lo)}" height="{y0 - 190}" fill="rgb({rgb})" fill-opacity=".07"/>',
-              mlabel((x(lo) + x(hi)) / 2, 128, name, tone, 25, "middle"),
-              text((x(lo) + x(hi)) / 2, 166, sub, 26, SKY_SOFT, anchor="middle")]
-    b.append(f'<line x1="{x(0)}" y1="{y0}" x2="{x(100)}" y2="{y0}" stroke="{SKY_SOFT}" stroke-opacity=".5" stroke-width="1.5"/>')
+    """A horizontal score scale with the three outcomes under their ranges."""
+    x = lambda v: 80 + 8 * v
+    ay = 150
+    b = [f'<line x1="{x(0)}" y1="{ay}" x2="{x(100)}" y2="{ay}" stroke="{SOFT}" stroke-width="1.2"/>']
+    zones = ((0, 45, ROSE, "Reject", "with the reason", 120, 250), (45, 55, AMBER, "Ask first", "questions, 72 h", 385, 190),
+             (55, 100, GREEN, "Publish", "with a verdict card", 600, 250))
+    for lo, hi, col, name, sub, cx0, cw in zones:
+        mid = (x(lo) + x(hi)) / 2
+        b += [f'<line x1="{x(lo)}" y1="{ay}" x2="{x(hi)}" y2="{ay}" stroke="{col}" stroke-width="4" stroke-linecap="round"/>',
+              f'<path d="M{mid} {ay + 6}V{ay + 16}Q{mid} {ay + 28} {cx0 + cw / 2} {ay + 40}V{ay + 72}" fill="none" stroke="{INK}" stroke-opacity=".22"/>']
+        glow = ' filter="url(#glow-a)"' if col == AMBER else ""
+        b += [f'<rect x="{cx0}" y="{ay + 74}" width="{cw}" height="64" rx="12" fill="{PANEL}" stroke="{col}" stroke-width="1.5"{glow}/>',
+              text(cx0 + 16, ay + 100, name, 14.5, INK, 600), text(cx0 + 16, ay + 120, sub, 12.5, SOFT)]
     for v in (0, 45, 55, 100):
-        b += [f'<line x1="{x(v)}" y1="{y0}" x2="{x(v)}" y2="{y0 + 12}" stroke="{SKY_SOFT}" stroke-opacity=".6"/>',
-              text(x(v), y0 + 46, str(v), 26, SKY_INK if v in (45, 55) else SKY_DIM, 500, "middle", mono=True)]
-    for i, v in enumerate((14, 36, 49, 63, 88)):
-        b.append(star(x(v), y0, 9, seed=70 + i))
-    sx, ex = x(49), x(72)
-    b += [star(ex, y0, 9, seed=80), dotted(((sx, y0 + 26), (sx, 470), (ex, 470), (ex, y0 + 28)), 46),
-          f'<path d="M{ex - 11} {y0 + 44}L{ex} {y0 + 28}L{ex + 11} {y0 + 44}" fill="none" stroke="rgb(185,169,255)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
-          text((sx + ex) / 2, 494, "supplement → re-check", 28, SKY_SOFT, anchor="middle")]
-    return svg_plain(1280, 530, b, "The review's score axis from 0 to 100: under 45 is rejected with the reason; 45 to 55 gets questions and "
-                     "72 hours, then the seller supplements and it is checked again; 55 or more is published with a verdict card", seed=8)
+        b += [f'<line x1="{x(v)}" y1="{ay - 5}" x2="{x(v)}" y2="{ay + 5}" stroke="{SOFT}"/>',
+              text(x(v), ay - 14, str(v), 12.5, INK if v in (45, 55) else DIM, 600, "middle", mono=True)]
+    b += [f'<path d="M{x(50)} {ay + 138}C{x(50)} {ay + 210} 725 {ay + 210} 725 {ay + 140}" fill="none" stroke="{SOFT}" stroke-width="1.4" marker-end="url(#arrow)"/>',
+          text((x(50) + 725) / 2, ay + 206, "supplement → re-check", 11.5, DIM, anchor="middle", mono=True)]
+    return svg(960, 410, "Ask before rejecting",
+               "Three outcomes on the 0 to 100 score, with a question band in the middle.",
+               b, "The review's score scale: under 45 is rejected with the reason; 45 to 55 gets questions and 72 hours, then "
+                  "the seller supplements and it is checked again; 55 or more is published with a verdict card")
 
 
 def verdict_card() -> str:
-    """A unit page's price panel and Review checks (api/src/market-web.ts), as a buyer sees them."""
+    """A unit page's price panel and Review checks (api/src/market-web.ts), with the statuses beside it."""
     from xml.sax.saxutils import escape as esc
     def line(y: float, word: str, col: str, label: str) -> str:
-        return (f'<text x="300" y="{y}" font-size="28" xml:space="preserve"><tspan fill="{col}">{esc(word)}</tspan>'
-                f'<tspan fill="{SKY_INK}" dx="14">{esc(label)}</tspan></text>')
-    b = [glass(40, 36, 780, 128), glass(40, 180, 780, 346),
-         text(72, 96, "0.01 USDC", 32, SKY_INK, 700), text(790, 94, "72", 30, SKY_AMB, 700, "end", mono=True),
-         text(740, 94, "score", 26, SKY_AMB, anchor="end"), text(72, 138, "per x402 read · free with an agent key", 23, SKY_DIM),
-         text(72, 246, "Review checks", 26, SKY_DIM),
-         line(246, "✔ verified", SKY_GOOD, "Numbers recomputed"), line(292, "declared by the author", SKY_DIM, "Versions"),
-         line(338, "measured, no verdict", SKY_DIM, "Sources"), line(384, "△ not checked", SKY_DIM, "Reproduced"),
-         text(300, 424, "2026-10-24 · rules v1", 22, SKY_DIM),
-         text(72, 484, "Agents' checks", 26, SKY_DIM), text(300, 484, "9 worked · 1 failed", 28, SKY_INK),
-         mlabel(880, 82, "every status"),
-         text(880, 142, "✔ verified", 28, SKY_GOOD), text(880, 194, "✖ contradicts itself", 28, SKY_AMB),
-         text(880, 246, "declared by the author", 28, SKY_DIM), text(880, 298, "measured, no verdict", 28, SKY_DIM),
-         text(880, 350, "△ not checked", 28, SKY_DIM),
-         text(880, 440, "A buyer reads statuses and", 23, SKY_SOFT), text(880, 472, "counts, never the reviewer's", 23, SKY_SOFT),
-         text(880, 504, "reasons.", 23, SKY_SOFT)]
-    return svg_plain(1280, 560, b, "An example unit page: the price panel with a score of 72, then Review checks: numbers recomputed and "
-                     "verified, versions declared by the author, sources measured with no verdict, reproduction not checked, and "
-                     "nine agents who said it worked and one that failed", seed=9)
+        return (f'<text x="196" y="{y}" font-size="14.5" xml:space="preserve"><tspan fill="{col}">{esc(word)}</tspan>'
+                f'<tspan fill="{INK}" dx="8">{esc(label)}</tspan></text>')
+    b = [panel(32, 100, 600, 74, rx=12), panel(32, 186, 600, 250, rx=12),
+         text(52, 132, "0.01 USDC", 18, INK, 700), text(612, 130, "72", 17, AMBER, 700, "end", mono=True),
+         text(586, 130, "score", 14, AMBER, anchor="end"), text(52, 156, "per x402 read · free with an agent key", 12.5, DIM),
+         text(52, 228, "Review checks", 13.5, DIM),
+         line(228, "✔ verified", GOOD, "Numbers recomputed"), line(256, "declared by the author", DIM, "Versions"),
+         line(284, "measured, no verdict", DIM, "Sources"), line(312, "△ not checked", DIM, "Reproduced"),
+         text(196, 338, "2026-10-24 · rules v1", 12, DIM),
+         text(52, 392, "Agents' checks", 13.5, DIM), text(196, 392, "9 worked · 1 failed", 14.5, INK, 600),
+         header(664, 116, "Every status"),
+         chip(664, 130, 90, "verified", GOOD), chip(664, 168, 150, "contradicts itself", AMBER),
+         chip(664, 206, 116, "not checked", DIM, refused=True),
+         text(664, 270, "A buyer reads statuses and counts,", 12.5, SOFT), text(664, 290, "never the reviewer's reasons.", 12.5, SOFT),
+         text(664, 326, "Numbers recomputed by code; the model", 12.5, DIM), text(664, 346, "organises and explains.", 12.5, DIM)]
+    return svg(960, 456, "What a buyer reads",
+               "An example unit page: the review's checks, each with a status.",
+               b, "An example unit page: a score of 72, then Review checks: numbers recomputed and verified, versions declared "
+                  "by the author, sources measured with no verdict, reproduction not checked, and nine agents who said it "
+                  "worked and one that failed")
 
 
 def review_results() -> str:
-    """False rejections of honest units on the synthetic set: seven stars, then one."""
-    base = 400
-    b = [text(40, 160, "False rejections", 34, SKY_INK, 500), text(40, 202, "of honest units", 28, SKY_SOFT),
-         f'<line x1="380" y1="{base}" x2="1000" y2="{base}" stroke="{SKY_SOFT}" stroke-opacity=".45"/>']
-    for i in range(7):
-        b.append(star(520, base - 34 - 46 * i, 11, seed=90 + i))
-    b += [star(840, base - 34, 11, seed=99), text(468, 262, "7", 48, SKY_INK, 500, "end", mono=True),
-          text(788, 380, "1", 48, SKY_INK, 500, "end", mono=True),
-          dotted(((580, 250), (650, 250), (700, 300), (770, 340)), 24),
-          '<path d="M748 346L772 341L760 320" fill="none" stroke="rgb(185,169,255)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>',
-          
-          mlabel(520, 442, "cut at 55", SKY_SOFT, 22, "middle"), mlabel(840, 442, "with the 45–55 band", SKY_SOFT, 22, "middle"),
-          mlabel(40, 470, "synthetic set, draft labels", SKY_DIM, 19)]
-    return svg_plain(1280, 490, b, "False rejections of honest units on the synthetic set, drawn as stars: seven with the cut at 55, "
-                     "one with the 45 to 55 band", seed=13)
+    """Two cards, 7 then 1."""
+    b = [panel(32, 104, 400, 190, rx=12), panel(528, 104, 400, 190, accent=True, rx=12),
+         text(52, 138, "Cut at 55", 14.5, INK, 600), text(548, 138, "With the 45–55 band", 14.5, INK, 600),
+         text(52, 252, "7", 96, INK, 700, mono=True), text(548, 252, "1", 96, INK, 700, mono=True),
+         text(150, 214, "honest units", 12.5, SOFT), text(150, 232, "falsely rejected", 12.5, SOFT),
+         text(646, 214, "honest units", 12.5, SOFT), text(646, 232, "falsely rejected", 12.5, SOFT),
+         arrow(436, 199, 524, 199, violet=True),
+         text(32, 330, "synthetic set, draft labels", 12, DIM)]
+    return svg(960, 316, "False rejections",
+               "Honest units rejected on our synthetic set, before and after.",
+               b, "False rejections of honest units on the synthetic set fell from 7 with the cut at 55 to 1 with the 45 to 55 band")
 
 
 def main() -> None:

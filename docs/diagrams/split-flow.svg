@@ -1,43 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 510" width="480" height="510" role="img" aria-label="A sale with payment splits: the buyer pays the item's own ownerless split address, distribute() pays the seller and each contributor, and no WITAN wallet is in the path" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 570" width="1280" height="570" role="img" aria-label="A sale with payment splits: one USDC payment goes to the item's ownerless split address, distribute() fans it out by share to the seller and the contributors, WITAN's fee is a hairline at 0% on testnet, and no WITAN wallet is in the path" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9BA1AD"/></marker><marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7C5CFF"/></marker><marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#FFB35C"/></marker><linearGradient id="aurora" x1="12" y1="2" x2="21" y2="10" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/><stop offset="1" stop-color="#FFB35C"/></linearGradient><linearGradient id="aurora-h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="aurora-v" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="tint" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".2"/><stop offset=".46" stop-color="#07080C" stop-opacity="0"/><stop offset="1" stop-color="#5EE0FF" stop-opacity=".07"/></linearGradient><filter id="glow-v" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#7C5CFF" flood-opacity="0.55"/></filter><filter id="glow-w" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ECEEF2" flood-opacity="0.45"/></filter><filter id="glow-g" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#58C48A" flood-opacity="0.8"/></filter><filter id="glow-a" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#FFB35C" flood-opacity="0.45"/></filter><filter id="blur-mark" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter></defs>
-<rect width="480" height="510" rx="18" fill="#07080C"/>
-<rect width="480" height="510" rx="18" fill="url(#tint)"/>
-<rect x=".5" y=".5" width="479" height="509" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
-<g transform="translate(32.6 24.6) scale(0.95)" filter="url(#blur-mark)" opacity=".6"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><g transform="translate(32.6 24.6) scale(0.95)"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><text x="62" y="41.5" font-size="15.5" font-weight="700" letter-spacing="-0.3" fill="#ECEEF2">WITAN</text>
-<text x="32" y="86" font-size="25" font-weight="800" letter-spacing="-0.8" fill="#ECEEF2">Paying a split</text>
-<text x="32" y="111" font-size="14" fill="#9BA1AD">The buyer pays the item's address; a fixed rule pays the rest.</text>
-<g transform="translate(0 40)">
-<circle cx="38" cy="125" r="13" fill="#07080C" stroke="#ECEEF2" stroke-opacity="0.3" stroke-width="1.5"/>
-<text x="38" y="130" font-size="13" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">1</text>
-<rect x="64" y="100" width="384" height="50" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
-<text x="80" y="121" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">The buyer gets a 402</text>
-<text x="80" y="139" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">payTo is the item's own split address</text>
-<path d="M38 150L38 162" fill="none" stroke="#9BA1AD" stroke-width="1.4" marker-end="url(#arrow)"/>
-<circle cx="38" cy="187" r="13" fill="#07080C" stroke="#ECEEF2" stroke-opacity="0.3" stroke-width="1.5"/>
-<text x="38" y="192" font-size="13" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">2</text>
-<rect x="64" y="162" width="384" height="50" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
-<text x="80" y="183" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">The buyer signs a USDC payment</text>
-<text x="80" y="201" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">it lands in the split, not in a WITAN wallet</text>
-<path d="M38 212L38 224" fill="none" stroke="#9BA1AD" stroke-width="1.4" marker-end="url(#arrow)"/>
-<circle cx="38" cy="249" r="13" fill="#07080C" stroke="#7C5CFF" stroke-opacity="1" stroke-width="1.5"/>
-<text x="38" y="254" font-size="13" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">3</text>
-<rect x="64" y="224" width="384" height="50" rx="12" fill="#0E0F16" stroke="#7C5CFF" stroke-width="1.5" filter="url(#glow-v)"/>
-<text x="80" y="245" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">distribute() pays each share</text>
-<text x="80" y="263" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">hourly, or by anyone; the rule is fixed</text>
-<path d="M256 274L96 304" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
-<path d="M256 274L240 304" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
-<path d="M256 274L384 304" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
-<rect x="32" y="306" width="128" height="62" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
-<text x="48" y="331" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Seller</text>
-<text x="48" y="351" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">the rest</text>
-<rect x="176" y="306" width="128" height="62" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16"/>
-<text x="192" y="331" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Contributors</text>
-<text x="192" y="351" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">by record weight</text>
-<rect x="320" y="306" width="128" height="62" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16" stroke-dasharray="5 4"/>
-<text x="336" y="331" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">WITAN fee</text>
-<text x="336" y="351" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">none on testnet</text>
-<rect x="32" y="396" width="416" height="56" rx="12" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16" stroke-dasharray="5 4"/>
-<text x="48" y="420" font-size="14.5" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve">No WITAN wallet in the path</text>
-<text x="48" y="439" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">the split has no owner, so nobody can redirect it</text>
-</g>
+<rect width="1280" height="570" rx="18" fill="#07080C"/>
+<rect width="1280" height="570" rx="18" fill="url(#tint)"/>
+<rect x=".5" y=".5" width="1279" height="569" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
+<linearGradient id="pay" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFB35C"/><stop offset="1" stop-color="#7C5CFF"/></linearGradient>
+<text x="40" y="130" font-size="28" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">The buyer pays the item's own address</text>
+<rect x="40" y="160" width="320" height="240" rx="14" fill="url(#pay)" fill-opacity=".55"/>
+<circle cx="100" cy="280" r="30" fill="#FFB35C" fill-opacity="0.16" stroke="#FFB35C" stroke-width="1.8" filter="url(#glow-a)"/><text x="100" y="290.8" font-size="31.5" font-weight="800" fill="#FFB35C" text-anchor="middle" xml:space="preserve">$</text>
+<text x="150" y="276" font-size="36" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">1 payment</text>
+<text x="150" y="312" font-size="28" font-weight="400" fill="#ECEEF2" text-anchor="start" xml:space="preserve">USDC</text>
+<rect x="360" y="150" width="220" height="260" rx="16" fill="#0E0F16" stroke="#7C5CFF" stroke-width="1.5" filter="url(#glow-v)"/>
+<text x="470" y="262" font-size="34" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">The item's</text>
+<text x="470" y="302" font-size="34" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">split</text>
+<text x="470" y="348" font-size="26" font-weight="400" fill="#9BA1AD" text-anchor="middle" xml:space="preserve">no owner</text>
+<path d="M580 160C760.0 160 760.0 90 940 90L940 234C760.0 234 760.0 304 580 304Z" fill="#7C5CFF" fill-opacity="0.55"/>
+<path d="M580 306C760.0 306 760.0 270 940 270L940 361C760.0 361 760.0 397 580 397Z" fill="#5EE0FF" fill-opacity="0.55"/>
+<path d="M580 399C760.0 399 760.0 450 940 450L940 453C760.0 453 760.0 402 580 402Z" fill="#FFB35C" fill-opacity="0.9"/>
+<line x1="760" y1="74" x2="760" y2="520" stroke="#ECEEF2" stroke-opacity=".28" stroke-dasharray="4 6"/>
+<text x="760" y="48" font-size="32" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">distribute()</text>
+<text x="970" y="160" font-size="36" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Seller</text>
+<text x="970" y="196" font-size="26" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">the rest</text>
+<text x="970" y="312" font-size="36" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Contributors</text>
+<text x="970" y="348" font-size="26" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">by record weight</text>
+<text x="970" y="450" font-size="36" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">WITAN fee</text>
+<text x="970" y="486" font-size="26" font-weight="400" fill="#FFB35C" text-anchor="start" xml:space="preserve">0% on testnet</text>
+<rect x="40" y="470" width="520" height="70" rx="14" fill="#0E0F16" fill-opacity=".86" stroke="#ECEEF2" stroke-opacity=".16" stroke-dasharray="5 4"/>
+<text x="300" y="516" font-size="30" font-weight="600" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">No WITAN wallet in the path</text>
 </svg>

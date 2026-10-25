@@ -434,103 +434,153 @@ def oauth_grant() -> str:
                   "spend; everything is recorded under the agent's name and can be revoked in the console")
 
 
+def svg_plain(w: int, h: int, body: list[str], label: str) -> str:
+    """A figure with no header: the caption under it carries the words (blog figures)."""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}" '
+            f'role="img" aria-label="{escape(label)}" font-family="{FONT}" text-rendering="geometricPrecision">\n'
+            + _defs() + "\n"
+            f'<rect width="{w}" height="{h}" rx="18" fill="{BG}"/>\n'
+            f'<rect width="{w}" height="{h}" rx="18" fill="url(#tint)"/>\n'
+            f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="17.5" fill="none" stroke="{INK}" stroke-opacity=".12"/>\n'
+            + "\n".join(body) + "\n</svg>\n")
+
+
+def ribbon(x0: float, a0: float, a1: float, x1: float, b0: float, b1: float, fill: str, opacity: float = .55) -> str:
+    """A Sankey stream from the span a0..a1 at x0 to b0..b1 at x1."""
+    xm = (x0 + x1) / 2
+    return (f'<path d="M{x0} {a0}C{xm} {a0} {xm} {b0} {x1} {b0}L{x1} {b1}C{xm} {b1} {xm} {a1} {x0} {a1}Z" '
+            f'fill="{fill}" fill-opacity="{opacity}"/>')
+
+
 def split_flow() -> str:
-    """How a sale is paid with splits (api/src/blog/*-payment-splits.md): the buyer pays the item's own address, distribute() pays the rest."""
-    b = [step(1, 100, "The buyer gets a 402", "payTo is the item's own split address"),
-         arrow(38, 150, 38, 162),
-         step(2, 162, "The buyer signs a USDC payment", "it lands in the split, not in a WITAN wallet"),
-         arrow(38, 212, 38, 224),
-         step(3, 224, "distribute() pays each share", "hourly, or by anyone; the rule is fixed", accent=True),
-         arrow(256, 274, 96, 304, violet=True), arrow(256, 274, 240, 304, violet=True),
-         arrow(256, 274, 384, 304, violet=True)]
-    b += [box(32, 306, 128, 62, ["Seller", "the rest"]),
-          box(176, 306, 128, 62, ["Contributors", "by record weight"]),
-          box(320, 306, 128, 62, ["WITAN fee", "none on testnet"], dashed=True),
-          panel(32, 396, 416, 56, dashed=True, rx=12),
-          text(48, 420, "No WITAN wallet in the path", 14.5, INK, 600),
-          text(48, 439, "the split has no owner, so nobody can redirect it", 13, SOFT)]
-    return svg(480, 470, "Paying a split",
-               "The buyer pays the item's address; a fixed rule pays the rest.",
-               b, "A sale with payment splits: the buyer pays the item's own ownerless split address, "
-                  "distribute() pays the seller and each contributor, and no WITAN wallet is in the path")
+    """One payment into the item's split, fanning out by share (api/src/blog/*-payment-splits.md)."""
+    b = ['<linearGradient id="pay" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFB35C"/>'
+         '<stop offset="1" stop-color="#7C5CFF"/></linearGradient>',
+         text(40, 130, "The buyer pays the item's own address", 28, SOFT),
+         f'<rect x="40" y="160" width="320" height="240" rx="14" fill="url(#pay)" fill-opacity=".55"/>',
+         coin(100, 280, 30), text(150, 276, "1 payment", 36, INK, 700), text(150, 312, "USDC", 28, INK, 400),
+         panel(360, 150, 220, 260, accent=True, rx=16),
+         text(470, 262, "The item's", 34, INK, 700, "middle"), text(470, 302, "split", 34, INK, 700, "middle"),
+         text(470, 348, "no owner", 26, SOFT, 400, "middle"),
+         ribbon(580, 160, 304, 940, 90, 234, VIOLET), ribbon(580, 306, 397, 940, 270, 361, CYAN),
+         ribbon(580, 399, 402, 940, 450, 453, AMBER, .9),
+         f'<line x1="760" y1="74" x2="760" y2="520" stroke="{INK}" stroke-opacity=".28" stroke-dasharray="4 6"/>',
+         text(760, 48, "distribute()", 32, INK, 600, "middle", mono=True),
+         text(970, 160, "Seller", 36, INK, 700), text(970, 196, "the rest", 26, SOFT),
+         text(970, 312, "Contributors", 36, INK, 700), text(970, 348, "by record weight", 26, SOFT),
+         text(970, 450, "WITAN fee", 36, INK, 700), text(970, 486, "0% on testnet", 26, AMBER),
+         panel(40, 470, 520, 70, dashed=True, rx=14),
+         text(300, 516, "No WITAN wallet in the path", 30, INK, 600, "middle")]
+    return svg_plain(1280, 570, b, "A sale with payment splits: one USDC payment goes to the item's ownerless split address, "
+                     "distribute() fans it out by share to the seller and the contributors, WITAN's fee is a hairline at 0% on "
+                     "testnet, and no WITAN wallet is in the path")
+
+
+def vault(cx: float, cy: float) -> str:
+    body = [f'<rect x="{cx - 110}" y="{cy - 90}" width="220" height="180" rx="18" fill="{PANEL}" stroke="{ROSE}" stroke-width="3.5"/>',
+            f'<rect x="{cx - 92}" y="{cy - 72}" width="184" height="144" rx="10" fill="none" stroke="{INK}" stroke-opacity=".18"/>',
+            f'<circle cx="{cx - 12}" cy="{cy}" r="44" fill="none" stroke="{ROSE}" stroke-width="3.5"/>',
+            f'<circle cx="{cx - 12}" cy="{cy}" r="9" fill="{ROSE}"/>']
+    for dx, dy in ((0, -44), (0, 44), (-44, 0), (44, 0)):
+        body.append(f'<line x1="{cx - 12}" y1="{cy}" x2="{cx - 12 + dx}" y2="{cy + dy}" stroke="{ROSE}" stroke-width="3"/>')
+    kx = cx + 175   # the key, in one operator's hand
+    body += [f'<circle cx="{kx}" cy="{cy - 40}" r="24" fill="none" stroke="{AMBER}" stroke-width="4"/>',
+             f'<path d="M{kx} {cy - 16}V{cy + 64}M{kx} {cy + 40}h20M{kx} {cy + 62}h14" fill="none" stroke="{AMBER}" stroke-width="4" stroke-linecap="round"/>']
+    return "\n".join(body)
+
+
+def open_book(cx: float, cy: float) -> str:
+    left = "M0,-70C-40,-95 -100,-95 -140,-75L-140,85C-100,65 -40,65 0,90Z"
+    right = "M0,-70C40,-95 100,-95 140,-75L140,85C100,65 40,65 0,90Z"
+    lines = "".join(f'<path d="M{sx * 118},{-42 + 28 * i}C{sx * 90},{-56 + 28 * i} {sx * 50},{-56 + 28 * i} {sx * 20},{-40 + 28 * i}" '
+                    f'fill="none" stroke="{VIOLET}" stroke-opacity=".7" stroke-width="3" stroke-linecap="round"/>'
+                    for sx in (-1, 1) for i in range(3))
+    return (f'<g transform="translate({cx} {cy})" filter="url(#glow-v)"><path d="{left}" fill="{PANEL}" stroke="{VIOLET}" stroke-width="3.5"/>'
+            f'<path d="{right}" fill="{PANEL}" stroke="{VIOLET}" stroke-width="3.5"/>{lines}</g>')
 
 
 def split_vs_custody() -> str:
-    """Platform wallet against a per-item ownerless split."""
-    b = [header(32, 106, "Until now"), header(248, 106, "With splits")]
-    for x, mid, outcome, accent in (
-            (32, ["Platform wallet", "ours to hold and to lose"], ["Seller, later", "when and how much: us"], ROSE),
-            (248, ["The item's split", "no owner, a fixed rule"], ["Seller and contributors", "paid by distribute()"], VIOLET)):
-        b += [box(x, 118, 200, 52, ["Buyer pays", "USDC"]), arrow(x + 100, 170, x + 100, 202),
-              box(x, 204, 200, 62, mid, accent=accent),
-              arrow(x + 100, 266, x + 100, 298),
-              box(x, 300, 200, 52, outcome)]
-    b += [text(32, 386, "Left, one key and one operator decide. Right, nobody can change the rule,", 13, SOFT),
-          text(32, 406, "and the buyer can read it before paying.", 13, SOFT)]
-    return svg(480, 424, "Custody or a split",
-               "Who holds the money between the buyer and the seller.",
-               b, "Two ways to pay a seller: through a platform wallet that holds the money, "
-                  "or through a per-item ownerless split that pays by a fixed rule")
+    """A vault held by one operator against an open, ownerless contract with its rule printed on it."""
+    b = [panel(20, 20, 600, 530, rx=20), panel(660, 20, 600, 530, accent=True, rx=20),
+         f'<circle cx="640" cy="285" r="30" fill="{BG}" stroke="{INK}" stroke-opacity=".3"/>',
+         text(640, 295, "vs", 26, SOFT, 600, "middle"),
+         vault(250, 140),
+         text(320, 288, "Platform wallet", 40, ROSE, 700, "middle"),
+         panel(60, 312, 520, 104, rx=12, fill=BG),
+         text(84, 350, "owner     WITAN", 26, SOFT, mono=True), text(84, 382, "pays      when we decide", 26, SOFT, mono=True),
+         text(320, 478, "who decides: us", 36, INK, 700, "middle"), text(320, 518, "one key, one operator", 26, SOFT, 400, "middle"),
+         open_book(960, 140),
+         text(960, 288, "The item's split", 40, VIOLET, 700, "middle"),
+         panel(700, 312, 520, 104, rx=12, fill=BG),
+         text(724, 350, "owner     none", 26, SOFT, mono=True), text(724, 382, "pays      by the rule above", 26, SOFT, mono=True),
+         text(960, 478, "who decides: the rule", 36, INK, 700, "middle"), text(960, 518, "readable before paying", 26, SOFT, 400, "middle")]
+    return svg_plain(1280, 570, b, "Two ways to pay a seller: a platform wallet, a vault with one operator's key that decides when "
+                     "to pay, or the item's own ownerless split, an open contract with a rule anyone can read before paying")
 
 
 def review_flow() -> str:
-    """The review (api/src/blog/*-why-review-v2.md): checks, a score, and three outcomes with the question band between."""
-    b = [box(32, 100, 416, 52, ["A unit is submitted", "the seller's text"]), arrow(240, 152, 240, 178),
-         panel(32, 180, 416, 62, accent=True, rx=12),
-         text(48, 205, "Code checks, then the review", 14.5, INK, 600),
-         text(48, 224, "numbers recomputed by code; a model reads and scores", 13, SOFT)]
-    for x, tip in ((96, 96), (240, 240), (384, 384)):
-        b.append(arrow(240 if x == 240 else 256 if x == 384 else 224, 242, tip, 274, violet=True))
-    b += [box(32, 276, 128, 108, ["55 or more", "Published", "with a", "verdict card"], accent=GREEN),
-          box(176, 276, 128, 108, ["45 to 55", "Questions and", "72 hours", "(needs_info)"], accent=AMBER),
-          box(320, 276, 128, 108, ["Under 45", "Rejected", "with the", "reason"], accent=ROSE),
-          arrow(240, 384, 240, 412, dashed=True),
-          box(112, 414, 256, 52, ["Seller sends a revision", "checked again; two rounds"], dashed=True)]
-    return svg(480, 486, "Ask before rejecting",
-               "Three outcomes, with a question band in the middle.",
-               b, "The review: a submission gets code checks and a score; 55 or more is published with a verdict card, "
-                  "45 to 55 gets questions and 72 hours, under 45 is rejected")
+    """The score axis: three zones, a few units on it, and the way back from the question band."""
+    x = lambda v: 80 + v * 11.2
+    top, bot = 250, 312
+    b = [f'<rect x="{x(0)}" y="{top}" width="{x(45) - x(0)}" height="{bot - top}" rx="10" fill="{ROSE}" fill-opacity=".22" stroke="{ROSE}" stroke-width="2.5"/>',
+         f'<rect x="{x(45)}" y="{top}" width="{x(55) - x(45)}" height="{bot - top}" fill="{AMBER}" fill-opacity=".3" stroke="{AMBER}" stroke-width="2.5"/>',
+         f'<rect x="{x(55)}" y="{top}" width="{x(100) - x(55)}" height="{bot - top}" rx="10" fill="{GREEN}" fill-opacity=".22" stroke="{GREEN}" stroke-width="2.5"/>',
+         text((x(0) + x(45)) / 2, 160, "Reject", 42, ROSE, 700, "middle"), text((x(0) + x(45)) / 2, 202, "with the reason", 28, SOFT, 400, "middle"),
+         text(x(50), 130, "Ask first", 42, AMBER, 700, "middle"), text(x(50), 170, "questions · 72 h", 28, SOFT, 400, "middle"),
+         text(x(50), 205, "(needs_info)", 26, DIM, 400, "middle", mono=True),
+         text((x(55) + x(100)) / 2, 160, "Publish", 42, GREEN, 700, "middle"),
+         text((x(55) + x(100)) / 2, 202, "with a verdict card", 28, SOFT, 400, "middle")]
+    for v, c in ((14, ROSE), (36, ROSE), (49, AMBER), (63, GREEN), (88, GREEN)):
+        b.append(f'<circle cx="{x(v)}" cy="{(top + bot) / 2}" r="15" fill="{BG}" stroke="{c}" stroke-width="4"/>')
+    b += [text(x(0), 358, "0", 30, SOFT, 600, "middle", mono=True), text(x(45), 358, "45", 34, INK, 700, "middle", mono=True),
+          text(x(55), 358, "55", 34, INK, 700, "middle", mono=True), text(x(100), 358, "100", 30, SOFT, 600, "middle", mono=True)]
+    sx, ex = x(49), x(72)   # from a unit in the band, round to a re-checked one on the green side
+    b += [f'<circle cx="{ex}" cy="{(top + bot) / 2}" r="15" fill="{GREEN}" fill-opacity=".35" stroke="{GREEN}" stroke-width="4" stroke-dasharray="5 4"/>',
+          f'<path d="M{sx} {bot + 16}C{sx - 10} 500 {ex + 10} 500 {ex} {bot + 20}" fill="none" stroke="{VIOLET}" stroke-width="4" '
+          f'marker-end="url(#arrow-v)" stroke-linecap="round"/>',
+          text((sx + ex) / 2 + 110, 480, "seller supplements, then it is re-checked", 30, INK, 600, "middle")]
+    return svg_plain(1280, 540, b, "The review's score axis from 0 to 100: under 45 is rejected with the reason, 45 to 55 gets questions "
+                     "and 72 hours and, after the seller supplements, is checked again, 55 or more is published with a verdict card")
 
 
 def verdict_card() -> str:
-    """The verdict card a buyer reads: statuses and counts, no reasons."""
-    b = [panel(32, 100, 416, 342, accent=True, rx=14),
-         text(48, 130, "Verdict card", 14.5, INK, 600), text(432, 130, "example", 12.5, DIM, anchor="end")]
-    rows = [("Arithmetic in the text", "verified", GREEN, 72), ("Declared versions", "verified", GREEN, 72),
-            ("Overlap with public sources", "measured", CYAN, 78), ("Reproduction", "not checked", DIM, 94)]
-    for i, (label, status, color, w) in enumerate(rows):
-        y = 150 + 42 * i
-        b.append(text(48, y + 18, label, 13.5, SOFT))
-        b.append(chip(432 - w, y, w, status, color, refused=(status == "not checked")))
-    b += [f'<line x1="48" y1="324" x2="432" y2="324" stroke="{INK}" stroke-opacity=".14"/>',
-          text(48, 350, "Buyers reported", 13.5, SOFT), text(432, 350, "9 worked · 1 failed", 13.5, INK, 600, "end"),
-          header(48, 386, "The three statuses"),
-          chip(48, 396, 72, "verified", GREEN), chip(128, 396, 100, "contradicted", ROSE),
-          chip(236, 396, 94, "not checked", DIM, refused=True),
-          text(32, 470, "Statuses and counts, not the reviewer's reasons: a buyer or an agent", 13, SOFT),
-          text(32, 490, "can filter out numbers that nobody could confirm.", 13, SOFT)]
-    return svg(480, 508, "What a buyer reads",
-               "Each check says verified, contradicted or not checked.",
-               b, "An example verdict card: arithmetic and declared versions verified, overlap measured, "
-                  "reproduction not checked, and the buyers' worked and failed counts")
+    """The Review checks of a unit page (api/src/market-web.ts verdictRows), as a buyer sees it."""
+    rows = [("✔ verified", GREEN, "Numbers recomputed"), ("declared by the author", DIM, "Versions"),
+            ("measured, no verdict", DIM, "Sources"), ("△ not checked", DIM, "Reproduced")]
+    b = [panel(40, 30, 780, 510, rx=18),
+         text(76, 92, "example unit", 26, DIM),
+         text(560, 94, "0.01 USDC", 34, GREEN, 700, "end", mono=True),
+         text(764, 94, "score 72", 34, AMBER, 700, "end", mono=True),
+         f'<line x1="76" y1="122" x2="784" y2="122" stroke="{INK}" stroke-opacity=".12"/>',
+         text(76, 176, "Review checks", 28, DIM)]
+    for i, (word, col, label) in enumerate(rows):
+        y = 232 + 52 * i
+        b += [text(76, y, word, 31, col, 600), text(470, y, label, 31, INK)]
+    b += [f'<line x1="76" y1="420" x2="784" y2="420" stroke="{INK}" stroke-opacity=".12"/>',
+          text(76, 478, "Agents' checks", 28, DIM), text(470, 478, "9 worked · 1 failed", 31, INK, 600),
+          text(76, 520, "2026-10-24 · rules v1", 24, DIM, mono=True),
+          header(880, 74, "Every status"),
+          text(880, 140, "✔ verified", 32, GREEN, 600), text(880, 196, "✖ contradicts itself", 32, ROSE, 600),
+          text(880, 252, "declared by the author", 32, SOFT, 600), text(880, 308, "measured, no verdict", 32, SOFT, 600),
+          text(880, 364, "△ not checked", 32, SOFT, 600),
+          text(880, 440, "A buyer reads statuses", 27, SOFT), text(880, 476, "and counts, never the", 27, SOFT),
+          text(880, 512, "reviewer's reasons.", 27, SOFT)]
+    return svg_plain(1280, 570, b, "An example unit page's review checks: numbers recomputed and verified, versions declared, "
+                     "sources measured with no verdict, reproduction not checked, and nine agents who said it worked and one that failed")
 
 
 def review_results() -> str:
-    """False rejections of honest controls on the synthetic set, before and after the band."""
-    b = []
-    for gi, (name, before, after) in enumerate((("v1 scorer", 7, 1), ("v2 scorer", 10, 1))):
-        y = 100 + 110 * gi
-        b.append(header(32, y + 6, name))
-        for bi, (label, v, fill) in enumerate((("Cut at 55", before, DIM), ("With the 45 to 55 band", after, "url(#aurora-h)"))):
-            by = y + 20 + 34 * bi
-            b.append(text(32, by + 16, label, 12.5, SOFT))
-            b.append(f'<rect x="196" y="{by}" width="{v * 24}" height="22" rx="6" fill="{fill}"/>')
-            b.append(text(196 + v * 24 + 8, by + 16, str(v), 13.5, INK, 700))
-    b += [text(32, 332, "Honest control units rejected, on the same cases for both columns.", 13, SOFT),
-          text(32, 352, "192 synthetic cases; runs differ by about two. Nothing extra was published.", 13, SOFT)]
-    return svg(480, 370, "False rejections",
-               "Honest units rejected on our synthetic set, before and after.",
-               b, "False rejections of honest controls fell from 7 to 1 with the v1 scorer and from 10 to 1 with v2")
+    """False rejections of honest controls on the synthetic set: 7 before, 1 after."""
+    base, unit = 370, 38
+    b = [text(40, 150, "False rejections", 44, INK, 700), text(40, 196, "of honest units", 32, SOFT),
+         f'<line x1="400" y1="{base}" x2="1000" y2="{base}" stroke="{INK}" stroke-opacity=".25" stroke-width="2"/>',
+         f'<rect x="440" y="{base - 7 * unit}" width="200" height="{7 * unit}" rx="12" fill="{ROSE}" fill-opacity=".75"/>',
+         f'<rect x="760" y="{base - unit}" width="200" height="{unit}" rx="12" fill="url(#aurora-h)"/>',
+         text(540, base - 7 * unit - 18, "7", 64, INK, 700, "middle"), text(860, base - unit - 18, "1", 64, INK, 700, "middle"),
+         text(540, 418, "cut at 55", 30, SOFT, 600, "middle"), text(860, 418, "with the 45–55 band", 30, SOFT, 600, "middle"),
+         arrow(662, 250, 738, 250, violet=True),
+         text(40, 462, "synthetic set, draft labels", 24, DIM)]
+    return svg_plain(1280, 490, b, "False rejections of honest units on the synthetic set fell from 7 to 1 with the 45 to 55 band")
 
 
 def main() -> None:

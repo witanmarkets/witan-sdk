@@ -1,27 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 410" width="480" height="410" role="img" aria-label="False rejections of honest controls fell from 7 to 1 with the v1 scorer and from 10 to 1 with v2" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 490" width="1280" height="490" role="img" aria-label="False rejections of honest units on the synthetic set fell from 7 to 1 with the 45 to 55 band" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
 <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9BA1AD"/></marker><marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7C5CFF"/></marker><marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#FFB35C"/></marker><linearGradient id="aurora" x1="12" y1="2" x2="21" y2="10" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/><stop offset="1" stop-color="#FFB35C"/></linearGradient><linearGradient id="aurora-h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="aurora-v" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="tint" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".2"/><stop offset=".46" stop-color="#07080C" stop-opacity="0"/><stop offset="1" stop-color="#5EE0FF" stop-opacity=".07"/></linearGradient><filter id="glow-v" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#7C5CFF" flood-opacity="0.55"/></filter><filter id="glow-w" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ECEEF2" flood-opacity="0.45"/></filter><filter id="glow-g" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#58C48A" flood-opacity="0.8"/></filter><filter id="glow-a" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#FFB35C" flood-opacity="0.45"/></filter><filter id="blur-mark" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter></defs>
-<rect width="480" height="410" rx="18" fill="#07080C"/>
-<rect width="480" height="410" rx="18" fill="url(#tint)"/>
-<rect x=".5" y=".5" width="479" height="409" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
-<g transform="translate(32.6 24.6) scale(0.95)" filter="url(#blur-mark)" opacity=".6"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><g transform="translate(32.6 24.6) scale(0.95)"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><text x="62" y="41.5" font-size="15.5" font-weight="700" letter-spacing="-0.3" fill="#ECEEF2">WITAN</text>
-<text x="32" y="86" font-size="25" font-weight="800" letter-spacing="-0.8" fill="#ECEEF2">False rejections</text>
-<text x="32" y="111" font-size="14" fill="#9BA1AD">Honest units rejected on our synthetic set, before and after.</text>
-<g transform="translate(0 40)">
-<text x="32" y="106" font-size="11" font-weight="600" letter-spacing="0.7" fill="#5D6370" xml:space="preserve">V1 SCORER</text>
-<text x="32" y="136" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">Cut at 55</text>
-<rect x="196" y="120" width="168" height="22" rx="6" fill="#5D6370"/>
-<text x="372" y="136" font-size="13.5" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">7</text>
-<text x="32" y="170" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">With the 45 to 55 band</text>
-<rect x="196" y="154" width="24" height="22" rx="6" fill="url(#aurora-h)"/>
-<text x="228" y="170" font-size="13.5" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">1</text>
-<text x="32" y="216" font-size="11" font-weight="600" letter-spacing="0.7" fill="#5D6370" xml:space="preserve">V2 SCORER</text>
-<text x="32" y="246" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">Cut at 55</text>
-<rect x="196" y="230" width="240" height="22" rx="6" fill="#5D6370"/>
-<text x="444" y="246" font-size="13.5" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">10</text>
-<text x="32" y="280" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">With the 45 to 55 band</text>
-<rect x="196" y="264" width="24" height="22" rx="6" fill="url(#aurora-h)"/>
-<text x="228" y="280" font-size="13.5" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">1</text>
-<text x="32" y="332" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">Honest control units rejected, on the same cases for both columns.</text>
-<text x="32" y="352" font-size="13" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">192 synthetic cases; runs differ by about two. Nothing extra was published.</text>
-</g>
+<rect width="1280" height="490" rx="18" fill="#07080C"/>
+<rect width="1280" height="490" rx="18" fill="url(#tint)"/>
+<rect x=".5" y=".5" width="1279" height="489" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
+<text x="40" y="150" font-size="44" font-weight="700" fill="#ECEEF2" text-anchor="start" xml:space="preserve">False rejections</text>
+<text x="40" y="196" font-size="32" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">of honest units</text>
+<line x1="400" y1="370" x2="1000" y2="370" stroke="#ECEEF2" stroke-opacity=".25" stroke-width="2"/>
+<rect x="440" y="104" width="200" height="266" rx="12" fill="#FF5C87" fill-opacity=".75"/>
+<rect x="760" y="332" width="200" height="38" rx="12" fill="url(#aurora-h)"/>
+<text x="540" y="86" font-size="64" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">7</text>
+<text x="860" y="314" font-size="64" font-weight="700" fill="#ECEEF2" text-anchor="middle" xml:space="preserve">1</text>
+<text x="540" y="418" font-size="30" font-weight="600" fill="#9BA1AD" text-anchor="middle" xml:space="preserve">cut at 55</text>
+<text x="860" y="418" font-size="30" font-weight="600" fill="#9BA1AD" text-anchor="middle" xml:space="preserve">with the 45–55 band</text>
+<path d="M662 250L738 250" fill="none" stroke="#7C5CFF" stroke-width="1.8" marker-end="url(#arrow-v)"/>
+<text x="40" y="462" font-size="24" font-weight="400" fill="#5D6370" text-anchor="start" xml:space="preserve">synthetic set, draft labels</text>
 </svg>

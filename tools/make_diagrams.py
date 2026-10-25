@@ -449,7 +449,7 @@ def split_flow() -> str:
          box(728, 196, 200, 64, ["Contributors", "by record weight"]),
          box(728, 292, 200, 64, ["WITAN fee", "0% on testnet"], dashed=True),
          text(32, 392, "No WITAN wallet in the path: the split has no owner, so nobody can redirect it.", 12.5, SOFT)]
-    return svg(960, 396, "Paying a split",
+    return svg(960, 420, "Paying a split",
                "The buyer pays the item's own address; a fixed rule pays the rest.",
                b, "A sale with payment splits: the buyer pays the item's ownerless split address, distribute() pays the "
                   "seller, the contributors by record weight and WITAN's fee, which is 0% on testnet")

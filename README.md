@@ -151,6 +151,7 @@ self-hosted origin, a local stack, a node).
 | Signed versions | `wtn trust`, `verify=` / `WITAN_VERIFY=1` | [Trust](https://witanmarkets.github.io/witan-sdk/stable/guide/trust/) |
 | Bundles and nodes | `wtn save`/`load`, `wtn serve`, `wtn mcp` (stdio), `wtn promote` | [Nodes](https://witanmarkets.github.io/witan-sdk/stable/guide/nodes/) |
 | Agent tools | Claude Code and Cursor plugins (MCP server + skill) | [Plugins](https://witanmarkets.github.io/witan-sdk/stable/guide/claude-code/) |
+| Agent frameworks | LangChain, LlamaIndex, CrewAI and n8n through their MCP adapters, no WITAN package needed | [Frameworks](https://witanmarkets.github.io/witan-sdk/stable/guide/frameworks/) |
 | Command line | `wtn <command> --help`, `--json` on every command | [wtn reference](https://witanmarkets.github.io/witan-sdk/stable/reference/cli/) |
 
 ## Configuration

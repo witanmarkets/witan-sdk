@@ -93,6 +93,32 @@ parts that get a URL count as egress. `have` names parts you already hold (sha25
 they are listed without a URL and count nothing. `pull` names the parts in `out_dir` this way, so
 pulling the next version of a project you hold costs only the parts that changed.
 
+## Publish a file
+
+`projects.publish(path, slug=None, *, title=None, readme=None, source_declaration=None, license=None, tags=None, visibility=None, format=None, dry_run=False, wait=True)`
+turns a data file into a dataset in one call — the shortest way for a data owner:
+
+```bash
+wtn publish prices.csv                      # infers the schema, creates "prices", merges v1
+wtn publish prices.csv --source "nightly export from our pricing DB"   # tomorrow's file: v2
+wtn publish prices.csv --dry-run            # the inferred schema, and whether the file fits; nothing sent
+```
+
+- **Formats:** `.csv`, `.tsv`, `.json` (an array of objects, or `{"records": [...]}`), `.jsonl`/`.ndjson`,
+  `.parquet` (the `query` extra, DuckDB). `--format` overrides the extension.
+- **Types:** each column takes the narrowest of `boolean`, `integer`, `number`, `string` that fits every
+  value. A CSV number with a leading zero (`02134`) stays text; dates stay text; objects and arrays go
+  as JSON text. A column that is ever empty is optional, and an empty cell is left out of the record.
+- **Names** are made to fit the contract (`Close Price` → `Close_Price`, `2024` → `f_2024`); the
+  renames are printed.
+- **New project:** the inferred schema with `allowExtra: false`, the title from the file name and a
+  README draft listing the fields unless `--title`/`--readme` say otherwise. `--private` keeps it to
+  your operator's agents. Edit the README later with `update`.
+- **Existing project:** the file must fit its schema. A column it does not know, values of another
+  type or an empty required field stop the call before anything is sent, one line per problem.
+- The records go up through `push` (below), so there is no 500-record limit; records the project
+  already holds are skipped, and a file with nothing new makes no version.
+
 ## Create a project
 
 On the origin, `projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)`

@@ -1485,6 +1485,63 @@ class Projects:
             result.update(self.wait_contribution(slug, done["contributionId"], timeout=timeout))
         return result
 
+    def publish(self, path: "str | os.PathLike[str]", slug: str | None = None, *, title: str | None = None,
+                readme: str | None = None, source_declaration: str | None = None, license: str | None = None,
+                tags: list[str] | None = None, visibility: str | None = None, format: str | None = None,
+                dry_run: bool = False, wait: bool = True, timeout: float = 900.0) -> dict[str, Any]:
+        """A data file (CSV, TSV, JSON, JSON lines, Parquet) as the next version of a project, made if
+        it does not exist yet — the data owner's one step from a file to a dataset.
+
+        The file's schema is inferred (string, number, integer, boolean; a column ever empty is
+        optional; names made to fit the contract). ``slug`` defaults to one made from the file name.
+        A new project takes the inferred schema, ``title`` (default: the file name) and ``readme``
+        (default: a draft listing the fields); an existing one must take the file as it is — a
+        column it does not know, or values of another type, stop the call before anything is sent.
+        The records go up with ``push`` (gzip, parts, no 500-record limit). ``dry_run`` only reads:
+        it looks the project up and returns what would be sent (and, for an existing project, whether
+        the file fits). Returns ``{slug, created, format, records, schema,
+        renamed, ...}`` plus, unless dry, the push result (with ``wait``, its final status and
+        ``mergedVersion``)."""
+        import datetime
+        import tempfile
+        from pathlib import Path
+
+        from .errors import NotFoundError
+        from .infer import Table, check_new, fit, readme_draft, slug_from, title_from
+
+        table = Table(path, format)
+        inferred = table.infer()
+        slug = slug or slug_from(table.path)
+        stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        source = source_declaration or f"wtn publish {table.path.name}, {inferred.rows} rows, {stamp}"
+        plan: dict[str, Any] = {"slug": slug, "format": inferred.format, "records": inferred.rows,
+                                "schema": inferred.schema, "renamed": inferred.renamed, "source": source}
+        try:
+            project = self.get(slug)
+        except NotFoundError:
+            project = None
+        if project is None:
+            check_new(inferred)
+            plan.update(exists=False, created=not dry_run)
+            contract = inferred.schema
+            if dry_run:
+                return {**plan, "dryRun": True}
+            self.create(slug, title or title_from(table.path), readme or readme_draft(inferred, source), contract,
+                        license=license, tags=tags, visibility=visibility)
+        else:
+            contract = project.get("schemaDef") or {}
+            problems = fit(inferred, contract)
+            plan.update(exists=True, created=False, schema=contract)
+            if dry_run:
+                return {**plan, "dryRun": True, "problems": problems}
+            if problems:
+                raise WitanError(f"{table.path.name} does not fit {slug}'s schema:\n  " + "\n  ".join(problems))
+        with tempfile.TemporaryDirectory(prefix="wtn-publish-") as tmp:
+            out = Path(tmp) / f"{slug}.jsonl"
+            table.write_jsonl(inferred, contract, out)
+            pushed = self.push(slug, out, source_declaration=source, wait=wait, timeout=timeout)
+        return {**plan, **pushed}
+
     # ---- bundles: one version as one file, like docker save / load ---------
 
     def save(self, slug: str, path: "str | os.PathLike[str] | None" = None, *, version: int | None = None,

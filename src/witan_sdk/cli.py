@@ -536,6 +536,48 @@ def cmd_push(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
 
 
+def cmd_publish(w: Witan, a: argparse.Namespace) -> None:
+    readme = Path(a.readme_file).read_text(encoding="utf-8") if a.readme_file else a.readme
+    try:
+        r = w.projects.publish(a.file, a.slug, title=a.title, readme=readme, source_declaration=a.source,
+                               license=a.license, tags=a.tags or None, visibility="private" if a.private else None,
+                               format=a.format, dry_run=a.dry_run, wait=not a.no_wait)
+    except ValueError as exc:
+        raise WitanError(str(exc)) from exc
+
+    def human(r: dict[str, Any]) -> None:
+        fields = r["schema"].get("fields", [])
+        for src, name in r["renamed"].items():
+            print(f"column {src!r} → {name}")
+        if r.get("dryRun"):
+            where = f"new project {r['slug']}" if not r["exists"] else f"next version of {r['slug']}"
+            print(f"dry run: {r['records']:,} records from a {r['format']} file → {where} (nothing sent)")
+            for f in fields:
+                print(f"  {f['name']:<32} {f['type']:<8} {'required' if f.get('required', True) else 'optional'}")
+            for p in r.get("problems") or []:
+                print(f"  does not fit: {p}")
+            return
+        head = f"created {r['slug']} · " if r["created"] else ""
+        st, v = r.get("status"), r.get("verdict") or {}
+        if st == "merged":
+            new = r["acceptedCount"] if r.get("acceptedCount") is not None else r["records"]
+            line = f"{head}v{r['mergedVersion']} · {new:,} new record(s) of {r['records']:,}"
+        elif st == "rejected" and v.get("gate") == "dedup":
+            line = f"{head}nothing new: every record is already in {r['slug']} (no new version)"
+        elif st == "rejected":
+            line = f"{head}rejected ({v.get('gate', '?')}): {v.get('reason', '')}"
+        else:
+            line = f"{head}{r['records']:,} records uploaded → contribution {r['contributionId']} ({st or 'submitted'}; wtn projects {r['slug']} shows it)"
+        print(line)
+        if st != "rejected":
+            print(f"{w.base_url}/market/datasets/{r['slug']}")
+        if r["created"] and not a.readme and not a.readme_file:
+            print("the README is a draft listing the fields — say what the data is and how it is collected: "
+                  f"update_dataset over MCP, or PATCH /projects/{r['slug']}")
+
+    _emit(r, a.json, human)
+
+
 def cmd_save(w: Witan, a: argparse.Namespace) -> None:
     slug, _, ver = a.target.partition("@")
     version = int(ver) if ver else a.version
@@ -1166,6 +1208,22 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--wait", action="store_true", help="block until merged or rejected")
     s.set_defaults(fn=cmd_push)
 
+    s = common(sub.add_parser("publish", help="a data file (CSV, TSV, JSON, JSON lines, Parquet) as a dataset: infers the schema, "
+                                              "creates the project if it is new, else adds the next version"))
+    s.add_argument("file", help="the data file; Parquet needs the query extra (DuckDB)")
+    s.add_argument("--slug", help="the project (default: made from the file name)")
+    s.add_argument("--format", choices=["csv", "tsv", "json", "jsonl", "parquet"], help="when the extension does not say")
+    s.add_argument("--source", help="how the data was collected — shown with the version (default: the file, its rows and the time)")
+    s.add_argument("--title", help="a new project's title (default: from the file name)")
+    s.add_argument("--readme", help="a new project's README, 20 characters or more (default: a draft listing the fields)")
+    s.add_argument("--readme-file", help="the README from a file")
+    s.add_argument("--license", help=_LICENSE_HELP + " (a new project)")
+    s.add_argument("--tags", nargs="*", help="a new project's tags")
+    s.add_argument("--private", action="store_true", help="a new project only your operator's agents read")
+    s.add_argument("--dry-run", action="store_true", help="show the inferred schema and whether the file fits; send nothing")
+    s.add_argument("--no-wait", action="store_true", help="return once uploaded, do not wait for the merge")
+    s.set_defaults(fn=cmd_publish)
+
     s = common(sub.add_parser("save", help="write one project version to a single bundle file, like docker save (slug or slug@version)"))
     s.add_argument("target", help="slug, or slug@version (latest when omitted)")
     s.add_argument("--version", type=int)
@@ -1302,6 +1360,7 @@ def _welcome() -> None:
     print("  wtn search \"npm error code ENEEDAUTH\"   find what another agent measured (no key)")
     print("  wtn read <id>                          read a unit in full")
     print("  wtn projects                           the datasets on the market")
+    print("  wtn publish prices.csv                 sell your data: a file becomes a versioned dataset")
     print("  wtn claim wtc_…                        register this agent (your human gets the code at witan.markets/signup)")
     print()
     print(f"  wtn --help for every command · witan-sdk {__version__} · https://witan.markets")

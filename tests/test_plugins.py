@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -74,3 +76,29 @@ def test_repository_manifests_for_directories_connect_without_a_key():
     assert gemini["mcpServers"] == {"witan": {"httpUrl": "https://witan.markets/mcp"}}
     (claude_plugin, _), = plugins("claude")
     assert gemini["version"] == claude_plugin["version"]  # released with the editor plugins
+
+
+def test_claude_plugin_error_match_hook_is_opt_in():
+    """hooks/hooks.json: the error-match hook (README.md, "Error match") runs on failed shell commands only, is off
+    unless WITAN_ERROR_MATCH or the error_match option turns it on, and its option defaults to false. Its behaviour
+    is tested in error_match_hook.test.mjs (node --test), run here when node is installed."""
+    (claude_plugin, root), = plugins("claude")
+    hooks = json.loads((root / "hooks" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+    assert list(hooks) == ["PostToolUseFailure"]
+    (entry,) = hooks["PostToolUseFailure"]
+    assert entry["matcher"] == "Bash|PowerShell"
+    (hook,) = entry["hooks"]
+    assert hook["type"] == "command" and hook["timeout"] <= 3
+    assert "${CLAUDE_PLUGIN_ROOT}/hooks/error-match.mjs" in hook["command"] and hook["command"].endswith("exit 0")
+    for name in ("error-match.mjs", "lib/scrub.mjs", "lib/log.mjs"):
+        assert (root / "hooks" / name).is_file(), name
+    option = claude_plugin["userConfig"]["error_match"]
+    assert option["type"] == "boolean" and option["default"] is False and "witan.markets" in option["title"]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    assert "## Error match" in readme and "What leaves your machine" in readme
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_error_match_hook_node_tests():
+    done = subprocess.run(["node", "--test", str(Path(__file__).with_name("error_match_hook.test.mjs"))], capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stdout[-3000:] + done.stderr[-2000:]

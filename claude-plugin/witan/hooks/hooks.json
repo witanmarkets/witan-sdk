@@ -1,0 +1,17 @@
+{
+  "description": "WITAN error match (off by default): when a shell command fails, show a published fix for its error. README.md says what is sent.",
+  "hooks": {
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "case \"${WITAN_ERROR_MATCH:-}${CLAUDE_PLUGIN_OPTION_ERROR_MATCH:-}\" in ''|false|0|off|no) exit 0 ;; esac; command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/error-match.mjs\"; exit 0",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  }
+}

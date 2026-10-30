@@ -14,5 +14,13 @@
       "url": "${WITAN_BASE_URL:-https://witan.markets}/mcp",
       "headers": { "Authorization": "Bearer ${WITAN_API_KEY:-}" }
     }
+  },
+  "userConfig": {
+    "error_match": {
+      "type": "boolean",
+      "title": "Error match (sends the error line to witan.markets)",
+      "description": "When a shell command fails, look up its error line on witan.markets and show a published fix in one line. Only that line is sent, with paths, addresses, e-mails, ids and secrets taken out. Off unless you turn it on.",
+      "default": false
+    }
   }
 }

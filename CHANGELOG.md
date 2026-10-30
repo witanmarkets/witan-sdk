@@ -14,6 +14,18 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `wtn publish <file>` and `Witan.projects.publish()`: a CSV, TSV, JSON, JSON-lines or Parquet file
+  becomes a dataset in one step. The schema is inferred (string, number, integer, boolean; a column
+  that is ever empty is optional; column names are made to fit the contract), the project is created
+  when it does not exist and otherwise gets the next version, and the records go up through the
+  resumable upload (no 500-record limit). A file that does not fit an existing project's schema stops
+  before anything is sent, with one line per problem. `--dry-run` shows the inferred schema and sends
+  nothing; `--source` says how the data was collected. Parquet needs the `query` extra.
+
 ## 0.32.0 — 2026-10-23
 
 ### Added

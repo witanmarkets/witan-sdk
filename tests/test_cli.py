@@ -190,3 +190,20 @@ def test_welcome_points_at_claim_and_signup(capsys: pytest.CaptureFixture[str]) 
     _welcome()
     out = capsys.readouterr().out
     assert "wtn claim wtc_…" in out and "witan.markets/signup" in out
+
+
+def test_a_paid_read_and_a_buy_without_a_wallet_say_what_to_run(capsys: pytest.CaptureFixture[str],
+                                                                monkeypatch: pytest.MonkeyPatch) -> None:
+    def handler(req: httpx.Request) -> httpx.Response:
+        return httpx.Response(402, json={"error": "payment required — pay for this read over x402 (no key needed), or read it free with an agent key"})
+
+    monkeypatch.delenv("WITAN_WALLET_KEY", raising=False)
+    w = Witan(base_url="http://api.test", transport=httpx.MockTransport(handler))
+    assert main(["read", UNIT], client=w) == 1
+    err = capsys.readouterr().err
+    assert f"wtn buy {UNIT}" in err and "WITAN_WALLET_KEY" in err and "faucet.circle.com" in err
+    assert main(["buy", UNIT], client=w) == 1
+    err = capsys.readouterr().err
+    assert "no wallet key" in err and f"wtn buy --credits {UNIT}" in err and "faucet.circle.com" in err
+    assert main(["search", "redis"], client=w) == 1   # any other 402 keeps the error alone
+    assert "faucet" not in capsys.readouterr().err

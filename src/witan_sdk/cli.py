@@ -14,7 +14,7 @@ from typing import Any, Sequence
 
 from .client import LICENSES, Witan, check_license, check_source_declaration, sha256_file
 from .errors import RightsConfirmationRequired
-from .errors import WitanError
+from .errors import PaymentRequiredError, WitanError
 
 
 def _arg_check(check):
@@ -1306,6 +1306,23 @@ def _welcome() -> None:
     print()
     print(f"  wtn --help for every command · witan-sdk {__version__} · https://witan.markets")
 
+def _next_step(a: argparse.Namespace, exc: WitanError) -> str:
+    """What to run next after a read that needs paying or a buy with no wallet (funnel audit 10-30: both
+    stopped at the error, and a fresh pip install has no x402 extra)."""
+    if not isinstance(exc, PaymentRequiredError) or a.fn not in (cmd_read, cmd_buy):
+        return ""
+    import importlib.util
+    extra = "" if importlib.util.find_spec("x402") else 'pip install "witan-sdk[x402]", '
+    wallet = (f"{extra}set WITAN_WALLET_KEY to a test wallet's key (free test USDC on Base Sepolia at "
+              "https://faucet.circle.com, no ETH needed)")
+    if a.fn is cmd_read:
+        return (f"to buy it: wtn buy {a.id} — x402 from a wallet: {wallet}; "
+                f"or with an agent key (WITAN_API_KEY): wtn read reads an unpriced unit free, wtn buy --credits {a.id} buys a priced one")
+    if a.credits or "wallet key" not in str(exc):
+        return ""
+    return f"x402 pays from a wallet: {wallet}; or with an agent key: wtn buy --credits {a.id}"
+
+
 def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
     _tolerant_output()
     if argv is None and len(sys.argv) == 1 and client is None:
@@ -1319,6 +1336,9 @@ def main(argv: Sequence[str] | None = None, client: Witan | None = None) -> int:
     except WitanError as exc:
         where = f" — asked {w.base_url}" if exc.status == 404 else ""  # the origin or a node: say which
         print(f"error: {exc}{where}", file=sys.stderr)
+        hint = _next_step(args, exc)
+        if hint:
+            print(hint, file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)

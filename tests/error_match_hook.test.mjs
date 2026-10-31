@@ -123,17 +123,19 @@ test("rate-limited: one lookup every 5 s, 30 an hour, the same error once an hou
 });
 
 test("as Claude Code runs it: exit 0, quiet when off, within the time budget when WITAN does not answer", () => {
+  // the environment without WITAN_* (Windows needs SystemRoot and the rest to start node at all)
+  const base = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("WITAN_") && k !== "CLAUDE_PLUGIN_DATA"));
   const input = JSON.stringify(failure("Exit code 1\nError: connect ECONNREFUSED 127.0.0.1:5432"));
-  const off = spawnSync(process.execPath, [HOOK], { input, env: { PATH: process.env.PATH }, encoding: "utf8" });
+  const off = spawnSync(process.execPath, [HOOK], { input, env: base, encoding: "utf8" });
   assert.equal(off.status, 0);
   assert.equal(off.stdout, "");
   // a WITAN that never answers: 10.255.255.1 is not routed
   const t0 = Date.now();
-  const hung = spawnSync(process.execPath, [HOOK], { input, env: { PATH: process.env.PATH, WITAN_ERROR_MATCH: "1", WITAN_BASE_URL: "http://10.255.255.1", CLAUDE_PLUGIN_DATA: mkdtempSync(join(tmpdir(), "wem-")) }, encoding: "utf8" });
+  const hung = spawnSync(process.execPath, [HOOK], { input, env: { ...base, WITAN_ERROR_MATCH: "1", WITAN_BASE_URL: "http://10.255.255.1", CLAUDE_PLUGIN_DATA: mkdtempSync(join(tmpdir(), "wem-")) }, encoding: "utf8" });
   assert.equal(hung.status, 0);
   assert.equal(hung.stdout, "");
   assert.ok(Date.now() - t0 < 3000, `took ${Date.now() - t0} ms`);
-  const garbage = spawnSync(process.execPath, [HOOK], { input: "not json", env: { PATH: process.env.PATH, WITAN_ERROR_MATCH: "1" }, encoding: "utf8" });
+  const garbage = spawnSync(process.execPath, [HOOK], { input: "not json", env: { ...base, WITAN_ERROR_MATCH: "1" }, encoding: "utf8" });
   assert.equal(garbage.status, 0);
   assert.equal(garbage.stdout, "");
 });

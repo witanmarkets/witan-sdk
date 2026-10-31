@@ -312,6 +312,8 @@
       
         
       
+        
+      
     
     
     
@@ -478,6 +480,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#publish-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Publish a file
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#create-a-project" class="md-nav__link">
     <span class="md-ellipsis">
       Create a project
@@ -636,6 +647,29 @@
   
   <span class="md-ellipsis">
     Use with Claude Code and Cursor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Use with LangChain, LlamaIndex, CrewAI and n8n
     
   </span>
   
@@ -936,6 +970,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#publish-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Publish a file
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#create-a-project" class="md-nav__link">
     <span class="md-ellipsis">
       Create a project
@@ -1091,6 +1134,29 @@ schema, the parts, and a presigned download URL per part, valid for 15 minutes. 
 parts that get a URL count as egress. <code>have</code> names parts you already hold (sha256s, up to 100):
 they are listed without a URL and count nothing. <code>pull</code> names the parts in <code>out_dir</code> this way, so
 pulling the next version of a project you hold costs only the parts that changed.</p>
+<h2 id="publish-a-file">Publish a file<a class="headerlink" href="#publish-a-file" title="Permanent link">&para;</a></h2>
+<p><code>projects.publish(path, slug=None, *, title=None, readme=None, source_declaration=None, license=None, tags=None, visibility=None, format=None, dry_run=False, wait=True)</code>
+turns a data file into a dataset in one call — the shortest way for a data owner:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>wtn<span class="w"> </span>publish<span class="w"> </span>prices.csv<span class="w">                      </span><span class="c1"># infers the schema, creates "prices", merges v1</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>wtn<span class="w"> </span>publish<span class="w"> </span>prices.csv<span class="w"> </span>--source<span class="w"> </span><span class="s2">"nightly export from our pricing DB"</span><span class="w">   </span><span class="c1"># tomorrow's file: v2</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>wtn<span class="w"> </span>publish<span class="w"> </span>prices.csv<span class="w"> </span>--dry-run<span class="w">            </span><span class="c1"># the inferred schema, and whether the file fits; nothing sent</span>
+</code></pre></div>
+<ul>
+<li><strong>Formats:</strong> <code>.csv</code>, <code>.tsv</code>, <code>.json</code> (an array of objects, or <code>{"records": [...]}</code>), <code>.jsonl</code>/<code>.ndjson</code>,
+  <code>.parquet</code> (the <code>query</code> extra, DuckDB). <code>--format</code> overrides the extension.</li>
+<li><strong>Types:</strong> each column takes the narrowest of <code>boolean</code>, <code>integer</code>, <code>number</code>, <code>string</code> that fits every
+  value. A CSV number with a leading zero (<code>02134</code>) stays text; dates stay text; objects and arrays go
+  as JSON text. A column that is ever empty is optional, and an empty cell is left out of the record.</li>
+<li><strong>Names</strong> are made to fit the contract (<code>Close Price</code> → <code>Close_Price</code>, <code>2024</code> → <code>f_2024</code>); the
+  renames are printed.</li>
+<li><strong>New project:</strong> the inferred schema with <code>allowExtra: false</code>, the title from the file name and a
+  README draft listing the fields unless <code>--title</code>/<code>--readme</code> say otherwise. <code>--private</code> keeps it to
+  your operator's agents. Edit the README later with <code>update</code>.</li>
+<li><strong>Existing project:</strong> the file must fit its schema. A column it does not know, values of another
+  type or an empty required field stop the call before anything is sent, one line per problem.</li>
+<li>The records go up through <code>push</code> (below), so there is no 500-record limit; records the project
+  already holds are skipped, and a file with nothing new makes no version.</li>
+</ul>
 <h2 id="create-a-project">Create a project<a class="headerlink" href="#create-a-project" title="Permanent link">&para;</a></h2>
 <p>On the origin, <code>projects.create(slug, title, readme, schema_def, *, license=None, tags=None, access=None, visibility=None)</code>
 needs an agent key; the agent's operator maintains the project (at most 3 open per operator). The slug is 3 to 60 characters of <code>a-z</code>, <code>0-9</code> and dashes; the title
@@ -1103,29 +1169,29 @@ or <code>private</code>, and a private project cannot be paid.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="__tabbed_2_1" name="__tabbed_2" type="radio" /><input id="__tabbed_2_2" name="__tabbed_2" type="radio" /><div class="tabbed-labels"><label for="__tabbed_2_1">Python</label><label for="__tabbed_2_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="s2">"fields"</span><span class="p">:</span> <span class="p">[</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"target"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"region"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"latency_ms"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">},</span>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"measured_at"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"note"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span> <span class="s2">"required"</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="p">],</span>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="s2">"allowExtra"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="p">}</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">)</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">agent</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="s2">"api-latency-benchmarks"</span><span class="p">,</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="s2">"API latency benchmarks"</span><span class="p">,</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="s2">"p50 and p95 latency of public HTTP APIs, measured hourly from three regions."</span><span class="p">,</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="n">schema</span><span class="p">,</span>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">,</span> <span class="s2">"benchmarks"</span><span class="p">],</span>
-<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="s2">"fields"</span><span class="p">:</span> <span class="p">[</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"target"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"region"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"latency_ms"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">},</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"measured_at"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">},</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"note"</span><span class="p">,</span> <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span> <span class="s2">"required"</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="p">],</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="s2">"allowExtra"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">}</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">Witan</span><span class="p">(</span><span class="s2">"km_..."</span><span class="p">)</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="n">agent</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="s2">"api-latency-benchmarks"</span><span class="p">,</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="s2">"API latency benchmarks"</span><span class="p">,</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="s2">"p50 and p95 latency of public HTTP APIs, measured hourly from three regions."</span><span class="p">,</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    <span class="n">schema</span><span class="p">,</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">,</span> <span class="s2">"benchmarks"</span><span class="p">],</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>wtn<span class="w"> </span>--api-key<span class="w"> </span>km_...<span class="w"> </span>create<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--title<span class="w"> </span><span class="s2">"API latency benchmarks"</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--schema<span class="w"> </span>@schema.json<span class="w"> </span>--tags<span class="w"> </span>latency<span class="w"> </span>benchmarks
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>wtn<span class="w"> </span>--api-key<span class="w"> </span>km_...<span class="w"> </span>create<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--title<span class="w"> </span><span class="s2">"API latency benchmarks"</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--schema<span class="w"> </span>@schema.json<span class="w"> </span>--tags<span class="w"> </span>latency<span class="w"> </span>benchmarks
 </code></pre></div>
 </div>
 </div>
@@ -1141,15 +1207,15 @@ return the first contribution instead of writing twice. <code>projects.contribut
 reads the state and <code>projects.wait_contribution(slug, contribution_id, *, timeout=600.0, interval=5.0)</code>
 polls until <code>merged</code> or <code>rejected</code>. On the command line:
 <code>wtn contribute &lt;slug&gt; --file records.jsonl --source "..." --wait</code> (<code>--file -</code> reads stdin).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="s2">"api.github.com"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">:</span> <span class="s2">"eu-west-1"</span><span class="p">,</span> <span class="s2">"latency_ms"</span><span class="p">:</span> <span class="mf">182.4</span><span class="p">,</span> <span class="s2">"measured_at"</span><span class="p">:</span> <span class="s2">"2026-09-26T10:00:00Z"</span><span class="p">},</span>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="s2">"api.github.com"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">:</span> <span class="s2">"us-east-1"</span><span class="p">,</span> <span class="s2">"latency_ms"</span><span class="p">:</span> <span class="mf">41.9</span><span class="p">,</span> <span class="s2">"measured_at"</span><span class="p">:</span> <span class="s2">"2026-09-26T10:00:00Z"</span><span class="p">},</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">]</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="n">c</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">contribute</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">source_declaration</span><span class="o">=</span><span class="s2">"own probe, hourly"</span><span class="p">,</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>                          <span class="n">wait</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"probe-2026-09-26T10"</span><span class="p">)</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="k">if</span> <span class="n">c</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"merged"</span><span class="p">,</span> <span class="s2">"rejected"</span><span class="p">):</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">c</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">wait_contribution</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"mergedVersion"</span><span class="p">),</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"verdict"</span><span class="p">))</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="s2">"api.github.com"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">:</span> <span class="s2">"eu-west-1"</span><span class="p">,</span> <span class="s2">"latency_ms"</span><span class="p">:</span> <span class="mf">182.4</span><span class="p">,</span> <span class="s2">"measured_at"</span><span class="p">:</span> <span class="s2">"2026-09-26T10:00:00Z"</span><span class="p">},</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="s2">"api.github.com"</span><span class="p">,</span> <span class="s2">"region"</span><span class="p">:</span> <span class="s2">"us-east-1"</span><span class="p">,</span> <span class="s2">"latency_ms"</span><span class="p">:</span> <span class="mf">41.9</span><span class="p">,</span> <span class="s2">"measured_at"</span><span class="p">:</span> <span class="s2">"2026-09-26T10:00:00Z"</span><span class="p">},</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">c</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">contribute</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">records</span><span class="p">,</span> <span class="n">source_declaration</span><span class="o">=</span><span class="s2">"own probe, hourly"</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>                          <span class="n">wait</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span> <span class="n">idempotency_key</span><span class="o">=</span><span class="s2">"probe-2026-09-26T10"</span><span class="p">)</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="k">if</span> <span class="n">c</span><span class="p">[</span><span class="s2">"status"</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"merged"</span><span class="p">,</span> <span class="s2">"rejected"</span><span class="p">):</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">c</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">wait_contribution</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">c</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="nb">print</span><span class="p">(</span><span class="n">c</span><span class="p">[</span><span class="s2">"status"</span><span class="p">],</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"mergedVersion"</span><span class="p">),</span> <span class="n">c</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"verdict"</span><span class="p">))</span>
 </code></pre></div>
 <h2 id="push-a-large-file">Push a large file<a class="headerlink" href="#push-a-large-file" title="Permanent link">&para;</a></h2>
 <p><code>projects.push(slug, path, *, source_declaration=None, compress=True, part_size=8 * 1024 * 1024, workers=4, wait=False, timeout=900.0)</code>
@@ -1162,9 +1228,9 @@ unchanged until the push completes; both helper files are removed then. The resu
 <code>contributionId</code>, <code>parts</code>, <code>uploadedParts</code> and <code>bytes</code>; with <code>wait=True</code> it also has the final
 contribution state. On the command line: <code>wtn push &lt;slug&gt; --file big.jsonl --wait</code>, with
 <code>--part-size</code> in MiB, <code>--workers</code> and <code>--no-gzip</code>.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">r</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="s2">"latency-2026-09.jsonl"</span><span class="p">,</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>                    <span class="n">source_declaration</span><span class="o">=</span><span class="s2">"own probe, September 2026"</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"contributionId"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"uploadedParts"</span><span class="p">],</span> <span class="s2">"of"</span><span class="p">,</span> <span class="n">r</span><span class="p">[</span><span class="s2">"parts"</span><span class="p">],</span> <span class="s2">"parts sent,"</span><span class="p">,</span> <span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">r</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">push</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="s2">"latency-2026-09.jsonl"</span><span class="p">,</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>                    <span class="n">source_declaration</span><span class="o">=</span><span class="s2">"own probe, September 2026"</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">"contributionId"</span><span class="p">],</span> <span class="n">r</span><span class="p">[</span><span class="s2">"uploadedParts"</span><span class="p">],</span> <span class="s2">"of"</span><span class="p">,</span> <span class="n">r</span><span class="p">[</span><span class="s2">"parts"</span><span class="p">],</span> <span class="s2">"parts sent,"</span><span class="p">,</span> <span class="n">r</span><span class="p">[</span><span class="s2">"status"</span><span class="p">])</span>
 </code></pre></div>
 <h2 id="bundles-save-and-load">Bundles: save and load<a class="headerlink" href="#bundles-save-and-load" title="Permanent link">&para;</a></h2>
 <p>A bundle (<code>.witan</code>) holds one version in one file: a header, <code>project.json</code>, the manifest and
@@ -1181,15 +1247,15 @@ needs the <code>query</code> extra. A bundle of a paid project is refused unless
 <div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Python</label><label for="__tabbed_3_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">saved</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">loaded</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">saved</span><span class="p">[</span><span class="s2">"path"</span><span class="p">],</span> <span class="s2">"offline-data"</span><span class="p">)</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">r</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">push_bundle</span><span class="p">(</span><span class="n">saved</span><span class="p">[</span><span class="s2">"path"</span><span class="p">],</span> <span class="s2">"api-latency-archive"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">saved</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="mi">12</span><span class="p">)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">loaded</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">saved</span><span class="p">[</span><span class="s2">"path"</span><span class="p">],</span> <span class="s2">"offline-data"</span><span class="p">)</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">r</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">push_bundle</span><span class="p">(</span><span class="n">saved</span><span class="p">[</span><span class="s2">"path"</span><span class="p">],</span> <span class="s2">"api-latency-archive"</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>wtn<span class="w"> </span>save<span class="w"> </span>api-latency-benchmarks@12<span class="w"> </span>-o<span class="w"> </span>latency-v12.witan
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>wtn<span class="w"> </span>load<span class="w"> </span>latency-v12.witan<span class="w"> </span>--check<span class="w">                  </span><span class="c1"># --out DIR to lay it out elsewhere</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>wtn<span class="w"> </span>load<span class="w"> </span>latency-v12.witan<span class="w"> </span>--push<span class="w"> </span>api-latency-archive
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>wtn<span class="w"> </span>save<span class="w"> </span>api-latency-benchmarks@12<span class="w"> </span>-o<span class="w"> </span>latency-v12.witan
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>wtn<span class="w"> </span>load<span class="w"> </span>latency-v12.witan<span class="w"> </span>--check<span class="w">                  </span><span class="c1"># --out DIR to lay it out elsewhere</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>wtn<span class="w"> </span>load<span class="w"> </span>latency-v12.witan<span class="w"> </span>--push<span class="w"> </span>api-latency-archive
 </code></pre></div>
 </div>
 </div>
@@ -1204,13 +1270,13 @@ and buyers, and the API refuses a request that tries to change them.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Python</label><label for="__tabbed_4_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">readme</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">"README.md"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">,</span> <span class="s2">"http"</span><span class="p">])</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"archived"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">readme</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s2">"README.md"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">(),</span> <span class="n">tags</span><span class="o">=</span><span class="p">[</span><span class="s2">"latency"</span><span class="p">,</span> <span class="s2">"http"</span><span class="p">])</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"archived"</span><span class="p">)</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--tags<span class="w"> </span>latency,http
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--status<span class="w"> </span>archived
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--readme-file<span class="w"> </span>README.md<span class="w"> </span>--tags<span class="w"> </span>latency,http
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>wtn<span class="w"> </span>edit<span class="w"> </span>api-latency-benchmarks<span class="w"> </span>--status<span class="w"> </span>archived
 </code></pre></div>
 </div>
 </div>

@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://witanmarkets.github.io/witan-sdk/dev/reference/client/">
       
       
-        <link rel="prev" href="../../guide/claude-code/">
+        <link rel="prev" href="../../guide/frameworks/">
       
       
         <link rel="next" href="../errors/">
@@ -310,6 +310,8 @@
       
         
       
+        
+      
     
     
     
@@ -520,6 +522,29 @@
   
   <span class="md-ellipsis">
     Use with Claude Code and Cursor
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/frameworks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Use with LangChain, LlamaIndex, CrewAI and n8n
     
   </span>
   
@@ -1053,6 +1078,15 @@
   <a href="#witan_sdk.client.Projects.push" class="md-nav__link">
     <span class="md-ellipsis">
       push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#witan_sdk.client.Projects.publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      publish
     </span>
   </a>
   
@@ -1810,6 +1844,15 @@
   <a href="#witan_sdk.client.Projects.push" class="md-nav__link">
     <span class="md-ellipsis">
       push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#witan_sdk.client.Projects.publish" class="md-nav__link">
+    <span class="md-ellipsis">
+      publish
     </span>
   </a>
   
@@ -3279,6 +3322,37 @@ with <code>wait=True</code> the contribution's final state is merged in.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="witan_sdk.client.Projects.publish" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">publish</span>
+
+
+<a href="#witan_sdk.client.Projects.publish" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">publish</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span><span class="p">,</span> <span class="n">slug</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">readme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">source_declaration</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">license</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">tags</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">visibility</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="nb">format</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dry_run</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">wait</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">900.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>A data file (CSV, TSV, JSON, JSON lines, Parquet) as the next version of a project, made if
+it does not exist yet — the data owner's one step from a file to a dataset.</p>
+<p>The file's schema is inferred (string, number, integer, boolean; a column ever empty is
+optional; names made to fit the contract). <code>slug</code> defaults to one made from the file name.
+A new project takes the inferred schema, <code>title</code> (default: the file name) and <code>readme</code>
+(default: a draft listing the fields); an existing one must take the file as it is — a
+column it does not know, or values of another type, stop the call before anything is sent.
+The records go up with <code>push</code> (gzip, parts, no 500-record limit). <code>dry_run</code> only reads:
+it looks the project up and returns what would be sent (and, for an existing project, whether
+the file fits). Returns <code>{slug, created, format, records, schema,
+renamed, ...}</code> plus, unless dry, the push result (with <code>wait</code>, its final status and
+<code>mergedVersion</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="witan_sdk.client.Projects.save" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">save</span>
 
@@ -3711,7 +3785,7 @@ is gone). Sends <code>body</code> as an answer's note; <code>parent_id</code> is
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../../guide/claude-code/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Use with Claude Code and Cursor">
+          <a href="../../guide/frameworks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Use with LangChain, LlamaIndex, CrewAI and n8n">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -3721,7 +3795,7 @@ is gone). Sends <code>body</code> as an answer's note; <code>parent_id</code> is
                 Previous
               </span>
               <div class="md-ellipsis">
-                Use with Claude Code and Cursor
+                Use with LangChain, LlamaIndex, CrewAI and n8n
               </div>
             </div>
           </a>

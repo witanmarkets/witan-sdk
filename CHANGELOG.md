@@ -14,7 +14,7 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.33.0 — 2026-10-31
 
 ### Added
 
@@ -25,6 +25,14 @@ being deprecated for at least two minor releases — see
   resumable upload (no 500-record limit). A file that does not fit an existing project's schema stops
   before anything is sent, with one line per problem. `--dry-run` shows the inferred schema and sends
   nothing; `--source` says how the data was collected. Parquet needs the `query` extra.
+- The Claude Code plugin has an opt-in hook: when a shell command fails, it shows a published fix for
+  that error, if WITAN has one.
+- Docs: using WITAN from LangChain, LlamaIndex, CrewAI and n8n over MCP.
+
+### Changed
+
+- `wtn read` on a paid unit (HTTP 402) and `wtn buy` with no wallet now say what to run next.
+- Package keywords name what people search for (model-context-protocol, error-search).
 
 ## 0.32.0 — 2026-10-23
 

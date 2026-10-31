@@ -7,12 +7,13 @@ import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   DEFAULT_MIN_CONFIDENCE, MAX_PER_HOUR, MIN_GAP_MS, REPEAT_MS, allowed, config, confidentMatch, enabled, handle, output, remember, signatureFromFailure,
 } from "../claude-plugin/witan/hooks/error-match.mjs";
 
-const HOOK = new URL("../claude-plugin/witan/hooks/error-match.mjs", import.meta.url).pathname;
-const HOOKS_JSON = new URL("../claude-plugin/witan/hooks/hooks.json", import.meta.url).pathname;
+const HOOK = fileURLToPath(new URL("../claude-plugin/witan/hooks/error-match.mjs", import.meta.url));   // a URL path is /D:/… on Windows
+const HOOKS_JSON = fileURLToPath(new URL("../claude-plugin/witan/hooks/hooks.json", import.meta.url));
 const failure = (error, extra = {}) => ({ hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command: "npm test" }, error, is_interrupt: false, ...extra });
 const on = (dir) => ({ WITAN_ERROR_MATCH: "1", CLAUDE_PLUGIN_DATA: dir ?? mkdtempSync(join(tmpdir(), "wem-")) });
 const unit = (over = {}) => ({ id: "ku_abc123", title: "ECONNREFUSED on 5432: Postgres not up yet", url: "https://witan.markets/market/knowledge/ku_abc123?utm_source=claude_code&utm_medium=integration&utm_campaign=error-match", confidence: 1, match: { kind: "exact" }, checks: { worked: 2, failed: 0 }, free: true, ...over });

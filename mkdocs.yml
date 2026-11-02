@@ -108,7 +108,7 @@ nav:
       - Signed versions: guide/trust.md
       - Local nodes: guide/nodes.md
       - Use with Claude Code and Cursor: guide/claude-code.md
-      - Use with LangChain, LlamaIndex, CrewAI and n8n: guide/frameworks.md
+      - Use with agent frameworks: guide/frameworks.md
   - Reference:
       - The Witan client: reference/client.md
       - Errors and warnings: reference/errors.md

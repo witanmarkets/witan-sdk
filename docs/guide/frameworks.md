@@ -1,4 +1,4 @@
-# Use with LangChain, LlamaIndex, CrewAI and n8n
+# Use with LangChain, LlamaIndex, CrewAI, the OpenAI Agents SDK, the Vercel AI SDK and n8n
 
 WITAN's MCP server works as a tool source in any agent framework that speaks MCP over streamable HTTP.
 No WITAN package is needed: each framework's own MCP adapter loads the tools.
@@ -85,6 +85,68 @@ with MCPServerAdapter(server) as tools:
 ```
 
 Inside the `with` block, pass `tools` to an `Agent(tools=tools, ...)`.
+
+## OpenAI Agents SDK
+
+```bash
+pip install openai-agents
+```
+
+```python
+import asyncio
+from agents import Agent, Runner
+from agents.mcp import MCPServerStreamableHttp
+
+async def main():
+    async with MCPServerStreamableHttp(
+        name="witan",
+        params={
+            "url": "https://witan.markets/mcp",
+            # "headers": {"Authorization": "Bearer km_..."},
+        },
+    ) as witan:
+        agent = Agent(
+            name="debugger",
+            instructions="Before debugging an error from scratch, look it up with search_by_error.",
+            mcp_servers=[witan],
+        )
+        result = await Runner.run(agent, "npm publish fails with: npm error code ENEEDAUTH")
+        print(result.final_output)
+
+asyncio.run(main())
+```
+
+`Runner.run` needs `OPENAI_API_KEY`. To call a tool without a model, `await witan.call_tool("search_by_error", {"error": "..."})`.
+Checked with `openai-agents` 0.24.0.
+
+## Vercel AI SDK (TypeScript)
+
+```bash
+npm i ai @ai-sdk/mcp
+```
+
+```ts
+import { createMCPClient } from "@ai-sdk/mcp";
+
+const witan = await createMCPClient({
+  transport: {
+    type: "http",
+    url: "https://witan.markets/mcp",
+    // headers: { Authorization: "Bearer km_..." },
+  },
+});
+const tools = await witan.tools();
+// pass them to generateText / streamText: generateText({ model, tools, prompt, ... })
+const hit = await tools.search_by_error.execute(
+  { error: "npm error code ENEEDAUTH" },
+  { toolCallId: "lookup", messages: [] },
+);
+console.log(hit);
+await witan.close();
+```
+
+Close the client when the response is done (in `onFinish` for `streamText`). Checked with `ai` 7.0 and
+`@ai-sdk/mcp` 2.0.
 
 ## n8n
 

@@ -207,3 +207,24 @@ def test_a_paid_read_and_a_buy_without_a_wallet_say_what_to_run(capsys: pytest.C
     assert "no wallet key" in err and f"wtn buy --credits {UNIT}" in err and "faucet.circle.com" in err
     assert main(["search", "redis"], client=w) == 1   # any other 402 keeps the error alone
     assert "faucet" not in capsys.readouterr().err
+
+
+def test_data_newest_and_where(capsys: pytest.CaptureFixture[str]) -> None:
+    # wtn data --newest --where: the newest records first, filtered on a field, with no key (2026-11-04)
+    seen: list[httpx.Request] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req)
+        return httpx.Response(200, json={"project": "p", "version": 3, "order": "newest", "count": 1, "total": 9, "next": None,
+                                         "records": [{"server": "github", "up": True}]})
+
+    w = Witan(None, base_url="http://api.test", transport=httpx.MockTransport(handler))
+    assert main(["data", "mcp-server-liveness", "--newest", "--where", "server=github", "--where", "host=api.*"], client=w) == 0
+    assert json.loads(capsys.readouterr().out) == {"server": "github", "up": True}
+    q = seen[-1].url.params
+    assert seen[-1].url.path == "/projects/mcp-server-liveness/data" and q["order"] == "newest"
+    assert q.get_list("where") == ["server=github", "host=api.*"] and "authorization" not in seen[-1].headers
+    with pytest.raises(SystemExit):
+        main(["data", "p", "--where", "server"], client=w)
+    assert main(["data", "p"], client=w) == 0
+    assert "order" not in seen[-1].url.params and "where" not in seen[-1].url.params

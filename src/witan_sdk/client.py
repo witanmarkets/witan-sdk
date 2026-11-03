@@ -931,13 +931,19 @@ class Projects:
         return self._c._request("GET", f"/projects/{slug}")
 
     def data(self, slug: str, *, version: int | None = None, limit: int | None = None,
-             offset: int | None = None) -> dict[str, Any]:
-        """Merged records: ``{project, version, count, records}``. A version never changes.
+             offset: int | None = None, newest: bool = False,
+             where: "dict[str, str] | None" = None) -> dict[str, Any]:
+        """Merged records: ``{project, version, count, total, next, records}``. A version never changes.
+        Oldest first unless ``newest``; ``where`` keeps records whose field equals a value, or starts
+        with it when the value ends in ``*`` (``{"server": "github*"}``), up to 4 fields — then offset
+        and ``next`` count matching records.
         A free public dataset reads without an API key too (at most 200 records a page and 120
         pages an hour per network); with one, a page counts toward your operator's egress.
         Paid projects answer 402 — use ``buy_dataset()``."""
         return self._c._request("GET", f"/projects/{slug}/data",
-                                params={"version": version, "limit": limit, "offset": offset})
+                                params={"version": version, "limit": limit, "offset": offset,
+                                        "order": "newest" if newest else None,
+                                        "where": [f"{k}={v}" for k, v in where.items()] if where else None})
 
     def buy(self, slug: str, *, version: int | None = None) -> dict[str, Any]:
         """Buy a version of a paid dataset with your operator's prepaid credits — no wallet

@@ -416,7 +416,14 @@ def cmd_projects(w: Witan, a: argparse.Namespace) -> None:
 
 
 def cmd_data(w: Witan, a: argparse.Namespace) -> None:
-    page = w.projects.data(a.slug, version=a.version, limit=a.limit, offset=a.offset)
+    where: dict[str, str] = {}
+    for w_ in a.where or []:
+        field, eq, value = w_.partition("=")
+        if not eq or not field:
+            raise SystemExit(f"wtn data: --where takes field=value or field=prefix* (got {w_!r})")
+        where[field] = value
+    page = w.projects.data(a.slug, version=a.version, limit=a.limit, offset=a.offset,
+                           newest=a.newest, where=where or None)
     if a.json:
         print(json.dumps(page, ensure_ascii=False, indent=2))
     else:
@@ -1165,6 +1172,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--version", type=int)
     s.add_argument("--limit", type=int)
     s.add_argument("--offset", type=int)
+    s.add_argument("--newest", action="store_true", help="newest records first (default: oldest first)")
+    s.add_argument("--where", action="append", metavar="FIELD=VALUE",
+                   help="keep records whose field equals VALUE, or starts with it when VALUE ends in * (repeat for more, up to 4)")
     s.set_defaults(fn=cmd_data)
 
     s = common(sub.add_parser("pull", help="download a project version to disk (slug or slug@version)"))

@@ -1345,8 +1345,8 @@ class Projects:
                trial_sale: bool | None = None) -> dict[str, Any]:
         """Create a dataset project. On the origin the client's key must be an agent key
         (``km_...``): creating a dataset is an agent act, and the agent's operator maintains it; on a node (``wtn serve``) this makes a local project the node takes
-        writes for (``visibility`` defaults to private there). A paid project (``access="paid"``)
-        may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. On the origin
+        writes for (``visibility`` defaults to private there). A sold project (``access="paid"``, every
+        version sold, or ``"latest"``, only the newest version sold and earlier ones free) may name its ``price`` (dollars and cents; default $0.10) and ``trial_sale``. On the origin
         ``license`` is one of ``LICENSES`` in any letter case (``ValueError`` otherwise, before the
         project is sent); left out, platform-standard. A node takes any string and gets it as given."""
         if license is not None and license not in LICENSES and not self._c._is_node():
@@ -1359,13 +1359,17 @@ class Projects:
 
     def update(self, slug: str, *, title: str | None = None, readme: str | None = None,
                tags: list[str] | None = None, status: str | None = None, price: Any = _KEEP,
-               trial_sale: bool | None = None) -> dict[str, Any]:
+               trial_sale: bool | None = None, access: str | None = None) -> dict[str, Any]:
         """Edit a project your operator maintains (an agent key of that operator).
         ``status`` is ``open``, ``paused`` (no contributions for now) or ``archived`` (read-only for
         good). A paid project takes ``price`` (dollars and cents, ``0`` free, ``None`` the default; one
-        change a day) and ``trial_sale``. Schema, access and visibility stay as created."""
+        change a day) and ``trial_sale``. ``access="latest"`` sells only the newest version from
+        then on and leaves every earlier one free (refused while another operator's records are in
+        the project; there is no way back). Schema and visibility stay as created."""
+        if access is not None and access != "latest":
+            raise ValueError('access can only become "latest"')
         body = {k: v for k, v in {"title": title, "readme": readme, "tags": tags, "status": status,
-                                  "trialSale": trial_sale}.items() if v is not None}
+                                  "trialSale": trial_sale, "access": access}.items() if v is not None}
         if price is not _KEEP:
             body["price"] = price
         if not body:

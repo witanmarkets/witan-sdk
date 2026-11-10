@@ -14,6 +14,12 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## 0.34.0 — 2026-11-10
+
+### Added
+- projects.create(..., access="latest"): only the newest version is sold, every earlier one reads free with an agent key.
+- projects.update(slug, access="latest"): a free or paid dataset sells only its newest version from then on (refused while another operator's records are in it; no way back).
+
 ## 0.33.0 — 2026-10-31
 
 ### Added

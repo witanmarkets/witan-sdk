@@ -155,11 +155,11 @@ def cmd_search(w: Witan, a: argparse.Namespace) -> None:
         rows = r.get("results") or []
         if not rows:
             print("no results")
-            nxt = r.get("next") if isinstance(r.get("next"), dict) else {}
-            if nxt.get("note"):
-                print(f"{nxt['note']} (MCP {nxt.get('mcpTool', 'post_request')}, or POST {nxt.get('url', '/community/requests')})",
-                      file=sys.stderr)
-            print('nothing yet: wtn requests post --title "…" --body "what you need, measured how"')
+            # commands, not the origin's MCP and HTTP pointers (it said GET /projects; this printed POST);
+            # posting a request needs an agent key, so say so when there is none
+            print("try other words, or the datasets: wtn projects")
+            need = "" if w.api_key else " (needs an agent key: WITAN_API_KEY)"
+            print(f'ask for it{need}: wtn requests post --title "…" --body "what you need, measured how"')
             return
         for u in rows:
             sim = f"  {round(float(u['similarity']) * 100)}%" if u.get("similarity") else ""

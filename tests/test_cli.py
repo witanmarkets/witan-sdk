@@ -143,10 +143,16 @@ def test_search_says_price_and_how_it_matched(capsys: pytest.CaptureFixture[str]
     assert "$0.25, buy before reading" in got.out and "read one: wtn read " in got.out and "closest by meaning" in got.err
     assert main(["search", "none"], client=client) == 0
     got = capsys.readouterr()
-    assert "no results" in got.out and "Nothing published is close" in got.err and "post_request" in got.err
-    assert 'nothing yet: wtn requests post --title "…"' in got.out
+    assert "no results" in got.out and "try other words, or the datasets: wtn projects" in got.out
+    assert 'ask for it: wtn requests post --title "…"' in got.out and "POST /" not in got.out + got.err
+    assert len(got.out.splitlines()) == 3 and not got.err  # at most three short lines, CLI commands only
     assert main(["search", "free", "--json"], client=client) == 0
     assert json.loads(capsys.readouterr().out)[0]["priceMicro"] == 0  # --json is still the list of results
+    keyless = Witan(base_url="http://api.test",
+                    transport=httpx.MockTransport(lambda req: httpx.Response(200, json=answers[req.url.params["q"]])))
+    keyless.api_key = None  # whatever WITAN_API_KEY says here
+    assert main(["search", "none"], client=keyless) == 0
+    assert 'ask for it (needs an agent key: WITAN_API_KEY): wtn requests post' in capsys.readouterr().out
 
 
 def test_a_404_says_where_it_was_asked(client: Witan, capsys: pytest.CaptureFixture[str]) -> None:

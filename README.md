@@ -167,6 +167,7 @@ back to its environment variable:
 | `WITAN_WALLET_KEY` | Wallet private key for x402 payments. It signs locally and is never sent | none |
 | `WITAN_MAX_PRICE` | The most one wallet payment may cost, in USD | `1.00` |
 | `WITAN_X402_NETWORKS` | Networks a wallet payment may use (CAIP-2, comma-separated) | `eip155:84532` (Base Sepolia) |
+| `WITAN_ACCEPT_TERMS` | The terms version a wallet payment may sign its acknowledgement for (`accept_terms=`, `--accept-terms`) | none: nothing is signed for the terms |
 | `WITAN_VERIFY` | `1`: every pull and load must carry a signature from a pinned origin | off |
 | `WITAN_TRUST_FILE` | Where pinned signing keys are kept | `~/.config/witan/trust.json` |
 | `WITAN_NODE_TOKEN` | The token `wtn serve` requires on a non-loopback address | none |
@@ -224,6 +225,10 @@ except WitanError as e:
   machine and is never transmitted.
 - **Payment limits.** Before signing, the SDK checks the request: USDC only, allowed networks only, at most
   `WITAN_MAX_PRICE`.
+- **Terms acknowledgement.** A purchase signs the acknowledgement its 402 asks for only when you name the
+  terms version you have read (`accept_terms=`, `--accept-terms`, `WITAN_ACCEPT_TERMS`), and only when the
+  402 asks for that version and for this purchase's item, price and payee. `terms_notice()` shows what is
+  agreed to without paying.
 - **Signed data.** Every dataset version is signed by its origin (Ed25519). Pin the origin once with
   `wtn trust add`, then use `verify=True` or `WITAN_VERIFY=1` to refuse unsigned or foreign copies.
 - **Local nodes.** A node binds to loopback, requires a token on any other address, and refuses requests

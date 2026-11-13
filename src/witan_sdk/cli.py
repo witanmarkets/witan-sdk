@@ -442,7 +442,9 @@ def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
               f" · balance {b['balanceMicro'] / 1e6:.2f} USDC", file=sys.stderr)
         version = b["version"]
     if a.paid:
-        m = w.projects.pull_paid(slug, a.out, version=version, workers=a.workers, verify=verify, max_price=a.max_price)
+        m = _with_terms(w, a, lambda terms: w.projects.pull_paid(
+            slug, a.out, version=version, workers=a.workers, verify=verify, max_price=a.max_price, accept_terms=terms),
+            dataset=slug, version=version)
     else:
         m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers, verify=verify)
 
@@ -588,7 +590,9 @@ def cmd_publish(w: Witan, a: argparse.Namespace) -> None:
 def cmd_save(w: Witan, a: argparse.Namespace) -> None:
     slug, _, ver = a.target.partition("@")
     version = int(ver) if ver else a.version
-    r = w.projects.save(slug, a.output, version=version, paid=a.paid, cache_dir=a.cache, workers=a.workers)
+    r = _with_terms(w, a, lambda terms: w.projects.save(
+        slug, a.output, version=version, paid=a.paid, cache_dir=a.cache, workers=a.workers, accept_terms=terms),
+        dataset=slug, version=version)
 
     def human(r: dict[str, Any]) -> None:
         how = "from the local copy, no network" if r["offline"] else f"parts cached in {a.cache}/{r['project']}/parts/"
@@ -822,6 +826,46 @@ def _size(n: int) -> str:
     return f"{n} B"
 
 
+def _interactive() -> bool:
+    """A person is at the terminal: there is someone to show the terms to and ask."""
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def _with_terms(w: Witan, a: argparse.Namespace, pay: Any, unit_id: str | None = None, *,
+                dataset: str | None = None, version: int | None = None) -> Any:
+    """Run the x402 purchase ``pay(accept_terms)``. The terms version comes from --accept-terms (the
+    SDK itself reads WITAN_ACCEPT_TERMS). When the purchase needs the signed acknowledgement and
+    none was named, a terminal is shown the key terms and asked; a script gets the error, which
+    names the flag."""
+    try:
+        return pay(a.accept_terms or None)
+    except PaymentRequiredError as exc:
+        if exc.code != "ack_missing" or not _interactive():
+            raise
+        notice = w.terms_notice(unit_id, dataset=dataset, version=version) or {}
+        terms = notice.get("terms_version")
+        if not isinstance(terms, str) or not terms:
+            raise
+        from .payments import terms_summary_url
+
+        def clean(text: Any) -> str:
+            return "".join(ch for ch in str(text) if ch.isprintable())
+
+        print(f"This purchase asks the paying wallet to agree to the WITAN terms, version {clean(terms)}:", file=sys.stderr)
+        for line in notice.get("key_terms") or []:
+            print(f"  - {clean(line)}", file=sys.stderr)
+        if isinstance(notice.get("withdrawal_notice"), str) and notice["withdrawal_notice"]:
+            print(f"  - {clean(notice['withdrawal_notice'])}", file=sys.stderr)
+        print(f"Read them: {terms_summary_url(notice.get('legal_url'), w.base_url)}", file=sys.stderr)
+        try:
+            answer = input("Agree and sign with the paying wallet? [y/N] ")
+        except EOFError:
+            answer = ""
+        if answer.strip().lower() not in ("y", "yes"):
+            raise WitanError("not bought: the terms were not accepted — nothing was sent or charged") from None
+        return pay(terms)
+
+
 def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
     if a.credits:
         r = w.buy_with_credits(a.id)
@@ -829,7 +873,7 @@ def cmd_buy(w: Witan, a: argparse.Namespace) -> None:
             f" (${r['grantMicro'] / 1e6:.2f} given)" if r.get("grantMicro") else "")
         _emit(r, a.json, lambda _: print(f"{a.id}  {note} — read it with: wtn read {a.id}"))
         return
-    unit = w.buy(a.id, max_price=a.max_price)
+    unit = _with_terms(w, a, lambda terms: w.buy(a.id, max_price=a.max_price, accept_terms=terms), a.id)
     _emit(unit, a.json, lambda u: print(f"# {u.get('title', a.id)}\n\n{u.get('body', json.dumps(u))}"))
 
 
@@ -838,7 +882,8 @@ EPILOG = """environment:
   WITAN_API_KEY     agent key km_... for writes and most reads (a free unit needs none) — the agent
                     registers with a one-time claim code from its operator (/agent-setup.md)
   WITAN_PAY_URL     the pay routes, if not on the base URL
-  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)"""
+  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)
+  WITAN_ACCEPT_TERMS  the terms version an x402 buy may sign its acknowledgement for (same as --accept-terms)"""
 
 
 # ---- registration ----------------------------------------------------------
@@ -1189,6 +1234,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--credits", action="store_true", help="a paid dataset: buy the version with your operator's prepaid credits first (no wallet)")
     s.add_argument("--verify", action="store_true", help="require a manifest signed by a trusted origin (see wtn trust)")
     _max_price(s)
+    _accept_terms(s)
     s.set_defaults(fn=cmd_pull)
 
     s = common(sub.add_parser("query", help="run SQL over a dataset version locally with DuckDB (pulls the parts first; the table is `records`)"))
@@ -1241,6 +1287,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--cache", "--store", dest="cache", default="witan-data", help="where parts are pulled to and kept, the store (default: ./witan-data)")
     s.add_argument("--paid", action="store_true", help="buy the version over x402 first (WITAN_WALLET_KEY)")
     s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
+    _accept_terms(s)
     s.set_defaults(fn=cmd_save)
 
     s = common(sub.add_parser("load", help="verify a bundle and lay it out locally like pull, like docker load — or push its records to a project"))
@@ -1326,8 +1373,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("id")
     s.add_argument("--credits", action="store_true", help="pay from your operator's credits (agent key, no wallet); the listing then reads for all your agents")
     _max_price(s)
+    _accept_terms(s)
     s.set_defaults(fn=cmd_buy)
     return p
+
+
+def _accept_terms(sp: argparse.ArgumentParser) -> None:
+    sp.add_argument("--accept-terms", metavar="VERSION",
+                    help="the terms version you have read: an x402 buy signs the acknowledgement its 402 asks for, for that "
+                         "version only (default: WITAN_ACCEPT_TERMS; on a terminal a buy that requires it shows the key terms and asks)")
 
 
 def _max_price(sp: argparse.ArgumentParser) -> None:

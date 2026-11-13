@@ -240,6 +240,7 @@ def limits(monkeypatch: pytest.MonkeyPatch) -> None:
     pytest.importorskip("x402")
     monkeypatch.delenv("WITAN_MAX_PRICE", raising=False)
     monkeypatch.delenv("WITAN_X402_NETWORKS", raising=False)
+    monkeypatch.delenv("WITAN_ACCEPT_TERMS", raising=False)
 
 
 def buyer(service: PayService) -> Witan:
@@ -309,3 +310,217 @@ def test_the_limits_reach_every_purchase_path(limits: None, tmp_path, monkeypatc
     assert main(["buy", "u-1", "--max-price", "2"], client=w) == 0
     assert service.signed and all(p["accepted"]["amount"] == "2000000" for p in service.signed)
     assert len(service.signed) == 1
+
+
+# ---- x402: the terms acknowledgement a 402 asks for ----------------------------------------------
+
+TERMS = "2026-11-30"
+TERMS_HASH = "0x" + "cd" * 32
+ACK_NONCE = "0x" + "ef" * 32
+# pay/src/ack.ts, written out again here so a drift in the SDK's copy fails a test
+ACK_TYPES = {"TermsAck": [
+    {"name": "statement", "type": "string"}, {"name": "termsVersion", "type": "string"},
+    {"name": "termsHash", "type": "bytes32"}, {"name": "item", "type": "string"},
+    {"name": "price", "type": "uint256"}, {"name": "payTo", "type": "address"},
+    {"name": "nonce", "type": "bytes32"}, {"name": "expiry", "type": "uint256"},
+    {"name": "payment", "type": "bytes32"}]}
+
+
+def ack_info(**over: object) -> dict:
+    info = {"version": "1", "termsVersion": TERMS, "termsHash": TERMS_HASH,
+            "legalUrl": "http://api.test/legal/terms-summary", "item": "unit:u-1", "price": "100000",
+            "payTo": "0x" + "22" * 20, "network": "eip155:84532", "nonce": ACK_NONCE, "expiry": NOW + 600,
+            "required": False}
+    info.update(over)
+    return info
+
+
+def ack_signer(payload: dict) -> str:
+    """The address that signed the acknowledgement in a paid request, recovered the way pay does."""
+    from eth_account.messages import encode_typed_data
+
+    info = payload["extensions"]["witan-terms-ack"]["info"]
+    message = {
+        "statement": f"I have read the WITAN terms (version {info['termsVersion']}) and the key terms of this "
+                     "purchase, and I agree to them.",
+        "termsVersion": info["termsVersion"], "termsHash": bytes.fromhex(info["termsHash"][2:]), "item": info["item"],
+        "price": int(info["price"]), "payTo": info["payTo"], "nonce": bytes.fromhex(info["nonce"][2:]),
+        "expiry": info["expiry"], "payment": bytes.fromhex(payload["payload"]["authorization"]["nonce"][2:])}
+    domain = {"name": "WITAN Terms Acknowledgement", "version": "1", "chainId": int(info["network"].split(":")[1])}
+    signable = encode_typed_data(domain_data=domain, message_types=ACK_TYPES, message_data=message)
+    return Account.recover_message(signable, signature=info["signature"]).lower()
+
+
+class AckService(PayService):
+    """A pay service whose 402 carries the ``witan-terms-ack`` extension (and a notice in its body);
+    ``refuse`` is the body it answers a paid request with instead of the goods."""
+
+    def __init__(self, *accepts: dict, info: dict | None = None, refuse: dict | None = None) -> None:
+        super().__init__(*(accepts or (offer(),)))
+        self.info = info
+        self.refuse = refuse
+
+    def __call__(self, request: httpx.Request) -> httpx.Response:
+        if "payment-signature" in request.headers:
+            if self.refuse is not None:
+                self.requests.append(request)
+                return httpx.Response(402, json=self.refuse)
+            return super().__call__(request)
+        self.requests.append(request)
+        required: dict = {"x402Version": 2, "resource": {"url": str(request.url)}, "accepts": self.accepts}
+        notice = None
+        if self.info is not None:
+            schema = {"type": "object", "properties": {"signer": {"type": "string"}, "signature": {"type": "string"}}}
+            required["extensions"] = {"witan-terms-ack": {"info": self.info, "schema": schema}}
+            notice = {"terms_version": self.info["termsVersion"], "terms_hash": self.info["termsHash"],
+                      "legal_url": self.info["legalUrl"], "key_terms": ["Digital goods: no refund once delivered."],
+                      "withdrawal_notice": "Disputes open for 7 days.", "ack_required": self.info["required"]}
+        return httpx.Response(402, json={"error": "payment required", "notice": notice},
+                              headers={"payment-required": base64.b64encode(json.dumps(required).encode()).decode()})
+
+
+def test_naming_the_terms_version_signs_the_acknowledgement_with_the_paying_wallet(limits: None) -> None:
+    service = AckService(info=ack_info(required=True))
+    unit = buyer(service).buy("u-1", private_key=KEY, accept_terms=TERMS)
+    assert unit["x402"]["transaction"] == TX
+    (paid,) = service.signed
+    info = paid["extensions"]["witan-terms-ack"]["info"]
+    assert info["signer"].lower() == WALLET and len(bytes.fromhex(info["signature"][2:])) == 65
+    assert ack_signer(paid) == WALLET
+    # what the server sent comes back as it was: the service compares it with what it issued
+    assert {k: info[k] for k in ack_info()} == ack_info(required=True)
+    assert "schema" in paid["extensions"]["witan-terms-ack"]
+
+
+def test_the_terms_version_also_comes_from_the_environment(limits: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WITAN_ACCEPT_TERMS", f" {TERMS} ")
+    service = AckService(info=ack_info(required=True))
+    buyer(service).buy("u-1", private_key=KEY)
+    assert ack_signer(service.signed[0]) == WALLET
+
+
+def test_without_a_named_version_nothing_is_signed_for_the_terms(limits: None) -> None:
+    service = AckService(info=ack_info())  # testnet: asked for, not required
+    buyer(service).buy("u-1", private_key=KEY)
+    info = service.signed[0]["extensions"]["witan-terms-ack"]["info"]
+    assert "signature" not in info and "signer" not in info
+    plain = PayService(offer())  # a 402 without the extension is paid as before, whatever was named
+    buyer(plain).buy("u-1", private_key=KEY, accept_terms=TERMS)
+    assert "witan-terms-ack" not in (plain.signed[0].get("extensions") or {})
+
+
+def test_a_required_acknowledgement_with_no_version_named_is_refused_before_paying(limits: None) -> None:
+    service = AckService(info=ack_info(required=True))
+    with pytest.raises(PaymentRequiredError, match=f'accept_terms="{TERMS}"') as raised:
+        buyer(service).buy("u-1", private_key=KEY)
+    assert raised.value.code == "ack_missing" and "http://api.test/legal/terms-summary" in str(raised.value)
+    assert not service.signed
+
+
+def test_another_terms_version_than_the_one_named_is_not_signed(limits: None) -> None:
+    for required in (True, False):
+        service = AckService(info=ack_info(termsVersion="2027-01-10", required=required))
+        with pytest.raises(PaymentRequiredError, match="asks to acknowledge terms 2027-01-10, not 2026-11-30") as raised:
+            buyer(service).buy("u-1", private_key=KEY, accept_terms=TERMS)
+        assert raised.value.code == "ack_terms_version" and not service.signed
+
+
+@pytest.mark.parametrize("over,match", [
+    ({"item": "unit:other"}, "names 'unit:other', not 'unit:u-1'"),
+    ({"item": ""}, "not 'unit:u-1'"),
+    ({"price": "90000"}, "price"),
+    ({"price": "0.10"}, "price"),
+    ({"payTo": "0x" + "33" * 20}, "payee"),
+    ({"network": "eip155:8453"}, "network"),
+    ({"network": "solana:devnet"}, "network"),
+    ({"expiry": NOW - 5}, "expired"),
+    ({"expiry": "soon"}, "expired"),
+    ({"termsHash": "0x1234"}, "terms hash"),
+    ({"nonce": "nonce"}, "nonce is malformed"),
+    ({"termsVersion": "<script>"}, "terms version is not one"),
+])
+def test_an_acknowledgement_that_is_not_for_this_purchase_is_not_signed(limits: None, over: dict, match: str) -> None:
+    service = AckService(info=ack_info(**over))
+    with pytest.raises(PaymentRequiredError, match=match) as raised:
+        buyer(service).buy("u-1", private_key=KEY, accept_terms=TERMS)
+    assert raised.value.code == "ack_mismatch" and not service.signed
+
+
+def test_the_terms_link_in_an_error_is_only_ever_on_the_site(limits: None) -> None:
+    service = AckService(info=ack_info(required=True, legalUrl="https://evil.example/terms"))
+    with pytest.raises(PaymentRequiredError) as raised:
+        buyer(service).buy("u-1", private_key=KEY)
+    assert "evil.example" not in str(raised.value) and "http://api.test/legal/terms-summary" in str(raised.value)
+
+
+def test_a_dataset_acknowledgement_names_the_slug_and_the_version(limits: None, tmp_path) -> None:
+    assert payments.ack_item("/paid/dataset", {"slug": "paid-one", "version": 3}) == "dataset:paid-one@3"
+    assert payments.ack_item("/paid/dataset", {"slug": "paid-one", "version": None}) == "dataset:paid-one"
+    assert payments.ack_item("/paid/knowledge", {"id": "u-1"}) == "unit:u-1"
+    assert payments.ack_item("/paid/credits", {"operator": "op-1"}) == ""
+    service = AckService(info=ack_info(item="dataset:paid-one@3", required=True))
+    buyer(service).buy_dataset("paid-one", version=3, private_key=KEY, accept_terms=TERMS)
+    assert ack_signer(service.signed[0]) == WALLET
+    other = AckService(info=ack_info(item="dataset:paid-one@4", required=True))
+    with pytest.raises(PaymentRequiredError, match="not 'dataset:paid-one@3'"):
+        buyer(other).buy_dataset("paid-one", version=3, private_key=KEY, accept_terms=TERMS)
+
+
+def test_a_refusal_after_signing_carries_the_services_code(limits: None) -> None:
+    refuse = {"code": "ack_terms_outdated", "error": "this purchase needs a signed acknowledgement of the terms "
+              "(ack_terms_outdated): sign extensions[\"witan-terms-ack\"] with the paying wallet and pay again — nothing was charged"}
+    service = AckService(info=ack_info(required=True), refuse=refuse)
+    with pytest.raises(PaymentRequiredError, match="nothing was charged") as raised:
+        buyer(service).buy("u-1", private_key=KEY, accept_terms=TERMS)
+    assert raised.value.code == "ack_terms_outdated" and raised.value.status == 402 and raised.value.body == refuse
+
+
+def test_terms_notice_reads_the_unpaid_402_and_pays_nothing(limits: None) -> None:
+    service = AckService(info=ack_info(required=True))
+    w = buyer(service)
+    notice = w.terms_notice("u-1")
+    assert notice["terms_version"] == TERMS and notice["ack_required"] is True and notice["key_terms"]
+    assert w.terms_notice(dataset="paid-one", version=3)["terms_version"] == TERMS
+    assert service.requests[-1].url.params["slug"] == "paid-one" and service.requests[-1].url.params["version"] == "3"
+    assert not service.signed
+    assert buyer(PayService(offer())).terms_notice("u-1") is None
+    with pytest.raises(WitanError, match="unit id or dataset"):
+        w.terms_notice()
+    with pytest.raises(WitanError, match="unit id or dataset"):
+        w.terms_notice("u-1", dataset="paid-one")
+
+
+def test_the_cli_signs_for_the_version_given_and_asks_only_at_a_terminal(limits: None, monkeypatch: pytest.MonkeyPatch,
+                                                                         capsys: pytest.CaptureFixture) -> None:
+    from witan_sdk import cli
+
+    monkeypatch.setenv("WITAN_WALLET_KEY", KEY)
+    service = AckService(info=ack_info(required=True))
+    w = buyer(service)
+    # a script: no flag is an error that names it, and nothing is paid
+    monkeypatch.setattr(cli, "_interactive", lambda: False)
+    assert cli.main(["buy", "u-1"], client=w) == 1
+    err = capsys.readouterr().err
+    assert f"--accept-terms {TERMS}" in err and "http://api.test/legal/terms-summary" in err and not service.signed
+    assert cli.main(["buy", "u-1", "--accept-terms", TERMS], client=w) == 0
+    assert len(service.signed) == 1 and ack_signer(service.signed[0]) == WALLET
+    assert cli.main(["buy", "u-1", "--accept-terms", "2025-01-01"], client=w) == 1
+    assert "not 2025-01-01" in capsys.readouterr().err and len(service.signed) == 1
+
+    # a terminal: the key terms and the link are shown, and only "y" pays
+    monkeypatch.setattr(cli, "_interactive", lambda: True)
+    answers = iter(["n", "y"])
+    asked: list[str] = []
+    monkeypatch.setattr("builtins.input", lambda prompt="": (asked.append(prompt), next(answers))[1])
+    assert cli.main(["buy", "u-1"], client=w) == 1
+    err = capsys.readouterr().err
+    assert "no refund once delivered" in err and "http://api.test/legal/terms-summary" in err and TERMS in err
+    assert "not bought" in err and len(service.signed) == 1
+    assert cli.main(["buy", "u-1"], client=w) == 0
+    assert len(service.signed) == 2 and ack_signer(service.signed[1]) == WALLET and len(asked) == 2
+
+    # testnet (asked for, not required): nobody is asked and the purchase goes through unsigned
+    quiet = AckService(info=ack_info())
+    monkeypatch.setattr("builtins.input", lambda prompt="": pytest.fail("asked on a purchase that does not require it"))
+    assert cli.main(["buy", "u-1"], client=buyer(quiet)) == 0
+    assert "signature" not in quiet.signed[0]["extensions"]["witan-terms-ack"]["info"]

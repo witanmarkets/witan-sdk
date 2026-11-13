@@ -14,6 +14,30 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## 0.35.0 — 2026-11-13
+
+### Added
+
+- `accept_terms=` on `buy`, `buy_dataset`, `projects.pull_paid` and `projects.save(paid=True)`, with
+  `WITAN_ACCEPT_TERMS` in the environment and `--accept-terms <version>` on `wtn buy`, `wtn pull --paid`
+  and `wtn save --paid`: the paying wallet signs the terms acknowledgement an x402 purchase asks for
+  (`extensions["witan-terms-ack"]`, EIP-712, bound to that payment). It signs only for the terms version
+  you name, and only when the 402 asks for that version and for the item, price, payee and network of the
+  purchase; anything else raises `PaymentRequiredError` (`code`: `ack_terms_version`, `ack_mismatch`)
+  before anything is sent. Without a version nothing is signed for the terms, as before.
+- `Witan.terms_notice(unit_id)` / `terms_notice(dataset=<slug>)`: the notice of a purchase (terms version,
+  key terms, the link, whether the signature is required), read from the unpaid 402.
+- On a terminal, `wtn buy`, `wtn pull --paid` and `wtn save --paid` show the key terms and ask before
+  signing when the purchase requires the acknowledgement and no version was given.
+
+### Changed
+
+- A purchase whose 402 requires the acknowledgement (every purchase on Base mainnet) and that names no
+  terms version now raises `PaymentRequiredError` (`code="ack_missing"`) before paying, with the version
+  to pass and where to read the terms. Before, the payment was sent and refused by the pay service.
+- A refusal of the acknowledgement by the pay service is a `PaymentRequiredError` carrying the service's
+  `code` (`ack_expired`, `ack_terms_outdated`, …) and `body`, not a plain `WitanError`.
+
 ## 0.34.0 — 2026-11-10
 
 ### Added

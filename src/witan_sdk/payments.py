@@ -9,7 +9,12 @@ What the 402 asks for is checked before anything is signed: the network must be 
 this machine allows (``networks=`` or ``WITAN_X402_NETWORKS``; Base Sepolia only by
 default), the asset must be that network's USDC, and the amount must not exceed
 ``max_price`` (USD, or ``WITAN_MAX_PRICE``; 1.00 by default). Anything else is refused
-with ``PaymentRequiredError`` naming the rule."""
+with ``PaymentRequiredError`` naming the rule.
+
+A 402 may also ask the paying wallet to acknowledge the terms (x402 extension
+``witan-terms-ack``; mandatory on mainnet). That signature is made only when the caller
+names the terms version it has read — ``accept_terms=`` or ``WITAN_ACCEPT_TERMS`` — and
+that version is the one the 402 asks for; see ``TermsAck``."""
 
 from __future__ import annotations
 
@@ -189,9 +194,146 @@ def _policy(networks: tuple[str, ...], cap: int) -> Callable[[int, list], list]:
     return policy
 
 
+# ---- the terms acknowledgement a 402 may ask for (pay/src/ack.ts) ---------------------------
+
+ACK_KEY = "witan-terms-ack"  # the x402 extension's name
+ACK_DOMAIN = {"name": "WITAN Terms Acknowledgement", "version": "1"}  # + chainId
+ACK_TYPES = {"TermsAck": [
+    {"name": "statement", "type": "string"},
+    {"name": "termsVersion", "type": "string"},
+    {"name": "termsHash", "type": "bytes32"},
+    {"name": "item", "type": "string"},
+    {"name": "price", "type": "uint256"},
+    {"name": "payTo", "type": "address"},
+    {"name": "nonce", "type": "bytes32"},
+    {"name": "expiry", "type": "uint256"},
+    {"name": "payment", "type": "bytes32"},
+]}
+TERMS_SUMMARY_PATH = "/legal/terms-summary"
+_HEX32 = re.compile(r"0x[0-9a-fA-F]{64}")
+_ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
+_TERMS_VERSION = re.compile(r"[0-9A-Za-z][0-9A-Za-z._-]{0,39}")
+_DATASET_VERSION = re.compile(r"[1-9][0-9]{0,8}")
+_EVM_NETWORK = re.compile(r"eip155:([1-9][0-9]{0,17})")
+
+
+def ack_statement(terms_version: str) -> str:
+    """The sentence the wallet signs with the acknowledgement — pay/src/ack.ts, character for character."""
+    return (f"I have read the WITAN terms (version {terms_version}) and the key terms of this purchase, "
+            "and I agree to them.")
+
+
+def ack_item(path: str, params: dict[str, Any]) -> str:
+    """What a paid path sells, as the pay service names it in the acknowledgement: ``unit:<id>``,
+    ``dataset:<slug>`` or ``dataset:<slug>@<version>``. Empty for anything else (credit packs)."""
+    def q(name: str) -> str:
+        return "" if params.get(name) is None else str(params[name])
+
+    if path == "/paid/knowledge":
+        return f"unit:{q('id')}" if q("id") else ""
+    if path == "/paid/dataset" and q("slug"):
+        return f"dataset:{q('slug')}@{q('version')}" if _DATASET_VERSION.fullmatch(q("version")) else f"dataset:{q('slug')}"
+    return ""
+
+
+def accepted_terms(accept_terms: str | None = None) -> str:
+    """The terms version the caller says it has read: ``accept_terms``, else ``WITAN_ACCEPT_TERMS``,
+    else none (and then nothing is signed for the terms)."""
+    return str(accept_terms if accept_terms is not None else os.environ.get("WITAN_ACCEPT_TERMS") or "").strip()
+
+
+def terms_summary_url(legal_url: Any, site: str | None) -> str:
+    """Where the key terms are read. The 402's own link is shown only when it is on the WITAN
+    origin this client talks to; otherwise the summary page of that origin."""
+    from .trust import origin_of
+
+    origin = origin_of(site) if site else ""
+    if isinstance(legal_url, str) and origin and origin_of(legal_url) == origin and len(legal_url) <= 200:
+        return legal_url
+    return origin + TERMS_SUMMARY_PATH
+
+
+class TermsAck:
+    """The client side of the x402 extension ``witan-terms-ack``.
+
+    The 402 carries what to acknowledge (terms version and hash, the item, its price, who is paid,
+    a nonce and an expiry). When ``accept_terms`` names that terms version, the paying wallet signs
+    an EIP-712 ``TermsAck`` over those values and this payment's EIP-3009 nonce, and the signature
+    travels with the payment. Without ``accept_terms`` nothing is signed: the purchase goes ahead
+    unsigned where the service allows that (testnet) and is refused here, before anything is
+    sent, where it does not. The values are held to the purchase being made before signing — a
+    402 cannot get an acknowledgement for another item, price, payee or terms version."""
+
+    key = ACK_KEY
+    hooks = None
+    transport_hooks = None
+
+    def __init__(self, account: Any, item: str, accept_terms: str = "", site: str | None = None):
+        self.account, self.item, self.accept_terms, self.site = account, item, accept_terms, site
+
+    def enrich_payment_payload(self, payload: Any, required: Any) -> Any:
+        entry = (getattr(required, "extensions", None) or {}).get(ACK_KEY)
+        info = entry.get("info") if isinstance(entry, dict) else None
+        if not isinstance(info, dict):
+            return payload  # this 402 asks for no acknowledgement
+        version = info.get("termsVersion")
+        if not isinstance(version, str) or not _TERMS_VERSION.fullmatch(version):
+            raise self._mismatch("its terms version is not one")
+        where = terms_summary_url(info.get("legalUrl"), self.site)
+        if not self.accept_terms:
+            if info.get("required") is not True:
+                return payload
+            raise PaymentRequiredError(
+                f"this purchase needs a signed acknowledgement of the WITAN terms (version {version}): read {where}, "
+                f'then pass accept_terms="{version}" (CLI: --accept-terms {version}; or set WITAN_ACCEPT_TERMS) '
+                "— nothing was sent or charged", code="ack_missing")
+        if version != self.accept_terms:
+            raise PaymentRequiredError(
+                f"the 402 asks to acknowledge terms {version}, not {self.accept_terms}: read {where}, then pass "
+                f'accept_terms="{version}" — nothing was sent or charged', code="ack_terms_version")
+
+        authorization = payload.payload.get("authorization") if isinstance(payload.payload, dict) else None
+        if not isinstance(authorization, dict) or not _HEX32.fullmatch(str(authorization.get("nonce", ""))):
+            raise self._mismatch("this payment carries no EIP-3009 authorization to bind it to")
+        network = _EVM_NETWORK.fullmatch(str(info.get("network", "")))
+        price, expiry, value = info.get("price"), info.get("expiry"), str(authorization.get("value", ""))
+        if not self.item or info.get("item") != self.item:
+            raise self._mismatch(f"it names {str(info.get('item'))[:80]!r}, not {self.item!r}")
+        if not isinstance(price, str) or not _ATOMIC.fullmatch(price) or not _ATOMIC.fullmatch(value) \
+                or int(price) != int(value):
+            raise self._mismatch("its price is not the amount being paid")
+        if not isinstance(info.get("payTo"), str) or not _ADDRESS.fullmatch(info["payTo"]) \
+                or info["payTo"].lower() != str(authorization.get("to", "")).lower():
+            raise self._mismatch("its payee is not the address being paid")
+        if network is None or info["network"] != str(payload.accepted.network):
+            raise self._mismatch("its network is not the one being paid on")
+        if not isinstance(expiry, int) or isinstance(expiry, bool) or expiry <= _time.time():
+            raise self._mismatch("it has expired — ask again")
+        if not all(isinstance(info.get(k), str) and _HEX32.fullmatch(info[k]) for k in ("termsHash", "nonce")):
+            raise self._mismatch("its terms hash or nonce is malformed")
+
+        signed = self.account.sign_typed_data(
+            domain_data={**ACK_DOMAIN, "chainId": int(network.group(1))},
+            message_types=ACK_TYPES,
+            message_data={
+                "statement": ack_statement(version), "termsVersion": version,
+                "termsHash": bytes.fromhex(info["termsHash"][2:]), "item": self.item, "price": int(price),
+                "payTo": info["payTo"], "nonce": bytes.fromhex(info["nonce"][2:]), "expiry": expiry,
+                "payment": bytes.fromhex(str(authorization["nonce"])[2:]),
+            })
+        signature = "0x" + bytes(signed.signature).hex()
+        mine = {**entry, "info": {**info, "signer": self.account.address, "signature": signature}}
+        return payload.model_copy(update={"extensions": {**(payload.extensions or {}), ACK_KEY: mine}})
+
+    @staticmethod
+    def _mismatch(why: str) -> PaymentRequiredError:
+        return PaymentRequiredError(f"refusing to sign the terms acknowledgement this 402 asks for: {why} "
+                                    "— nothing was sent or charged", code="ack_mismatch")
+
+
 def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str | None, *,
              max_price: "str | Decimal | float | None" = None, networks: "str | Iterable[str] | None" = None,
-             transport: Any = None) -> dict[str, Any]:
+             accept_terms: str | None = None, site: str | None = None, transport: Any = None) -> dict[str, Any]:
     key = private_key or os.environ.get("WITAN_WALLET_KEY")
     if not key:
         raise PaymentRequiredError("no wallet key: pass private_key= or set WITAN_WALLET_KEY")
@@ -201,7 +343,9 @@ def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str |
 
     async def run() -> dict[str, Any]:
         client = x402Client()
-        register_exact_evm_client(client, EthAccountSigner(Account.from_key(key)))
+        account = Account.from_key(key)
+        register_exact_evm_client(client, EthAccountSigner(account))
+        client.register_extension(TermsAck(account, ack_item(path, params), accepted_terms(accept_terms), site or pay_url))
         # The policy is the whole limit (USDC only, allowed networks, max_price): x402's own spend
         # controls would only get in first with a vaguer refusal, or cap max_price at their $1.
         client.set_spend_controls(False)
@@ -223,6 +367,16 @@ def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str |
                                      "(or WITAN_BASE_URL) and your network") from exc
                 raise
             warn_if_deprecated(response)
+            if response.status_code == 402:
+                # paid and still 402: the pay service refused before settling (pay/src/ack.ts)
+                try:
+                    refused = response.json()
+                except ValueError:
+                    refused = None
+                code = refused.get("code") if isinstance(refused, dict) else None
+                if isinstance(code, str) and code.startswith("ack_"):
+                    raise PaymentRequiredError(f"purchase refused: {brief(refused.get('error')) or code}",
+                                               status=402, code=code, body=refused)
             if response.status_code >= 400:
                 raise WitanError(f"purchase failed: {brief(response.text) or response.reason_phrase}",
                                  status=response.status_code)

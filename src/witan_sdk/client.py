@@ -761,7 +761,7 @@ class Witan:
 
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None, max_price: "str | float | None" = None,
-            networks: "str | list[str] | None" = None) -> dict[str, Any]:
+            networks: "str | list[str] | None" = None, accept_terms: str | None = None) -> dict[str, Any]:
         """Buy a unit with USDC over x402 — no API key needed, the payment is the auth.
 
         Requires ``pip install "witan-sdk[x402]"`` and a funded wallet key (argument or
@@ -772,11 +772,39 @@ class Witan:
         (``networks``, else ``WITAN_X402_NETWORKS``, else Base Sepolia only) at no more than
         ``max_price`` USD (else ``WITAN_MAX_PRICE``, else 1.00) — anything else raises
         ``PaymentRequiredError`` and nothing is signed.
+
+        The 402 may ask the paying wallet to acknowledge the terms (mandatory on mainnet). Name
+        the terms version you have read — ``accept_terms="2026-11-30"``, else
+        ``WITAN_ACCEPT_TERMS`` — and the wallet signs that acknowledgement for this one purchase;
+        ``terms_notice()`` shows what is being agreed to. Without it nothing is signed for the
+        terms, and a purchase that requires the signature raises ``PaymentRequiredError`` before
+        anything is sent. A 402 that asks for another version than the one named is refused the
+        same way.
         """
         from .payments import purchase
 
         return purchase(self.pay_url, "/paid/knowledge", {"id": unit_id}, private_key,
-                        max_price=max_price, networks=networks, transport=self._transport)
+                        max_price=max_price, networks=networks, accept_terms=accept_terms, site=self.base_url,
+                        transport=self._transport)
+
+    def terms_notice(self, unit_id: str | None = None, *, dataset: str | None = None,
+                     version: int | None = None) -> dict[str, Any] | None:
+        """What buying a unit (or ``dataset=<slug>``) asks the buyer to agree to, read from the
+        unpaid 402 — nothing is paid or signed. Returns the notice (``terms_version``,
+        ``key_terms``, ``legal_url``, ``ack_required`` …), or None when there is none to show
+        (not for sale, or the service sent no notice)."""
+        if (unit_id is None) == (dataset is None):
+            raise WitanError("terms_notice() takes a unit id or dataset=<slug>")
+        path, params = ("/paid/knowledge", {"id": unit_id}) if dataset is None else \
+            ("/paid/dataset", {"slug": dataset, **({} if version is None else {"version": version})})
+        response = self._send(self._raw, "GET", f"{self.pay_url}{path}", self.pay_url, retry=True, params=params)
+        if response.status_code != 402:
+            return None
+        try:
+            notice = response.json().get("notice")
+        except (ValueError, AttributeError):
+            return None
+        return notice if isinstance(notice, dict) else None
 
     def buy_with_credits(self, unit_id: str) -> dict[str, Any]:
         """Buy a unit its seller priced from your operator's credits — the API key is enough, no
@@ -789,12 +817,15 @@ class Witan:
         return self._request("POST", f"/knowledge/{unit_id}/buy", json={}, auth=True)
 
     def buy_dataset(self, slug: str, *, version: int | None = None, private_key: str | None = None,
-                    max_price: "str | float | None" = None, networks: "str | list[str] | None" = None) -> dict[str, Any]:
-        """Buy one version of a paid dataset project over x402 (see ``buy()``)."""
+                    max_price: "str | float | None" = None, networks: "str | list[str] | None" = None,
+                    accept_terms: str | None = None) -> dict[str, Any]:
+        """Buy one version of a paid dataset project over x402 (see ``buy()``, also for
+        ``accept_terms``)."""
         from .payments import purchase
 
         return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key,
-                        max_price=max_price, networks=networks, transport=self._transport)
+                        max_price=max_price, networks=networks, accept_terms=accept_terms, site=self.base_url,
+                        transport=self._transport)
 
     def buy_credits(self, *, operator_id: str | None = None, private_key: str | None = None,
                     max_price: "str | float | None" = None, networks: "str | list[str] | None" = None) -> dict[str, Any]:
@@ -1074,13 +1105,14 @@ class Projects:
     def pull_paid(self, slug: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
                   version: int | None = None, private_key: str | None = None,
                   workers: int = 4, verify: bool | None = None, max_price: "str | float | None" = None,
-                  networks: "str | list[str] | None" = None) -> dict[str, Any]:
+                  networks: "str | list[str] | None" = None, accept_terms: str | None = None) -> dict[str, Any]:
         """Buy one version of a paid project over x402 and lay it out like ``pull``.
 
         The paid answer is the version manifest with 15-minute part URLs; the parts are
         downloaded and sha256-verified exactly as ``pull`` does, into the same
         ``out_dir/<slug>/parts`` layout. Needs the x402 extra and a wallet key (see
-        ``Witan.buy``; ``max_price`` and ``networks`` bound what may be paid). A version whose
+        ``Witan.buy``; ``max_price`` and ``networks`` bound what may be paid, ``accept_terms``
+        signs the terms acknowledgement). A version whose
         parts are already complete on disk is returned from the local manifest without paying
         again. The returned manifest carries the settlement under ``x402`` (the proof a dispute
         needs); the copy on disk does not.
@@ -1100,7 +1132,7 @@ class Projects:
                     cached["verified"] = check(cached, require=must)["status"]
                 return {**cached, "downloaded": 0}
         remote = self._c.buy_dataset(slug, version=version, private_key=private_key, max_price=max_price,
-                                     networks=networks)
+                                     networks=networks, accept_terms=accept_terms)
         status = check(remote, require=must)["status"]
         _matches(remote, slug, version)
         return self._materialize(slug, root, remote, workers, verified=status)
@@ -1556,7 +1588,8 @@ class Projects:
 
     def save(self, slug: str, path: "str | os.PathLike[str] | None" = None, *, version: int | None = None,
              paid: bool = False, private_key: str | None = None,
-             cache_dir: "str | os.PathLike[str]" = "witan-data", workers: int = 4) -> dict[str, Any]:
+             cache_dir: "str | os.PathLike[str]" = "witan-data", workers: int = 4,
+             accept_terms: str | None = None) -> dict[str, Any]:
         """Write one version of a project to a single bundle file (``<slug>-v<N>.witan`` by default).
 
         The parts come from ``pull`` (or ``pull_paid`` with ``paid=True``) — incremental and
@@ -1579,7 +1612,8 @@ class Projects:
             project = _json.loads(project_file.read_text(encoding="utf-8"))
         else:
             if paid:
-                m = self.pull_paid(slug, cache_dir, version=version, private_key=private_key, workers=workers)
+                m = self.pull_paid(slug, cache_dir, version=version, private_key=private_key, workers=workers,
+                                   accept_terms=accept_terms)
             else:
                 m = self.pull(slug, cache_dir, version=version, workers=workers)
             if m.get("format") != "parquet":

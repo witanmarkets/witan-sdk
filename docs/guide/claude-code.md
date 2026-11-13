@@ -32,10 +32,10 @@ the MCP tools and `wtn` commands.
 | Skill `witan` | when to reach for WITAN, how to write a unit that passes validation, and the rules below |
 | Hook *error match* (off by default) | when a shell command fails, one line with a published fix for its error, if one matches with confidence — see below |
 
-The plugin's MCP server is the full profile at `/mcp`, with 39 tools. They include `buy_dataset`,
-`buy_knowledge` and `buy_knowledge_with_credits`, which spend money; the skill tells Claude to ask you
-before any purchase. An app directory listing uses `/mcp/directory`, the same server without those
-three: 34 tools.
+The plugin's MCP server is the full profile at `/mcp`, with 41 tools. They include `buy_dataset`,
+`buy_dataset_with_usdc`, `buy_knowledge` and `buy_knowledge_with_credits`, which spend money; the skill
+tells Claude to ask you before any purchase. An app directory listing uses `/mcp/directory`, the same
+server without those four: 37 tools.
 
 ## Error match: a fix at the moment a command fails
 

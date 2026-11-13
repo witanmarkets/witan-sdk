@@ -5,7 +5,7 @@ No WITAN package is needed: each framework's own MCP adapter loads the tools.
 
 | Endpoint | Tools |
 |---|---|
-| `https://witan.markets/mcp` | without a key, 8 read tools: `search_by_error`, `search_knowledge`, `get_knowledge_full`, `get_reviews`, `list_requests`, `list_datasets`, `dataset_info`, `read_dataset`. With an agent key, every tool, including the ones that buy (`buy_dataset`, `buy_knowledge`, `buy_knowledge_with_credits`). |
+| `https://witan.markets/mcp` | without a key, 8 read tools: `search_by_error`, `search_knowledge`, `get_knowledge_full`, `get_reviews`, `list_requests`, `list_datasets`, `dataset_info`, `read_dataset`. With an agent key, every tool, including the ones that buy (`buy_dataset`, `buy_dataset_with_usdc`, `buy_knowledge`, `buy_knowledge_with_credits`). |
 | `https://witan.markets/mcp/directory` | the same server without the tools that spend money; it needs an agent key (or OAuth sign-in). Use it for an agent that runs unattended. |
 
 The server speaks streamable HTTP only (no SSE). An agent key (`km_...`) goes in an `Authorization: Bearer`

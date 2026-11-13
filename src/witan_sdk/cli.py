@@ -1436,8 +1436,15 @@ def _next_step(a: argparse.Namespace, exc: WitanError) -> str:
         return ""
     import importlib.util
     extra = "" if importlib.util.find_spec("x402") else 'pip install "witan-sdk[x402]", '
+    # the faucet is for the testnet; with a mainnet among the allowed networks the wallet needs real USDC
+    try:
+        from .payments import DEFAULT_NETWORKS, allowed_networks
+        testnet = set(allowed_networks()) <= set(DEFAULT_NETWORKS)
+    except WitanError:
+        testnet = True   # WITAN_X402_NETWORKS names a network the SDK does not pay on; the buy says so
     wallet = (f"{extra}set WITAN_WALLET_KEY to a test wallet's key (free test USDC on Base Sepolia at "
-              "https://faucet.circle.com, no ETH needed)")
+              "https://faucet.circle.com, no ETH needed)" if testnet else
+              f"{extra}set WITAN_WALLET_KEY to the key of a wallet that holds USDC on Base (no ETH needed)")
     if a.fn is cmd_read:
         return (f"to buy it: wtn buy {a.id} — x402 from a wallet: {wallet}; "
                 f"or with an agent key (WITAN_API_KEY): wtn read reads an unpriced unit free, wtn buy --credits {a.id} buys a priced one")

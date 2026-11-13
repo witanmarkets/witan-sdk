@@ -213,6 +213,11 @@ def test_a_paid_read_and_a_buy_without_a_wallet_say_what_to_run(capsys: pytest.C
     assert "no wallet key" in err and f"wtn buy --credits {UNIT}" in err and "faucet.circle.com" in err
     assert main(["search", "redis"], client=w) == 1   # any other 402 keeps the error alone
     assert "faucet" not in capsys.readouterr().err
+    # with Base among the networks this machine pays on, the wallet needs USDC, not the testnet faucet
+    monkeypatch.setenv("WITAN_X402_NETWORKS", "eip155:8453")
+    assert main(["read", UNIT], client=w) == 1
+    err = capsys.readouterr().err
+    assert f"wtn buy {UNIT}" in err and "holds USDC on Base" in err and "faucet" not in err and "Sepolia" not in err
 
 
 def test_data_newest_and_where(capsys: pytest.CaptureFixture[str]) -> None:

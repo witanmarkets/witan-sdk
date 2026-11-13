@@ -37,6 +37,8 @@ being deprecated for at least two minor releases — see
   to pass and where to read the terms. Before, the payment was sent and refused by the pay service.
 - A refusal of the acknowledgement by the pay service is a `PaymentRequiredError` carrying the service's
   `code` (`ack_expired`, `ack_terms_outdated`, …) and `body`, not a plain `WitanError`.
+- `wtn read` and `wtn buy` point to the test-USDC faucet only while the networks you allow
+  (`WITAN_X402_NETWORKS`) are the testnet; with Base among them they say the wallet needs USDC on Base.
 
 ## 0.34.0 — 2026-11-10
 

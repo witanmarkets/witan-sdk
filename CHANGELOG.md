@@ -40,6 +40,12 @@ being deprecated for at least two minor releases — see
 - `wtn read` and `wtn buy` point to the test-USDC faucet only while the networks you allow
   (`WITAN_X402_NETWORKS`) are the testnet; with Base among them they say the wallet needs USDC on Base.
 
+### Fixed
+
+- `wtn serve` could go on serving after SIGTERM or Ctrl-C when the signal arrived at the moment a
+  connection was being accepted (seen on a busy machine: `docker stop` then waited out its timeout and
+  killed the node). The interrupt now always stops it.
+
 ## 0.34.0 — 2026-11-10
 
 ### Added

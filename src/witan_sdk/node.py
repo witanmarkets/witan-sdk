@@ -1161,7 +1161,19 @@ class _NodeHTTPServer(ThreadingHTTPServer):
 
     def __init__(self, address: tuple[str, int], handler: type, max_connections: int) -> None:
         self._slots = threading.BoundedSemaphore(max_connections)
+        self._held: set[int] = set()  # id() of each connection that holds a slot
+        self._held_lock = threading.Lock()
         super().__init__(address, handler)
+
+    def _free(self, request: Any) -> None:
+        """Give a connection's slot back, once. Two places can get here for one connection: its thread when it
+        ends, and the accept loop when starting that thread was interrupted (Ctrl-C, SIGTERM). A second release
+        raised ValueError there, which replaced the KeyboardInterrupt and left the node serving."""
+        with self._held_lock:
+            if id(request) not in self._held:
+                return
+            self._held.discard(id(request))
+        self._slots.release()
 
     def process_request(self, request: Any, client_address: Any) -> None:
         if not self._slots.acquire(blocking=False):
@@ -1174,17 +1186,19 @@ class _NodeHTTPServer(ThreadingHTTPServer):
                 pass
             self.shutdown_request(request)
             return
+        with self._held_lock:
+            self._held.add(id(request))
         try:
             super().process_request(request, client_address)
         except BaseException:
-            self._slots.release()
+            self._free(request)
             raise
 
     def process_request_thread(self, request: Any, client_address: Any) -> None:
         try:
             super().process_request_thread(request, client_address)
         finally:
-            self._slots.release()
+            self._free(request)
 
 
 def _open_node(store_dir: "str | os.PathLike[str]", *, token: str | None, follow: Iterable[str], interval: float,

@@ -222,7 +222,12 @@ def test_serve_stops_on_sigterm(store: Path) -> None:
         else:
             raise AssertionError(proc.stderr.read().decode() if proc.poll() is not None else "node did not start")
         proc.send_signal(signal.SIGTERM)
-        assert proc.wait(timeout=10) == 0  # the Ctrl-C path, not -15
+        try:
+            code = proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            proc.kill()  # what it wrote says why it went on serving
+            raise AssertionError("still serving 10 s after SIGTERM; stderr:\n" + proc.communicate()[1].decode()[-4000:]) from None
+        assert code == 0  # the Ctrl-C path, not -15
         assert b"Traceback" not in proc.stderr.read()
     finally:
         if proc.poll() is None:
@@ -524,3 +529,44 @@ def test_a_connection_past_the_cap_gets_503_at_once(store: Path) -> None:
         srv.close()
     with pytest.raises(WitanError, match="at least 1"):
         Server(store, port=0, max_connections=0)
+
+
+@pytest.mark.parametrize("handler_done", [True, False])
+def test_an_interrupt_while_a_connection_thread_starts_still_stops_the_node(store: Path, monkeypatch: pytest.MonkeyPatch,
+                                                                            capsys: pytest.CaptureFixture[str],
+                                                                            handler_done: bool) -> None:
+    # SIGTERM raises KeyboardInterrupt in the accept loop. When it landed just after the thread for a connection
+    # had started, the loop and that thread both gave the connection's slot back; the second release raised
+    # ValueError, socketserver logged it as a request error, and the node went on serving
+    import socket
+    import threading
+
+    srv = Server(store, port=0, quiet=True, max_connections=2)
+    start = threading.Thread.start
+    started: list[threading.Thread] = []
+
+    def interrupted(self: threading.Thread) -> None:
+        start(self)
+        started.append(self)
+        if handler_done:
+            self.join(5)  # the handler thread ends (and frees its slot) before the loop sees the interrupt
+        raise KeyboardInterrupt
+
+    conn = socket.create_connection(srv.httpd.server_address[:2])
+    try:
+        if handler_done:
+            conn.close()  # the handler reads end-of-file and ends at once
+        monkeypatch.setattr(threading.Thread, "start", interrupted)
+        with pytest.raises(KeyboardInterrupt):
+            srv.httpd._handle_request_noblock()
+        monkeypatch.undo()
+        conn.close()
+        started[0].join(5)
+        assert not started[0].is_alive()
+        free = [srv.httpd._slots.acquire(blocking=False) for _ in range(3)]
+        assert free == [True, True, False], free  # both slots are back, and neither was given back twice
+        assert "Traceback" not in capsys.readouterr().err
+    finally:
+        monkeypatch.undo()
+        conn.close()
+        srv.close()

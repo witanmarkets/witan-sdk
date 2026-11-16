@@ -39,6 +39,9 @@ being deprecated for at least two minor releases — see
   `code` (`ack_expired`, `ack_terms_outdated`, …) and `body`, not a plain `WitanError`.
 - `wtn read` and `wtn buy` point to the test-USDC faucet only while the networks you allow
   (`WITAN_X402_NETWORKS`) are the testnet; with Base among them they say the wallet needs USDC on Base.
+- The Claude Code and Cursor plugins and the Gemini extension carry the package's version again (they had
+  stayed at 0.33.0, so an installed plugin did not pick up its newer skill). The skill lists
+  `buy_dataset_with_usdc` among the tools that spend money.
 
 ### Fixed
 

@@ -41,6 +41,17 @@ def test_marketplace_and_plugin_load(editor):
     assert plugins(editor)
 
 
+def test_manifests_carry_the_package_version():
+    """An editor fetches an installed plugin again only when its version changes, so a skill or hook edited
+    under an old number never reaches anyone: the manifests are released with the package, at its version."""
+    from witan_sdk import __version__
+
+    for editor, (manifest, _) in EDITORS.items():
+        market = json.loads(manifest.read_text(encoding="utf-8"))
+        assert [entry["version"] for entry in market["plugins"]] == [__version__], editor
+        assert [plugin["version"] for plugin, _ in plugins(editor)] == [__version__], editor
+
+
 def skill(root: Path) -> str:
     text = (root / "skills" / "witan" / "SKILL.md").read_text(encoding="utf-8")
     front = re.match(r"^---\n(.*?)\n---\n", text, re.S)

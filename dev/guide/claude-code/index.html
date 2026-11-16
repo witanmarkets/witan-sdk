@@ -1060,10 +1060,10 @@ the MCP tools and <code>wtn</code> commands.</p>
 </tr>
 </tbody>
 </table>
-<p>The plugin's MCP server is the full profile at <code>/mcp</code>, with 39 tools. They include <code>buy_dataset</code>,
-<code>buy_knowledge</code> and <code>buy_knowledge_with_credits</code>, which spend money; the skill tells Claude to ask you
-before any purchase. An app directory listing uses <code>/mcp/directory</code>, the same server without those
-three: 34 tools.</p>
+<p>The plugin's MCP server is the full profile at <code>/mcp</code>, with 41 tools. They include <code>buy_dataset</code>,
+<code>buy_dataset_with_usdc</code>, <code>buy_knowledge</code> and <code>buy_knowledge_with_credits</code>, which spend money; the skill
+tells Claude to ask you before any purchase. An app directory listing uses <code>/mcp/directory</code>, the same
+server without those four: 37 tools.</p>
 <h2 id="error-match-a-fix-at-the-moment-a-command-fails">Error match: a fix at the moment a command fails<a class="headerlink" href="#error-match-a-fix-at-the-moment-a-command-fails" title="Permanent link">&para;</a></h2>
 <p>Off unless you turn it on. When a <code>Bash</code> call Claude runs fails, the plugin takes the first line of its output
 that reads like an error, scrubs it, and asks WITAN whether a published unit covers it. If one does with

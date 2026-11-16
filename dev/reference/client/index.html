@@ -925,6 +925,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#witan_sdk.Witan.terms_notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      terms_notice
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#witan_sdk.Witan.buy_with_credits" class="md-nav__link">
     <span class="md-ellipsis">
       buy_with_credits
@@ -1685,6 +1694,15 @@
   <a href="#witan_sdk.Witan.buy" class="md-nav__link">
     <span class="md-ellipsis">
       buy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#witan_sdk.Witan.terms_notice" class="md-nav__link">
+    <span class="md-ellipsis">
+      terms_notice
     </span>
   </a>
   
@@ -2863,7 +2881,7 @@ Returns <code>{wallet, purchases, next}</code>.</p>
 
 
 <a href="#witan_sdk.Witan.buy" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">buy</span><span class="p">(</span><span class="n">unit_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">buy</span><span class="p">(</span><span class="n">unit_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">accept_terms</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -2876,6 +2894,36 @@ process; it signs a transfer authorization that the facilitator settles.</p>
 (<code>networks</code>, else <code>WITAN_X402_NETWORKS</code>, else Base Sepolia only) at no more than
 <code>max_price</code> USD (else <code>WITAN_MAX_PRICE</code>, else 1.00) — anything else raises
 <code>PaymentRequiredError</code> and nothing is signed.</p>
+<p>The 402 may ask the paying wallet to acknowledge the terms (mandatory on mainnet). Name
+the terms version you have read — <code>accept_terms="2026-11-30"</code>, else
+<code>WITAN_ACCEPT_TERMS</code> — and the wallet signs that acknowledgement for this one purchase;
+<code>terms_notice()</code> shows what is being agreed to. Without it nothing is signed for the
+terms, and a purchase that requires the signature raises <code>PaymentRequiredError</code> before
+anything is sent. A 402 that asks for another version than the one named is refused the
+same way.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="witan_sdk.Witan.terms_notice" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">terms_notice</span>
+
+
+<a href="#witan_sdk.Witan.terms_notice" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">terms_notice</span><span class="p">(</span><span class="n">unit_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>What buying a unit (or <code>dataset=&lt;slug&gt;</code>) asks the buyer to agree to, read from the
+unpaid 402 — nothing is paid or signed. Returns the notice (<code>terms_version</code>,
+<code>key_terms</code>, <code>legal_url</code>, <code>ack_required</code> …), or None when there is none to show
+(not for sale, or the service sent no notice).</p>
 
 
     </div>
@@ -2916,12 +2964,13 @@ it raises <code>PaymentRequiredError</code> with the top-up URL.</p>
 
 
 <a href="#witan_sdk.Witan.buy_dataset" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">buy_dataset</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">buy_dataset</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">accept_terms</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
 
-        <p>Buy one version of a paid dataset project over x402 (see <code>buy()</code>).</p>
+        <p>Buy one version of a paid dataset project over x402 (see <code>buy()</code>, also for
+<code>accept_terms</code>).</p>
 
 
     </div>
@@ -3134,7 +3183,7 @@ asked for), and "latest" is never older than a version already in <code>out_dir<
 
 
 <a href="#witan_sdk.client.Projects.pull_paid" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">pull_paid</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span> <span class="o">=</span> <span class="s1">'witan-data'</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">pull_paid</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span> <span class="o">=</span> <span class="s1">'witan-data'</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">max_price</span><span class="p">:</span> <span class="s1">'str | float | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">networks</span><span class="p">:</span> <span class="s1">'str | list[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">accept_terms</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -3143,7 +3192,8 @@ asked for), and "latest" is never older than a version already in <code>out_dir<
 <p>The paid answer is the version manifest with 15-minute part URLs; the parts are
 downloaded and sha256-verified exactly as <code>pull</code> does, into the same
 <code>out_dir/&lt;slug&gt;/parts</code> layout. Needs the x402 extra and a wallet key (see
-<code>Witan.buy</code>; <code>max_price</code> and <code>networks</code> bound what may be paid). A version whose
+<code>Witan.buy</code>; <code>max_price</code> and <code>networks</code> bound what may be paid, <code>accept_terms</code>
+signs the terms acknowledgement). A version whose
 parts are already complete on disk is returned from the local manifest without paying
 again. The returned manifest carries the settlement under <code>x402</code> (the proof a dispute
 needs); the copy on disk does not.</p>
@@ -3363,7 +3413,7 @@ renamed, ...}</code> plus, unless dry, the push result (with <code>wait</code>, 
 
 
 <a href="#witan_sdk.client.Projects.save" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">save</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">paid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span> <span class="o">=</span> <span class="s1">'witan-data'</span><span class="p">,</span> <span class="n">workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">save</span><span class="p">(</span><span class="n">slug</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str] | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">paid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">cache_dir</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span> <span class="o">=</span> <span class="s1">'witan-data'</span><span class="p">,</span> <span class="n">workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">accept_terms</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">

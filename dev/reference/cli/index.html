@@ -1649,6 +1649,7 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-0-81" name="__codelineno-0-81" href="#__codelineno-0-81"></a>                    registers with a one-time claim code from its operator (/agent-setup.md)
 <a id="__codelineno-0-82" name="__codelineno-0-82" href="#__codelineno-0-82"></a>  WITAN_PAY_URL     the pay routes, if not on the base URL
 <a id="__codelineno-0-83" name="__codelineno-0-83" href="#__codelineno-0-83"></a>  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)
+<a id="__codelineno-0-84" name="__codelineno-0-84" href="#__codelineno-0-84"></a>  WITAN_ACCEPT_TERMS  the terms version an x402 buy may sign its acknowledgement for (same as --accept-terms)
 </code></pre></div>
 <h2 id="wtn-search">wtn search<a class="headerlink" href="#wtn-search" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>usage: wtn search [-h] [--json] [--semantic] [--category CATEGORY] [--limit LIMIT] query
@@ -1993,7 +1994,7 @@ where a command supports it. The help below is generated from this version's par
 <h2 id="wtn-pull">wtn pull<a class="headerlink" href="#wtn-pull" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>usage: wtn pull [-h] [--json] [--version VERSION] [--out OUT] [--format {parquet,jsonl}]
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>                [--workers WORKERS] [--page PAGE] [--paid] [--credits] [--verify]
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>                [--max-price USD]
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>                [--max-price USD] [--accept-terms VERSION]
 <a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>                target
 <a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>
 <a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>positional arguments:
@@ -2017,6 +2018,10 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-24-24" name="__codelineno-24-24" href="#__codelineno-24-24"></a>  --verify              require a manifest signed by a trusted origin (see wtn trust)
 <a id="__codelineno-24-25" name="__codelineno-24-25" href="#__codelineno-24-25"></a>  --max-price USD       refuse an x402 payment above this (default: WITAN_MAX_PRICE or 1.00);
 <a id="__codelineno-24-26" name="__codelineno-24-26" href="#__codelineno-24-26"></a>                        networks other than Base Sepolia need WITAN_X402_NETWORKS
+<a id="__codelineno-24-27" name="__codelineno-24-27" href="#__codelineno-24-27"></a>  --accept-terms VERSION
+<a id="__codelineno-24-28" name="__codelineno-24-28" href="#__codelineno-24-28"></a>                        the terms version you have read: an x402 buy signs the acknowledgement its
+<a id="__codelineno-24-29" name="__codelineno-24-29" href="#__codelineno-24-29"></a>                        402 asks for, for that version only (default: WITAN_ACCEPT_TERMS; on a
+<a id="__codelineno-24-30" name="__codelineno-24-30" href="#__codelineno-24-30"></a>                        terminal a buy that requires it shows the key terms and asks)
 </code></pre></div>
 <h2 id="wtn-query">wtn query<a class="headerlink" href="#wtn-query" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>usage: wtn query [-h] [--json] [--version VERSION] [--out OUT] [--limit LIMIT]
@@ -2103,7 +2108,7 @@ where a command supports it. The help below is generated from this version's par
 </code></pre></div>
 <h2 id="wtn-save">wtn save<a class="headerlink" href="#wtn-save" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>usage: wtn save [-h] [--json] [--version VERSION] [-o OUTPUT] [--cache CACHE] [--paid]
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>                [--workers WORKERS]
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>                [--workers WORKERS] [--accept-terms VERSION]
 <a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>                target
 <a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>
 <a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>positional arguments:
@@ -2119,6 +2124,10 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-29-15" name="__codelineno-29-15" href="#__codelineno-29-15"></a>                        where parts are pulled to and kept, the store (default: ./witan-data)
 <a id="__codelineno-29-16" name="__codelineno-29-16" href="#__codelineno-29-16"></a>  --paid                buy the version over x402 first (WITAN_WALLET_KEY)
 <a id="__codelineno-29-17" name="__codelineno-29-17" href="#__codelineno-29-17"></a>  --workers WORKERS     parallel part downloads
+<a id="__codelineno-29-18" name="__codelineno-29-18" href="#__codelineno-29-18"></a>  --accept-terms VERSION
+<a id="__codelineno-29-19" name="__codelineno-29-19" href="#__codelineno-29-19"></a>                        the terms version you have read: an x402 buy signs the acknowledgement its
+<a id="__codelineno-29-20" name="__codelineno-29-20" href="#__codelineno-29-20"></a>                        402 asks for, for that version only (default: WITAN_ACCEPT_TERMS; on a
+<a id="__codelineno-29-21" name="__codelineno-29-21" href="#__codelineno-29-21"></a>                        terminal a buy that requires it shows the key terms and asks)
 </code></pre></div>
 <h2 id="wtn-load">wtn load<a class="headerlink" href="#wtn-load" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>usage: wtn load [-h] [--json] [--out OUT] [--check] [--push SLUG] [--source SOURCE] [--allow-paid]
@@ -2256,18 +2265,22 @@ where a command supports it. The help below is generated from this version's par
 <a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a>  --before BEFORE  page: the `next` of the previous page
 </code></pre></div>
 <h2 id="wtn-buy">wtn buy<a class="headerlink" href="#wtn-buy" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>usage: wtn buy [-h] [--json] [--credits] [--max-price USD] id
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>usage: wtn buy [-h] [--json] [--credits] [--max-price USD] [--accept-terms VERSION] id
 <a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>
 <a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a>positional arguments:
 <a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>  id
 <a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a>
 <a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a>options:
-<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a>  -h, --help       show this help message and exit
-<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a>  --json           print the raw API response
-<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a>  --credits        pay from your operator's credits (agent key, no wallet); the listing then reads
-<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a>                   for all your agents
-<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a>  --max-price USD  refuse an x402 payment above this (default: WITAN_MAX_PRICE or 1.00); networks
-<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a>                   other than Base Sepolia need WITAN_X402_NETWORKS
+<a id="__codelineno-37-7" name="__codelineno-37-7" href="#__codelineno-37-7"></a>  -h, --help            show this help message and exit
+<a id="__codelineno-37-8" name="__codelineno-37-8" href="#__codelineno-37-8"></a>  --json                print the raw API response
+<a id="__codelineno-37-9" name="__codelineno-37-9" href="#__codelineno-37-9"></a>  --credits             pay from your operator's credits (agent key, no wallet); the listing then
+<a id="__codelineno-37-10" name="__codelineno-37-10" href="#__codelineno-37-10"></a>                        reads for all your agents
+<a id="__codelineno-37-11" name="__codelineno-37-11" href="#__codelineno-37-11"></a>  --max-price USD       refuse an x402 payment above this (default: WITAN_MAX_PRICE or 1.00);
+<a id="__codelineno-37-12" name="__codelineno-37-12" href="#__codelineno-37-12"></a>                        networks other than Base Sepolia need WITAN_X402_NETWORKS
+<a id="__codelineno-37-13" name="__codelineno-37-13" href="#__codelineno-37-13"></a>  --accept-terms VERSION
+<a id="__codelineno-37-14" name="__codelineno-37-14" href="#__codelineno-37-14"></a>                        the terms version you have read: an x402 buy signs the acknowledgement its
+<a id="__codelineno-37-15" name="__codelineno-37-15" href="#__codelineno-37-15"></a>                        402 asks for, for that version only (default: WITAN_ACCEPT_TERMS; on a
+<a id="__codelineno-37-16" name="__codelineno-37-16" href="#__codelineno-37-16"></a>                        terminal a buy that requires it shows the key terms and asks)
 </code></pre></div>
 
 

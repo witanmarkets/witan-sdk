@@ -27,6 +27,9 @@ UNIT_TERMINAL = frozenset({"published", "rejected"})
 UNIT_HELD = frozenset({"rights_pending"})
 CONTRIBUTION_TERMINAL = frozenset({"merged", "rejected"})
 SHA256 = re.compile(r"[0-9a-f]{64}")
+# What the pay service adds to a paid or redelivered manifest about the delivery (pay/src/index.ts, redeliver.ts):
+# the receipt, the update period, the redelivery. The origin's signature does not cover them (api/src/signing.ts).
+DELIVERY_KEYS = ("contract", "receipt_url", "updatesUntil", "boughtVersion", "redelivered", "transaction", "split")
 HAVE_MAX = 100  # sha256s a manifest request may name as held (the origin's limit: one URL stays under 8 KB)
 
 # Retries, the same policy as the JS SDK: only requests that are safe to send twice (reads, SQL on
@@ -759,6 +762,48 @@ class Witan:
             "x-witan-signature": sign_statement(purchase_statement(wallet, origin, t), private_key),
         })
 
+    def redeliver(self, transaction: str, *, version: "int | str | None" = None,
+                  private_key: str | None = None) -> dict[str, Any]:
+        """What a settled x402 purchase delivered, delivered again to the wallet that paid, at no charge —
+        for a delivery that was lost (a dropped connection, a crash before the parts were saved).
+        ``transaction`` is the settlement tx hash (``x402["transaction"]`` of a buy, or ``transaction`` in
+        ``purchases()``). A unit comes back with its body; a dataset as the version manifest with fresh
+        15-minute part URLs, plus ``version``, ``boughtVersion`` and ``updatesUntil``.
+
+        A dataset sold with an update period also covers the versions published until ``updatesUntil``:
+        ask for one with ``version=N`` or ``version="latest"``. A version outside the period raises
+        ``NotCovered`` with the service's reason and ``buy``, the pay route that sells it; nothing is
+        charged. Without ``version`` the answer is the version that was bought.
+
+        No API key: the wallet (key as for ``buy()``: argument or ``WITAN_WALLET_KEY``; needs the x402
+        extra) signs WITAN's statement, built here and checked against the one the pay service issued;
+        only the signature is sent. Only on a service that pays sales to splits — elsewhere it raises
+        ``NotFoundError``. An unknown transaction, or one this wallet did not pay, raises ``NotFoundError``;
+        a refused or expired signature ``AuthError``; too many asks ``RateLimitError``."""
+        from .errors import NotCovered
+        from .payments import (checked_time, pay_origin, redeliver_statement, redeliver_version, settlement_tx,
+                               sign_statement, wallet_address)
+
+        tx = settlement_tx(transaction)
+        v = redeliver_version(version)
+        wallet = wallet_address(private_key)
+        origin = pay_origin(self.pay_url)
+        params: dict[str, Any] = {"transaction": tx, "wallet": wallet}
+        if v:
+            params["version"] = v
+        issued = self._pay("GET", "/redeliver/statement", params=params)
+        t = checked_time(issued, lambda t: redeliver_statement(tx, wallet, origin, t, v))
+        body: dict[str, Any] = {"transaction": tx, "wallet": wallet, "time": t,
+                                "signature": sign_statement(redeliver_statement(tx, wallet, origin, t, v), private_key)}
+        if v:
+            body["version"] = v
+        try:
+            return self._pay("POST", "/redeliver", json=body)
+        except AuthError as exc:
+            if exc.status == 403 and isinstance(exc.body, dict) and exc.body.get("buy"):
+                raise NotCovered(exc.message, status=403, code=exc.code, body=exc.body) from None
+            raise
+
     # ---- pay -------------------------------------------------------------
     def buy(self, unit_id: str, *, private_key: str | None = None, max_price: "str | float | None" = None,
             networks: "str | list[str] | None" = None, accept_terms: str | None = None) -> dict[str, Any]:
@@ -820,7 +865,10 @@ class Witan:
                     max_price: "str | float | None" = None, networks: "str | list[str] | None" = None,
                     accept_terms: str | None = None) -> dict[str, Any]:
         """Buy one version of a paid dataset project over x402 (see ``buy()``, also for
-        ``accept_terms``)."""
+        ``accept_terms``). The answer carries ``updatesUntil``: the versions published until then come
+        with the purchase, at no charge, through ``redeliver(x402["transaction"], version=...)``. A
+        version the wallet already has that way raises ``AlreadyCovered`` (409, nothing charged) with
+        the ``transaction`` and ``version`` to redeliver."""
         from .payments import purchase
 
         return purchase(self.pay_url, "/paid/dataset", {"slug": slug, "version": version}, private_key,
@@ -1115,11 +1163,16 @@ class Projects:
         signs the terms acknowledgement). A version whose
         parts are already complete on disk is returned from the local manifest without paying
         again. The returned manifest carries the settlement under ``x402`` (the proof a dispute
-        needs); the copy on disk does not.
+        needs) and the purchase's ``updatesUntil``; the copy on disk does not.
+
+        A version this wallet already has through the update period of an earlier purchase is not paid
+        for twice: the pay service answers ``AlreadyCovered`` and this fetches it with ``redeliver``
+        instead, at no charge (the result then has ``redelivered: True`` and that ``transaction``).
         """
         from pathlib import Path
 
-        from .trust import check, require_default
+        from .errors import AlreadyCovered
+        from .trust import require_default
 
         _slug(slug)
         must = verify if verify is not None else require_default()
@@ -1127,15 +1180,51 @@ class Projects:
         if version is not None:
             cached = self._cached(root, version)
             if cached is not None:
+                from .trust import check
+
                 _matches(cached, slug, version)
                 if must or cached.get("signature"):
                     cached["verified"] = check(cached, require=must)["status"]
                 return {**cached, "downloaded": 0}
-        remote = self._c.buy_dataset(slug, version=version, private_key=private_key, max_price=max_price,
-                                     networks=networks, accept_terms=accept_terms)
-        status = check(remote, require=must)["status"]
-        _matches(remote, slug, version)
-        return self._materialize(slug, root, remote, workers, verified=status)
+        try:
+            remote = self._c.buy_dataset(slug, version=version, private_key=private_key, max_price=max_price,
+                                         networks=networks, accept_terms=accept_terms)
+        except AlreadyCovered as held:
+            remote = self._c.redeliver(held.transaction, version=held.version, private_key=private_key)
+        return self._delivered(slug, root, remote, version, workers, must)
+
+    def pull_redelivered(self, transaction: str, out_dir: "str | os.PathLike[str]" = "witan-data", *,
+                         version: "int | str | None" = None, private_key: str | None = None, workers: int = 4,
+                         verify: bool | None = None) -> dict[str, Any]:
+        """``Witan.redeliver`` for a dataset purchase, laid out like ``pull_paid``: the version bought by
+        ``transaction`` (or ``version=N`` / ``"latest"`` within its update period) is delivered again at
+        no charge and its parts downloaded and verified into ``out_dir/<slug>/parts``. Returns the local
+        manifest with ``redelivered``, ``transaction``, ``boughtVersion`` and ``updatesUntil``. A
+        transaction that bought a unit returns the unit as ``Witan.redeliver`` does (nothing is written)."""
+        from pathlib import Path
+
+        from .trust import require_default
+
+        remote = self._c.redeliver(transaction, version=version, private_key=private_key)
+        if not isinstance(remote, dict) or not isinstance(remote.get("parts"), list):
+            return remote  # a unit: its body is the whole delivery
+        slug = _slug(str(remote.get("project", "")))
+        asked = int(remote["version"]) if version is not None else None
+        must = verify if verify is not None else require_default()
+        return self._delivered(slug, Path(out_dir) / slug, remote, asked, workers, must)
+
+    def _delivered(self, slug: str, root: Any, remote: dict[str, Any], version: int | None, workers: int,
+                   must: bool) -> dict[str, Any]:
+        """A paid or redelivered manifest checked and laid out on disk. What the pay service adds about the
+        delivery (receipt, update period, redelivery) is not part of what the origin signed: it is held
+        apart for the check and the copy on disk, and handed back to the caller."""
+        from .trust import check
+
+        delivery = {k: remote[k] for k in DELIVERY_KEYS if k in remote}
+        published = {k: v for k, v in remote.items() if k not in DELIVERY_KEYS}
+        status = check(published, require=must)["status"]
+        _matches(published, slug, version)
+        return {**self._materialize(slug, root, published, workers, verified=status), **delivery}
 
     def _held_latest(self, root: Any, slug: str) -> int | None:
         """The latest version of ``slug`` when the store may already hold it, else None.

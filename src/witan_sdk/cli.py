@@ -445,6 +445,10 @@ def cmd_pull(w: Witan, a: argparse.Namespace) -> None:
         m = _with_terms(w, a, lambda terms: w.projects.pull_paid(
             slug, a.out, version=version, workers=a.workers, verify=verify, max_price=a.max_price, accept_terms=terms),
             dataset=slug, version=version)
+        if m.get("redelivered"):
+            print(f"already yours: {slug} v{m['version']} comes with an earlier purchase's update period (until "
+                  f"{str(m.get('updatesUntil'))[:10]}, tx {m.get('transaction')}) — delivered again, nothing charged",
+                  file=sys.stderr)
     else:
         m = w.projects.pull(slug, a.out, version=version, format=a.format, page=a.page, workers=a.workers, verify=verify)
 
@@ -777,6 +781,32 @@ def cmd_purchases(w: Witan, a: argparse.Namespace) -> None:
     _emit(r, a.json, human)
 
 
+def _version_arg(text: str) -> str:
+    """--version of a redelivery: a positive integer or latest."""
+    v = text.strip().lower()
+    if v != "latest" and not (v.isdigit() and int(v) > 0):
+        raise argparse.ArgumentTypeError('a version number or "latest"')
+    return v
+
+
+def cmd_redeliver(w: Witan, a: argparse.Namespace) -> None:
+    r = w.projects.pull_redelivered(a.transaction, a.out, version=a.version, workers=a.workers,
+                                    verify=True if a.verify else None)
+
+    def human(r: dict[str, Any]) -> None:
+        if not isinstance(r.get("parts"), list):
+            print(f"# {r.get('title', r.get('id', ''))}\n\n{r.get('body', json.dumps(r))}")
+            return
+        bought = r.get("boughtVersion")
+        until = r.get("updatesUntil")
+        period = f" · updates until {str(until)[:10]}" if until else ""
+        of = f" (bought v{bought})" if bought not in (None, r["version"]) else ""
+        print(f"{r['project']} v{r['version']}{of}: {_n(r['count'], 'record')} in {_n(len(r['parts']), 'part')} "
+              f"→ {a.out}/{r['project']}/parts/ — delivered again, nothing charged{period}{_signed(r)}")
+
+    _emit(r, a.json, human)
+
+
 def cmd_trust(w: Witan, a: argparse.Namespace) -> None:
     if a.action == "add":
         r = w.trust(force=a.force, origin=a.as_origin)
@@ -882,7 +912,7 @@ EPILOG = """environment:
   WITAN_API_KEY     agent key km_... for writes and most reads (a free unit needs none) — the agent
                     registers with a one-time claim code from its operator (/agent-setup.md)
   WITAN_PAY_URL     the pay routes, if not on the base URL
-  WITAN_WALLET_KEY  wallet key for x402 buys, disputes and purchase history (testnet: Base Sepolia)
+  WITAN_WALLET_KEY  wallet key for x402 buys, redeliveries, disputes and purchase history (testnet: Base Sepolia)
   WITAN_ACCEPT_TERMS  the terms version an x402 buy may sign its acknowledgement for (same as --accept-terms)"""
 
 
@@ -1368,6 +1398,16 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=50)
     s.add_argument("--before", help="page: the `next` of the previous page")
     s.set_defaults(fn=cmd_purchases)
+
+    s = common(sub.add_parser("redeliver", help="what an x402 purchase delivered, sent again to the wallet that paid at no charge "
+                                                "(WITAN_WALLET_KEY): a unit's body, or a dataset version downloaded like pull --paid"))
+    s.add_argument("transaction", help="settlement tx hash (x402.transaction of a buy, or the tx in wtn purchases)")
+    s.add_argument("--version", type=_version_arg, metavar="N|latest",
+                   help="a dataset bought with an update period: a version published within it (default: the version bought)")
+    s.add_argument("--out", default="witan-data", help="where a dataset's parts go (default: ./witan-data)")
+    s.add_argument("--workers", type=int, default=4, help="parallel part downloads")
+    s.add_argument("--verify", action="store_true", help="require a manifest signed by a trusted origin (see wtn trust)")
+    s.set_defaults(fn=cmd_redeliver)
 
     s = common(sub.add_parser("buy", help="buy a unit with USDC over x402 (WITAN_WALLET_KEY), or with --credits from your operator's credits"))
     s.add_argument("id")

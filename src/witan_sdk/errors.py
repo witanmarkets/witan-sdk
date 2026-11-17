@@ -43,6 +43,47 @@ class ConflictError(WitanError):
     """409 — e.g. a revision is already pending for this lineage."""
 
 
+class AlreadyCovered(ConflictError):
+    """409 from an x402 dataset purchase — the paying wallet already has this version through the update
+    period of an earlier purchase, and nothing was charged. Get it with
+    ``redeliver(err.transaction, version=err.version)`` (``projects.pull_paid`` does that by itself)."""
+
+    @property
+    def transaction(self) -> str:
+        return (self.body or {}).get("transaction", "")
+
+    @property
+    def version(self) -> int | None:
+        v = (self.body or {}).get("version")
+        return v if isinstance(v, int) and not isinstance(v, bool) else None
+
+    @property
+    def updates_until(self) -> str | None:
+        return (self.body or {}).get("updatesUntil")
+
+
+class NotCovered(AuthError):
+    """403 from ``redeliver(..., version=...)`` — the version asked for is not part of that purchase (an
+    earlier one, or one published after its update period ended). Nothing was charged; ``buy`` is the
+    pay route that sells it."""
+
+    @property
+    def buy(self) -> str | None:
+        return (self.body or {}).get("buy")
+
+    @property
+    def version(self) -> int | None:
+        return (self.body or {}).get("version")
+
+    @property
+    def bought_version(self) -> int | None:
+        return (self.body or {}).get("boughtVersion")
+
+    @property
+    def updates_until(self) -> str | None:
+        return (self.body or {}).get("updatesUntil")
+
+
 class RateLimitError(WitanError):
     """429 — slow down; limits are per key and per IP."""
 

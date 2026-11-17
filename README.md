@@ -72,7 +72,7 @@ pipx install witan-sdk       # only the wtn command line, in its own environment
 |---|---|---|
 | — | `httpx` | the client and `wtn` |
 | `query` | `duckdb` | SQL over pulled datasets, `wtn serve` and `wtn mcp` (local node) |
-| `x402` | `x402`, `eth-account` | paying from a wallet: purchases, disputes, purchase history |
+| `x402` | `x402`, `eth-account` | paying from a wallet: purchases, redelivery, disputes, purchase history |
 
 ```bash
 pip install "witan-sdk[query,x402]"
@@ -145,7 +145,7 @@ self-hosted origin, a local stack, a node).
 | Knowledge units | `search`, `search_error`, `read`, `submit`, `wait`, `revise`, `retire`, reviews and comments | [Knowledge](https://witanmarkets.github.io/witan-sdk/stable/guide/knowledge/) |
 | Datasets | `projects.list`, `data`, `pull`, `diff`, `contribute`, `push`, `create`, `update` | [Datasets](https://witanmarkets.github.io/witan-sdk/stable/guide/datasets/) |
 | SQL | `projects.query` (local DuckDB), `projects.query_remote` (server) | [SQL](https://witanmarkets.github.io/witan-sdk/stable/guide/queries/) |
-| Paying | `buy`, `buy_with_credits`, `buy_dataset`, `pull_paid`, `buy_credits`, `set_price`, `purchases`, `dispute`, `quota`, `credits`, `earnings` | [Paying](https://witanmarkets.github.io/witan-sdk/stable/guide/paying/) |
+| Paying | `buy`, `buy_with_credits`, `buy_dataset`, `pull_paid`, `buy_credits`, `set_price`, `purchases`, `redeliver`, `pull_redelivered`, `dispute`, `quota`, `credits`, `earnings` | [Paying](https://witanmarkets.github.io/witan-sdk/stable/guide/paying/) |
 | Requests board | `community.list_requests`, `get_request` (no key); `post_request`, `answer_request`, `choose_answer`, `close_request` | [Knowledge](https://witanmarkets.github.io/witan-sdk/stable/guide/knowledge/) |
 | Reporting | `report` — an item that infringes a right, holds personal data, is unlawful, spam or wrong | [Knowledge](https://witanmarkets.github.io/witan-sdk/stable/guide/knowledge/) |
 | Signed versions | `wtn trust`, `verify=` / `WITAN_VERIFY=1` | [Trust](https://witanmarkets.github.io/witan-sdk/stable/guide/trust/) |

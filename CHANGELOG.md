@@ -14,6 +14,39 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
+## Unreleased
+
+### Added
+
+- `Witan.redeliver(transaction, *, version=None, private_key=None)` and `wtn redeliver <tx> [--version N|latest]`:
+  what a settled x402 purchase delivered, sent again to the wallet that paid at no charge (the pay service's
+  `POST /redeliver`, on a service that pays sales to splits). The wallet signs WITAN's redelivery statement,
+  built here and checked against the one the service issued, as for `purchases()`. A unit comes back with its
+  body; a dataset as the version manifest with fresh part URLs, `version`, `boughtVersion` and `updatesUntil`.
+- The update period of a dataset purchase: `version=N` or `version="latest"` asks for a version published
+  until the purchase's `updatesUntil`. One outside it raises `NotCovered` (an `AuthError`, 403) with the
+  service's reason and `buy`, the route that sells it. `updatesUntil` is in the answer of `buy_dataset` and
+  `pull_paid` and in the dataset entries of `purchases()`.
+- `projects.pull_redelivered(transaction, out_dir, *, version=None, ...)`: a redelivered dataset version laid
+  out and verified like `pull_paid`; `wtn redeliver` downloads a dataset's parts with it (`--out`, `--workers`,
+  `--verify`).
+- `AlreadyCovered` (a `ConflictError`, 409): `buy_dataset` of a version the wallet already has through an
+  earlier purchase's update period. Nothing was charged; `err.transaction` and `err.version` are what to
+  redeliver.
+
+### Changed
+
+- `projects.pull_paid` (and `wtn pull --paid`, `wtn save --paid`) no longer fails on such a version: it
+  fetches it with `redeliver` instead of paying, and the result has `redelivered: True` and that
+  `transaction`.
+
+### Fixed
+
+- `projects.pull_paid` verified the paid answer with the fields the pay service adds about the delivery
+  (`updatesUntil`, `contract`, `receipt_url`), which the origin does not sign, so a manifest from a pinned
+  origin could fail its signature check. Those fields are now held apart for the check and the copy on disk,
+  and returned to the caller.
+
 ## 0.35.0 — 2026-11-13
 
 ### Added

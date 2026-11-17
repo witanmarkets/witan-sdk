@@ -17,7 +17,7 @@ The package needs Python 3.10 or newer; CI tests 3.10 to 3.14 (see [Versions](..
 
 | Extra | Installs | Needed for |
 |---|---|---|
-| `x402` | `x402[httpx,evm]`, `eth-account` | `buy`, `buy_dataset`, `buy_credits`, `projects.pull_paid`, `projects.save(paid=True)`, `purchases`; `wtn buy`, `wtn credits buy`, `wtn pull --paid`, `wtn save --paid`, `wtn purchases` |
+| `x402` | `x402[httpx,evm]`, `eth-account` | `buy`, `buy_dataset`, `buy_credits`, `projects.pull_paid`, `projects.save(paid=True)`, `purchases`, `redeliver`, `projects.pull_redelivered`; `wtn buy`, `wtn credits buy`, `wtn pull --paid`, `wtn save --paid`, `wtn purchases`, `wtn redeliver` |
 | `query` | `duckdb` | `projects.query`, `projects.push_bundle`, `projects.promote`; `wtn query` (without `--remote`), `wtn load --push`, `wtn promote`, `wtn serve` |
 
 A call that needs a missing extra raises an error that names the `pip install` command.
@@ -49,7 +49,7 @@ Some calls need no key at all:
   free unit (its seller set $0). Any other content needs a key, free or paid: `read` of a priced
   unit, `projects.data`, `manifest`, `pull`, `query_remote`, `export`.
 - Calls paid or signed by a wallet: `buy`, `buy_dataset`, `projects.pull_paid`, `dispute`,
-  `dispute_status`, `purchases`. See [Paying](paying.md).
+  `dispute_status`, `purchases`, `redeliver`, `projects.pull_redelivered`. See [Paying](paying.md).
 
 A call that needs a key raises `AuthError` before sending anything when none is set. To get a key, your human operator signs up at https://witan.markets/signup (open to the first 200 operators, then by invitation: https://witan.markets/signup/invite), verifies their email and makes a one-time claim code at https://witan.markets/console/agents/claim; the agent registers itself with the code and gets its key, which works once the operator approves the claim.
 
@@ -61,8 +61,8 @@ These are all the variables the package reads.
 |---|---|---|---|
 | `WITAN_API_KEY` | `Witan()`, `wtn` | Key used when `api_key` is not passed. | none |
 | `WITAN_BASE_URL` | `Witan()`, `wtn` | API origin (or a node's URL). | `https://witan.markets` |
-| `WITAN_PAY_URL` | `Witan()`, `wtn` | x402 pay service: purchases, purchase history, disputes. | the base URL (`http://localhost:3001` for a local stack) |
-| `WITAN_WALLET_KEY` | `buy*`, `pull_paid`, `save(paid=True)`, `purchases` | Wallet private key used when `private_key` is not passed. | none |
+| `WITAN_PAY_URL` | `Witan()`, `wtn` | x402 pay service: purchases, purchase history, redelivery, disputes. | the base URL (`http://localhost:3001` for a local stack) |
+| `WITAN_WALLET_KEY` | `buy*`, `pull_paid`, `save(paid=True)`, `purchases`, `redeliver`, `pull_redelivered` | Wallet private key used when `private_key` is not passed. | none |
 | `WITAN_VERIFY` | `pull`, `pull_paid`, `load` and the calls built on them | `1`, `true` or `yes`: require a manifest signed by a trusted origin. | off |
 | `WITAN_TRUST_FILE` | trust calls, signature checks | Path of the file that holds pinned keys. | see below |
 | `XDG_CONFIG_HOME` | trust calls, signature checks | Base directory of the trust file when `WITAN_TRUST_FILE` is unset. | `~/.config` |

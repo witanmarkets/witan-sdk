@@ -12,8 +12,10 @@ from .client import LICENSES, Earnings, Witan, sha256_file
 from .trust import SignatureError
 from .deprecation import WitanDeprecationWarning
 from .errors import (
+    AlreadyCovered,
     AuthError,
     ConflictError,
+    NotCovered,
     NotFoundError,
     PaymentRequiredError,
     RateLimitError,
@@ -33,8 +35,10 @@ __all__ = [
     "sha256_file",
     "WitanError",
     "SignatureError",
+    "AlreadyCovered",
     "AuthError",
     "ConflictError",
+    "NotCovered",
     "NotFoundError",
     "PaymentRequiredError",
     "RateLimitError",

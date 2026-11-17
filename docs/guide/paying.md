@@ -108,7 +108,9 @@ from it. No API key is needed: the payment is the authorization.
 | `projects.pull_paid(slug, out_dir="witan-data", *, version=None, private_key=None, workers=4, verify=None)` | one dataset version | the local manifest, parts on disk as with `pull` |
 
 `pull_paid` with `version=N` returns a version that is already complete on disk without paying
-again. Without `version` it always buys the latest version.
+again. Without `version` it always buys the latest version, unless the wallet already has it through
+an earlier purchase's [update period](#redelivery-and-the-update-period): then the pay service charges
+nothing and `pull_paid` fetches the version with `redeliver` instead.
 
 === "Python"
 
@@ -133,7 +135,9 @@ again. Without `version` it always buys the latest version.
 running loop (a notebook, an async app) they raise `WitanError`; call them with
 `asyncio.to_thread`. A missing wallet key or missing
 extra raises `PaymentRequiredError` before anything is sent. A purchase the pay service refuses
-raises `WitanError` with its status and message.
+raises `WitanError` with its status and message. `buy_dataset` of a version the wallet already has
+through an update period raises `AlreadyCovered` (a `ConflictError`, status 409): nothing was charged,
+and `err.transaction` and `err.version` are what to pass to `redeliver`.
 
 ## The x402 field
 
@@ -235,7 +239,8 @@ except PaymentRequiredError as err:
 `purchases(*, private_key=None, limit=50, before=None)` lists what the paying wallet bought,
 newest first: `{wallet, purchases, next}`. Each entry has `kind` (`unit`, `dataset` or
 `credits`), `price`, `status`, the settlement `transaction`, the `dispute` if one was opened,
-and `disputeUntil` while one can still be opened. Pass `before=r["next"]` for the next page.
+and `disputeUntil` while one can still be opened. A dataset entry also has `updatesUntil`, the end of
+its [update period](#redelivery-and-the-update-period). Pass `before=r["next"]` for the next page.
 It needs the `x402` extra.
 
 A purchase carries no account, so the wallet proves it is the buyer. The SDK asks the pay
@@ -247,6 +252,51 @@ and the signature.
 wtn purchases --limit 20
 wtn purchases --before <next>
 ```
+
+## Redelivery and the update period
+
+A purchase is delivered in the answer its payment settles with. When that answer is lost (the
+connection drops, the process dies before the parts are saved), the wallet that paid asks for it
+again with `redeliver(transaction, *, version=None, private_key=None)`, at no charge and with no
+API key. `transaction` is the settlement hash from `x402["transaction"]` or `purchases()`. The
+wallet signs a short statement the same way as for purchase history; only the signature is sent.
+
+A unit comes back with its body. A dataset comes back as the version manifest with fresh part URLs
+valid for 15 minutes, plus `version`, `boughtVersion` and `updatesUntil`.
+`projects.pull_redelivered(transaction, out_dir="witan-data", *, version=None, ...)` downloads and
+verifies those parts into the same layout as `pull_paid`.
+
+A seller can sell a dataset with an update period: the purchase then also covers every version
+published until `updatesUntil` (in the answer of `buy_dataset` and `pull_paid`, and in each dataset
+entry of `purchases()`; `None` without one). Ask for one of them with `version=N` or
+`version="latest"`. A version outside the period (an earlier one, or one published after it ended)
+raises `NotCovered` (an `AuthError`, status 403) with the service's reason and `err.buy`, the pay
+route that sells that version. Nothing is charged either way.
+
+| Answer | Raises |
+|---|---|
+| 403, the version is not part of the purchase | `NotCovered` (`buy`, `version`, `bought_version`, `updates_until`) |
+| 404, no settled purchase by this wallet with that transaction, or a service that does not pay sales to splits | `NotFoundError` |
+| 401, the signature was refused or the statement expired | `AuthError` |
+| 429, too many redeliveries from this address | `RateLimitError` |
+
+=== "Python"
+
+    ```python
+    m = w.buy_dataset("api-latency-benchmarks")
+    tx = m["x402"]["transaction"]
+    print(m["version"], m["updatesUntil"])
+
+    again = w.redeliver(tx)                      # the version bought, with fresh part URLs
+    w.projects.pull_redelivered(tx, version="latest")   # a later version, within the update period
+    ```
+
+=== "CLI"
+
+    ```bash
+    wtn redeliver 0x<settlement-tx>
+    wtn redeliver 0x<settlement-tx> --version latest --out witan-data
+    ```
 
 ## Disputes
 

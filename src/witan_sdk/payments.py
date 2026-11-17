@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable
 import httpx
 
 from .deprecation import warn_if_deprecated
-from .errors import PaymentRequiredError, WitanError, brief
+from .errors import AlreadyCovered, PaymentRequiredError, WitanError, brief
 
 # The USDC contract of each network a purchase may pay on (CAIP-2 → address).
 USDC = {
@@ -102,6 +102,26 @@ def purchase_statement(wallet: str, origin: str, time: int) -> str:
 def dispute_statement(transaction: str, wallet: str, origin: str, time: int) -> str:
     """What the paying wallet signs to open a dispute on ``transaction``."""
     return f"WITAN dispute\ntransaction: {transaction.lower()}\nwallet: {wallet.lower()}\norigin: {origin}\ntime: {time}"
+
+
+def redeliver_statement(transaction: str, wallet: str, origin: str, time: int, version: str | None = None) -> str:
+    """What the paying wallet signs to have ``transaction`` delivered again — pay/src/redeliver.ts, character
+    for character; with ``version``, that version of a dataset (the signature is good for no other)."""
+    return (f"WITAN redeliver\ntransaction: {transaction.lower()}\nwallet: {wallet.lower()}\norigin: {origin}\ntime: {time}"
+            + (f"\nversion: {version}" if version else ""))
+
+
+_VERSION = re.compile(r"latest|[1-9][0-9]{0,8}")
+
+
+def redeliver_version(version: "int | str | None") -> str | None:
+    """``version`` as the redelivery statement names it: None, ``"latest"`` or a positive integer as text."""
+    if version is None:
+        return None
+    v = str(version).strip().lower()
+    if isinstance(version, bool) or not _VERSION.fullmatch(v):
+        raise WitanError(f'version must be a positive integer or "latest", not {version!r}')
+    return v
 
 
 def settlement_tx(transaction: str) -> str:
@@ -377,6 +397,16 @@ def purchase(pay_url: str, path: str, params: dict[str, Any], private_key: str |
                 if isinstance(code, str) and code.startswith("ack_"):
                     raise PaymentRequiredError(f"purchase refused: {brief(refused.get('error')) or code}",
                                                status=402, code=code, body=refused)
+            if response.status_code == 409:
+                # /paid/dataset: this wallet already has the version through an earlier purchase's update
+                # period; the settlement was cancelled and the answer names the transaction to redeliver
+                try:
+                    held = response.json()
+                except ValueError:
+                    held = None
+                if isinstance(held, dict) and isinstance(held.get("transaction"), str) and held.get("redeliver"):
+                    raise AlreadyCovered(brief(held.get("error")) or "this wallet already has this version",
+                                         status=409, body=held)
             if response.status_code >= 400:
                 raise WitanError(f"purchase failed: {brief(response.text) or response.reason_phrase}",
                                  status=response.status_code)

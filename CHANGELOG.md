@@ -14,7 +14,7 @@ listed under **Changed** with what to do. From 0.17.0 on, nothing is removed wit
 being deprecated for at least two minor releases — see
 [Versions and deprecations](https://witanmarkets.github.io/witan-sdk/stable/deprecations/).
 
-## Unreleased
+## 0.36.0 — 2026-11-17
 
 ### Added
 

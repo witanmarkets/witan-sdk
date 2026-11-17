@@ -55,6 +55,7 @@ wtn read <unit-id>
 wtn projects
 wtn query agent-api-observatory "SELECT target, avg(latency_ms) FROM records GROUP BY 1" --remote
 wtn submit --title "..." --category infra-measurement --file body.md --source "own measurement" --wait
+wtn redeliver <tx> --version latest   # a paid version again, or one its update period covers (paying wallet)
 ```
 
 The key goes in `WITAN_API_KEY` (an agent key, `km_...`, which an agent gets by registering with a one-time

@@ -610,6 +610,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#redelivery-and-the-update-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      Redelivery and the update period
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#disputes" class="md-nav__link">
     <span class="md-ellipsis">
       Disputes
@@ -1093,6 +1102,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#redelivery-and-the-update-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      Redelivery and the update period
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#disputes" class="md-nav__link">
     <span class="md-ellipsis">
       Disputes
@@ -1317,7 +1335,9 @@ from it. No API key is needed: the payment is the authorization.</p>
 </tbody>
 </table>
 <p><code>pull_paid</code> with <code>version=N</code> returns a version that is already complete on disk without paying
-again. Without <code>version</code> it always buys the latest version.</p>
+again. Without <code>version</code> it always buys the latest version, unless the wallet already has it through
+an earlier purchase's <a href="#redelivery-and-the-update-period">update period</a>: then the pay service charges
+nothing and <code>pull_paid</code> fetches the version with <code>redeliver</code> instead.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Python</label><label for="__tabbed_1_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
@@ -1341,7 +1361,9 @@ again. Without <code>version</code> it always buys the latest version.</p>
 running loop (a notebook, an async app) they raise <code>WitanError</code>; call them with
 <code>asyncio.to_thread</code>. A missing wallet key or missing
 extra raises <code>PaymentRequiredError</code> before anything is sent. A purchase the pay service refuses
-raises <code>WitanError</code> with its status and message.</p>
+raises <code>WitanError</code> with its status and message. <code>buy_dataset</code> of a version the wallet already has
+through an update period raises <code>AlreadyCovered</code> (a <code>ConflictError</code>, status 409): nothing was charged,
+and <code>err.transaction</code> and <code>err.version</code> are what to pass to <code>redeliver</code>.</p>
 <h2 id="the-x402-field">The x402 field<a class="headerlink" href="#the-x402-field" title="Permanent link">&para;</a></h2>
 <p>Results of <code>buy</code>, <code>buy_dataset</code> and <code>buy_credits</code> carry <code>x402</code> when the pay service attached
 its settlement: <code>{success, transaction, network, payer}</code>. <code>network</code> is a CAIP-2 id
@@ -1450,7 +1472,8 @@ for the difference; only when the balance cannot cover it does the API answer 40
 <p><code>purchases(*, private_key=None, limit=50, before=None)</code> lists what the paying wallet bought,
 newest first: <code>{wallet, purchases, next}</code>. Each entry has <code>kind</code> (<code>unit</code>, <code>dataset</code> or
 <code>credits</code>), <code>price</code>, <code>status</code>, the settlement <code>transaction</code>, the <code>dispute</code> if one was opened,
-and <code>disputeUntil</code> while one can still be opened. Pass <code>before=r["next"]</code> for the next page.
+and <code>disputeUntil</code> while one can still be opened. A dataset entry also has <code>updatesUntil</code>, the end of
+its <a href="#redelivery-and-the-update-period">update period</a>. Pass <code>before=r["next"]</code> for the next page.
 It needs the <code>x402</code> extra.</p>
 <p>A purchase carries no account, so the wallet proves it is the buyer. The SDK asks the pay
 service for a short statement naming the wallet, the service's origin and the current time,
@@ -1459,6 +1482,66 @@ and the signature.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>wtn<span class="w"> </span>purchases<span class="w"> </span>--limit<span class="w"> </span><span class="m">20</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>wtn<span class="w"> </span>purchases<span class="w"> </span>--before<span class="w"> </span>&lt;next&gt;
 </code></pre></div>
+<h2 id="redelivery-and-the-update-period">Redelivery and the update period<a class="headerlink" href="#redelivery-and-the-update-period" title="Permanent link">&para;</a></h2>
+<p>A purchase is delivered in the answer its payment settles with. When that answer is lost (the
+connection drops, the process dies before the parts are saved), the wallet that paid asks for it
+again with <code>redeliver(transaction, *, version=None, private_key=None)</code>, at no charge and with no
+API key. <code>transaction</code> is the settlement hash from <code>x402["transaction"]</code> or <code>purchases()</code>. The
+wallet signs a short statement the same way as for purchase history; only the signature is sent.</p>
+<p>A unit comes back with its body. A dataset comes back as the version manifest with fresh part URLs
+valid for 15 minutes, plus <code>version</code>, <code>boughtVersion</code> and <code>updatesUntil</code>.
+<code>projects.pull_redelivered(transaction, out_dir="witan-data", *, version=None, ...)</code> downloads and
+verifies those parts into the same layout as <code>pull_paid</code>.</p>
+<p>A seller can sell a dataset with an update period: the purchase then also covers every version
+published until <code>updatesUntil</code> (in the answer of <code>buy_dataset</code> and <code>pull_paid</code>, and in each dataset
+entry of <code>purchases()</code>; <code>None</code> without one). Ask for one of them with <code>version=N</code> or
+<code>version="latest"</code>. A version outside the period (an earlier one, or one published after it ended)
+raises <code>NotCovered</code> (an <code>AuthError</code>, status 403) with the service's reason and <code>err.buy</code>, the pay
+route that sells that version. Nothing is charged either way.</p>
+<table>
+<thead>
+<tr>
+<th>Answer</th>
+<th>Raises</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>403, the version is not part of the purchase</td>
+<td><code>NotCovered</code> (<code>buy</code>, <code>version</code>, <code>bought_version</code>, <code>updates_until</code>)</td>
+</tr>
+<tr>
+<td>404, no settled purchase by this wallet with that transaction, or a service that does not pay sales to splits</td>
+<td><code>NotFoundError</code></td>
+</tr>
+<tr>
+<td>401, the signature was refused or the statement expired</td>
+<td><code>AuthError</code></td>
+</tr>
+<tr>
+<td>429, too many redeliveries from this address</td>
+<td><code>RateLimitError</code></td>
+</tr>
+</tbody>
+</table>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Python</label><label for="__tabbed_3_2">CLI</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">m</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">buy_dataset</span><span class="p">(</span><span class="s2">"api-latency-benchmarks"</span><span class="p">)</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">tx</span> <span class="o">=</span> <span class="n">m</span><span class="p">[</span><span class="s2">"x402"</span><span class="p">][</span><span class="s2">"transaction"</span><span class="p">]</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">m</span><span class="p">[</span><span class="s2">"version"</span><span class="p">],</span> <span class="n">m</span><span class="p">[</span><span class="s2">"updatesUntil"</span><span class="p">])</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">again</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">redeliver</span><span class="p">(</span><span class="n">tx</span><span class="p">)</span>                      <span class="c1"># the version bought, with fresh part URLs</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">w</span><span class="o">.</span><span class="n">projects</span><span class="o">.</span><span class="n">pull_redelivered</span><span class="p">(</span><span class="n">tx</span><span class="p">,</span> <span class="n">version</span><span class="o">=</span><span class="s2">"latest"</span><span class="p">)</span>   <span class="c1"># a later version, within the update period</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>wtn<span class="w"> </span>redeliver<span class="w"> </span>0x&lt;settlement-tx&gt;
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>wtn<span class="w"> </span>redeliver<span class="w"> </span>0x&lt;settlement-tx&gt;<span class="w"> </span>--version<span class="w"> </span>latest<span class="w"> </span>--out<span class="w"> </span>witan-data
+</code></pre></div>
+</div>
+</div>
+</div>
 <h2 id="disputes">Disputes<a class="headerlink" href="#disputes" title="Permanent link">&para;</a></h2>
 <p><code>dispute(transaction, reason)</code> disputes a settled payment (a purchase or a credit pack) within
 7 days of settlement. <code>reason</code> is 3 to 500 characters. No API key is needed. It returns
@@ -1467,16 +1550,16 @@ on-chain to the paying wallet. <code>dispute_status(dispute_id)</code> returns <
 amountMicro, transaction, reason, refundMicro, refundTx, ...}</code>; the status moves from <code>open</code>
 to <code>approved</code> and <code>refunded</code>, or to <code>rejected</code>. A payment that is already disputed raises
 <code>ConflictError</code>; an unknown transaction, or one older than 7 days, raises <code>NotFoundError</code>.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="__tabbed_3_1" name="__tabbed_3" type="radio" /><input id="__tabbed_3_2" name="__tabbed_3" type="radio" /><div class="tabbed-labels"><label for="__tabbed_3_1">Python</label><label for="__tabbed_3_2">CLI</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="4:2"><input checked="checked" id="__tabbed_4_1" name="__tabbed_4" type="radio" /><input id="__tabbed_4_2" name="__tabbed_4" type="radio" /><div class="tabbed-labels"><label for="__tabbed_4_1">Python</label><label for="__tabbed_4_2">CLI</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">d</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">dispute</span><span class="p">(</span><span class="n">unit</span><span class="p">[</span><span class="s2">"x402"</span><span class="p">][</span><span class="s2">"transaction"</span><span class="p">],</span> <span class="s2">"the body was empty"</span><span class="p">)</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">dispute_status</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])[</span><span class="s2">"status"</span><span class="p">])</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">d</span> <span class="o">=</span> <span class="n">w</span><span class="o">.</span><span class="n">dispute</span><span class="p">(</span><span class="n">unit</span><span class="p">[</span><span class="s2">"x402"</span><span class="p">][</span><span class="s2">"transaction"</span><span class="p">],</span> <span class="s2">"the body was empty"</span><span class="p">)</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">w</span><span class="o">.</span><span class="n">dispute_status</span><span class="p">(</span><span class="n">d</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])[</span><span class="s2">"status"</span><span class="p">])</span>
 </code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>wtn<span class="w"> </span>dispute<span class="w"> </span>0x&lt;settlement-tx&gt;<span class="w"> </span>--reason<span class="w"> </span><span class="s2">"the body was empty"</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>wtn<span class="w"> </span>dispute<span class="w"> </span>&lt;dispute-id&gt;<span class="w"> </span>--status
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>wtn<span class="w"> </span>dispute<span class="w"> </span>0x&lt;settlement-tx&gt;<span class="w"> </span>--reason<span class="w"> </span><span class="s2">"the body was empty"</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>wtn<span class="w"> </span>dispute<span class="w"> </span>&lt;dispute-id&gt;<span class="w"> </span>--status
 </code></pre></div>
 </div>
 </div>

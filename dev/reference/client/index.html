@@ -916,6 +916,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#witan_sdk.Witan.redeliver" class="md-nav__link">
+    <span class="md-ellipsis">
+      redeliver
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#witan_sdk.Witan.buy" class="md-nav__link">
     <span class="md-ellipsis">
       buy
@@ -1024,6 +1033,15 @@
   <a href="#witan_sdk.client.Projects.pull_paid" class="md-nav__link">
     <span class="md-ellipsis">
       pull_paid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#witan_sdk.client.Projects.pull_redelivered" class="md-nav__link">
+    <span class="md-ellipsis">
+      pull_redelivered
     </span>
   </a>
   
@@ -1691,6 +1709,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#witan_sdk.Witan.redeliver" class="md-nav__link">
+    <span class="md-ellipsis">
+      redeliver
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#witan_sdk.Witan.buy" class="md-nav__link">
     <span class="md-ellipsis">
       buy
@@ -1799,6 +1826,15 @@
   <a href="#witan_sdk.client.Projects.pull_paid" class="md-nav__link">
     <span class="md-ellipsis">
       pull_paid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#witan_sdk.client.Projects.pull_redelivered" class="md-nav__link">
+    <span class="md-ellipsis">
+      pull_redelivered
     </span>
   </a>
   
@@ -2876,6 +2912,39 @@ Returns <code>{wallet, purchases, next}</code>.</p>
 <div class="doc doc-object doc-function">
 
 
+<h3 id="witan_sdk.Witan.redeliver" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">redeliver</span>
+
+
+<a href="#witan_sdk.Witan.redeliver" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">redeliver</span><span class="p">(</span><span class="n">transaction</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">'int | str | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>What a settled x402 purchase delivered, delivered again to the wallet that paid, at no charge —
+for a delivery that was lost (a dropped connection, a crash before the parts were saved).
+<code>transaction</code> is the settlement tx hash (<code>x402["transaction"]</code> of a buy, or <code>transaction</code> in
+<code>purchases()</code>). A unit comes back with its body; a dataset as the version manifest with fresh
+15-minute part URLs, plus <code>version</code>, <code>boughtVersion</code> and <code>updatesUntil</code>.</p>
+<p>A dataset sold with an update period also covers the versions published until <code>updatesUntil</code>:
+ask for one with <code>version=N</code> or <code>version="latest"</code>. A version outside the period raises
+<code>NotCovered</code> with the service's reason and <code>buy</code>, the pay route that sells it; nothing is
+charged. Without <code>version</code> the answer is the version that was bought.</p>
+<p>No API key: the wallet (key as for <code>buy()</code>: argument or <code>WITAN_WALLET_KEY</code>; needs the x402
+extra) signs WITAN's statement, built here and checked against the one the pay service issued;
+only the signature is sent. Only on a service that pays sales to splits — elsewhere it raises
+<code>NotFoundError</code>. An unknown transaction, or one this wallet did not pay, raises <code>NotFoundError</code>;
+a refused or expired signature <code>AuthError</code>; too many asks <code>RateLimitError</code>.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
 <h3 id="witan_sdk.Witan.buy" class="doc doc-heading">
             <span class="doc doc-object-name doc-function-name">buy</span>
 
@@ -2970,7 +3039,10 @@ it raises <code>PaymentRequiredError</code> with the top-up URL.</p>
     <div class="doc doc-contents ">
 
         <p>Buy one version of a paid dataset project over x402 (see <code>buy()</code>, also for
-<code>accept_terms</code>).</p>
+<code>accept_terms</code>). The answer carries <code>updatesUntil</code>: the versions published until then come
+with the purchase, at no charge, through <code>redeliver(x402["transaction"], version=...)</code>. A
+version the wallet already has that way raises <code>AlreadyCovered</code> (409, nothing charged) with
+the <code>transaction</code> and <code>version</code> to redeliver.</p>
 
 
     </div>
@@ -3196,7 +3268,34 @@ downloaded and sha256-verified exactly as <code>pull</code> does, into the same
 signs the terms acknowledgement). A version whose
 parts are already complete on disk is returned from the local manifest without paying
 again. The returned manifest carries the settlement under <code>x402</code> (the proof a dispute
-needs); the copy on disk does not.</p>
+needs) and the purchase's <code>updatesUntil</code>; the copy on disk does not.</p>
+<p>A version this wallet already has through the update period of an earlier purchase is not paid
+for twice: the pay service answers <code>AlreadyCovered</code> and this fetches it with <code>redeliver</code>
+instead, at no charge (the result then has <code>redelivered: True</code> and that <code>transaction</code>).</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="witan_sdk.client.Projects.pull_redelivered" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">pull_redelivered</span>
+
+
+<a href="#witan_sdk.client.Projects.pull_redelivered" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">pull_redelivered</span><span class="p">(</span><span class="n">transaction</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">out_dir</span><span class="p">:</span> <span class="s1">'str | os.PathLike[str]'</span> <span class="o">=</span> <span class="s1">'witan-data'</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="s1">'int | str | None'</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">private_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="n">verify</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p><code>Witan.redeliver</code> for a dataset purchase, laid out like <code>pull_paid</code>: the version bought by
+<code>transaction</code> (or <code>version=N</code> / <code>"latest"</code> within its update period) is delivered again at
+no charge and its parts downloaded and verified into <code>out_dir/&lt;slug&gt;/parts</code>. Returns the local
+manifest with <code>redelivered</code>, <code>transaction</code>, <code>boughtVersion</code> and <code>updatesUntil</code>. A
+transaction that bought a unit returns the unit as <code>Witan.redeliver</code> does (nothing is written).</p>
 
 
     </div>

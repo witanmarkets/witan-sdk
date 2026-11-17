@@ -758,6 +758,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#witan_sdk.errors.AlreadyCovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      AlreadyCovered
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#witan_sdk.errors.NotCovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      NotCovered
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#witan_sdk.errors.RateLimitError" class="md-nav__link">
     <span class="md-ellipsis">
       RateLimitError
@@ -1054,6 +1072,24 @@
   <a href="#witan_sdk.errors.ConflictError" class="md-nav__link">
     <span class="md-ellipsis">
       ConflictError
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#witan_sdk.errors.AlreadyCovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      AlreadyCovered
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#witan_sdk.errors.NotCovered" class="md-nav__link">
+    <span class="md-ellipsis">
+      NotCovered
     </span>
   </a>
   
@@ -1428,6 +1464,102 @@ the HTTP status, the server's error message and the raw JSON body.</p>
 
 
         <p>409 — e.g. a revision is already pending for this lineage.</p>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="witan_sdk.errors.AlreadyCovered" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AlreadyCovered</span>
+
+
+<a href="#witan_sdk.errors.AlreadyCovered" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">AlreadyCovered</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="ConflictError (witan_sdk.errors.ConflictError)" href="#witan_sdk.errors.ConflictError">ConflictError</a></code></p>
+
+
+        <p>409 from an x402 dataset purchase — the paying wallet already has this version through the update
+period of an earlier purchase, and nothing was charged. Get it with
+<code>redeliver(err.transaction, version=err.version)</code> (<code>projects.pull_paid</code> does that by itself).</p>
+
+
+
+
+
+
+
+
+
+
+  <div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="witan_sdk.errors.NotCovered" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">NotCovered</span>
+
+
+<a href="#witan_sdk.errors.NotCovered" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">NotCovered</span><span class="p">(</span><span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="AuthError (witan_sdk.errors.AuthError)" href="#witan_sdk.errors.AuthError">AuthError</a></code></p>
+
+
+        <p>403 from <code>redeliver(..., version=...)</code> — the version asked for is not part of that purchase (an
+earlier one, or one published after its update period ended). Nothing was charged; <code>buy</code> is the
+pay route that sells it.</p>
 
 
 

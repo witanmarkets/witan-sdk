@@ -540,6 +540,50 @@ def review_results() -> str:
                b, "False rejections of honest units on the synthetic set fell from 7 with the cut at 55 to 1 with the 45 to 55 band")
 
 
+def hbars(rows: list[tuple[str, int, str, str]], total: int, x0: float = 32, y0: float = 96, lw: float = 300,
+          bw: float = 470, step: float = 50) -> list[str]:
+    """Horizontal bars, one row each: label, count, note on the right, colour; widths share one scale."""
+    top = max(n for _l, n, _r, _c in rows)
+    b: list[str] = []
+    for i, (label, n, note, color) in enumerate(rows):
+        y = y0 + i * step
+        w = max(3.0, bw * n / top)
+        b += [text(x0, y + 19, label, 14, INK, 500),
+              f'<rect x="{x0 + lw}" y="{y + 4}" width="{bw}" height="22" rx="6" fill="{INK}" fill-opacity=".05"/>',
+              f'<rect x="{x0 + lw}" y="{y + 4}" width="{w:.1f}" height="22" rx="6" fill="{color}"/>',
+              text(x0 + lw + bw + 16, y + 20, f"{n:,}", 14, INK, 600, mono=True),
+              text(x0 + lw + bw + 74, y + 20, note, 12.5, SOFT)]
+    return b
+
+
+def mcp_handshake_results() -> str:
+    """One week of MCP handshakes: each endpoint's latest probe, four outcomes."""
+    rows = [("Completed the handshake", 2309, "54.7%", GREEN),
+            ("Asked for authorization", 1294, "30.7%", CYAN),
+            ("Answered, but not with MCP", 440, "10.4%", AMBER),
+            ("Could not be reached", 178, "4.2%", ROSE)]
+    b = hbars(rows, 4221) + [text(32, 306, "4,221 remote endpoints in the official MCP registry, Nov 10-17 2026, latest probe each, from one vantage in South Korea", 12, DIM)]
+    return svg(960, 326, "4,221 MCP servers, one handshake each",
+               "What each endpoint answered to initialize, its latest probe that week.",
+               b, "Of 4,221 MCP registry endpoints, 2,309 (54.7%) completed the handshake, 1,294 (30.7%) asked for authorization, 440 (10.4%) answered but not with MCP, 178 (4.2%) could not be reached")
+
+
+def mcp_handshake_failures() -> str:
+    """The 618 that did not answer with MCP or an auth challenge, by kind."""
+    rows = [("HTTP 404: no server at that URL", 284, "", AMBER),
+            ("DNS: the host no longer resolves", 136, "", ROSE),
+            ("HTTP 5xx", 46, "", AMBER),
+            ("Other HTTP 4xx", 43, "", AMBER),
+            ("Redirect we do not follow", 29, "", AMBER),
+            ("Timeout", 23, "", ROSE),
+            ("402 Payment Required", 21, "x402", VIOLET),
+            ("TLS failure", 13, "", ROSE)]
+    b = hbars(rows, 618, step=40) + [text(32, 436, "amber: answered with an error; rose: could not be reached; 23 more of other kinds not shown", 12, DIM)]
+    return svg(960, 456, "Where the other 618 went",
+               "Endpoints that neither completed the handshake nor asked for authorization.",
+               b, "Of 618 failing endpoints: 284 HTTP 404, 136 DNS failures, 46 HTTP 5xx, 43 other 4xx, 29 redirects, 23 timeouts, 21 answered 402 Payment Required, 13 TLS failures")
+
+
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     for name, fn in [("how-it-works", how_it_works), ("why-witan", why_witan),
@@ -549,7 +593,8 @@ def main() -> None:
                      ("oauth-grant", oauth_grant),
                      ("split-flow", split_flow), ("split-vs-custody", split_vs_custody),
                      ("review-flow", review_flow), ("verdict-card", verdict_card),
-                     ("review-results", review_results)]:
+                     ("review-results", review_results),
+                     ("mcp-handshake-results", mcp_handshake_results), ("mcp-handshake-failures", mcp_handshake_failures)]:
         svg = fn()
         (OUT / f"{name}.svg").write_text(svg, encoding="utf-8", newline="\n")   # LF on every platform: the files are compared byte for byte
         OUT_API.mkdir(parents=True, exist_ok=True)

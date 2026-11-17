@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 496" width="960" height="496" role="img" aria-label="Of 618 failing endpoints: 284 HTTP 404, 136 DNS failures, 46 HTTP 5xx, 43 other 4xx, 29 redirects, 23 timeouts, 21 answered 402 Payment Required, 13 TLS failures" font-family="'Wanted Sans Variable', 'Wanted Sans', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" text-rendering="geometricPrecision">
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9BA1AD"/></marker><marker id="arrow-v" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7C5CFF"/></marker><marker id="arrow-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#FFB35C"/></marker><linearGradient id="aurora" x1="12" y1="2" x2="21" y2="10" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7C5CFF"/><stop offset=".6" stop-color="#FF5C87"/><stop offset="1" stop-color="#FFB35C"/></linearGradient><linearGradient id="aurora-h" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="aurora-v" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#7C5CFF"/><stop offset="1" stop-color="#5EE0FF"/></linearGradient><linearGradient id="tint" x1=".3" y1="0" x2=".7" y2="1"><stop offset="0" stop-color="#7C5CFF" stop-opacity=".2"/><stop offset=".46" stop-color="#07080C" stop-opacity="0"/><stop offset="1" stop-color="#5EE0FF" stop-opacity=".07"/></linearGradient><filter id="glow-v" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#7C5CFF" flood-opacity="0.55"/></filter><filter id="glow-w" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="2.5" flood-color="#ECEEF2" flood-opacity="0.45"/></filter><filter id="glow-g" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#58C48A" flood-opacity="0.8"/></filter><filter id="glow-a" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="#FFB35C" flood-opacity="0.45"/></filter><filter id="blur-mark" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.2"/></filter></defs>
+<rect width="960" height="496" rx="18" fill="#07080C"/>
+<rect width="960" height="496" rx="18" fill="url(#tint)"/>
+<rect x=".5" y=".5" width="959" height="495" rx="17.5" fill="none" stroke="#ECEEF2" stroke-opacity=".12"/>
+<g transform="translate(32.6 24.6) scale(0.95)" filter="url(#blur-mark)" opacity=".6"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><g transform="translate(32.6 24.6) scale(0.95)"><polygon points="3,7 12,2 12,10" fill="#F2F3F7"/><polygon points="12,2 21,7 12,10" fill="url(#aurora)"/><polygon points="21,7 21,17 12,22 12,10" fill="#B9BEC9"/><polygon points="3,7 12,10 12,22 3,17" fill="#5E6470"/></g><text x="62" y="41.5" font-size="15.5" font-weight="700" letter-spacing="-0.3" fill="#ECEEF2">WITAN</text>
+<text x="32" y="86" font-size="25" font-weight="800" letter-spacing="-0.8" fill="#ECEEF2">Where the other 618 went</text>
+<text x="32" y="111" font-size="14" fill="#9BA1AD">Endpoints that neither completed the handshake nor asked for authorization.</text>
+<g transform="translate(0 40)">
+<text x="32" y="115" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">HTTP 404: no server at that URL</text>
+<rect x="332" y="100" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="100" width="470.0" height="22" rx="6" fill="#FFB35C"/>
+<text x="818" y="116" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">284</text>
+<text x="876" y="116" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="155" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">DNS: the host no longer resolves</text>
+<rect x="332" y="140" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="140" width="225.1" height="22" rx="6" fill="#FF5C87"/>
+<text x="818" y="156" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">136</text>
+<text x="876" y="156" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="195" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">HTTP 5xx</text>
+<rect x="332" y="180" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="180" width="76.1" height="22" rx="6" fill="#FFB35C"/>
+<text x="818" y="196" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">46</text>
+<text x="876" y="196" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="235" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Other HTTP 4xx</text>
+<rect x="332" y="220" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="220" width="71.2" height="22" rx="6" fill="#FFB35C"/>
+<text x="818" y="236" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">43</text>
+<text x="876" y="236" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="275" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Redirect we do not follow</text>
+<rect x="332" y="260" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="260" width="48.0" height="22" rx="6" fill="#FFB35C"/>
+<text x="818" y="276" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">29</text>
+<text x="876" y="276" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="315" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">Timeout</text>
+<rect x="332" y="300" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="300" width="38.1" height="22" rx="6" fill="#FF5C87"/>
+<text x="818" y="316" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">23</text>
+<text x="876" y="316" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="355" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">402 Payment Required</text>
+<rect x="332" y="340" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="340" width="34.8" height="22" rx="6" fill="#7C5CFF"/>
+<text x="818" y="356" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">21</text>
+<text x="876" y="356" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve">x402</text>
+<text x="32" y="395" font-size="14" font-weight="500" fill="#ECEEF2" text-anchor="start" xml:space="preserve">TLS failure</text>
+<rect x="332" y="380" width="470" height="22" rx="6" fill="#ECEEF2" fill-opacity=".05"/>
+<rect x="332" y="380" width="21.5" height="22" rx="6" fill="#FF5C87"/>
+<text x="818" y="396" font-size="14" font-weight="600" fill="#ECEEF2" text-anchor="start" xml:space="preserve" font-family="'DM Mono', 'SFMono-Regular', Consolas, monospace">13</text>
+<text x="876" y="396" font-size="12.5" font-weight="400" fill="#9BA1AD" text-anchor="start" xml:space="preserve"></text>
+<text x="32" y="436" font-size="12" font-weight="400" fill="#5D6370" text-anchor="start" xml:space="preserve">amber: answered with an error; rose: could not be reached; 23 more of other kinds not shown</text>
+</g>
+</svg>
